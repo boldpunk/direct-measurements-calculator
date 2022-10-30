@@ -71,7 +71,7 @@ export default class DirectMeasurement {
   }
 
   confidenceLimitInt() {
-    return this.#shorten(this.confidenceLimit * 0.01, 2);
+    return this.#shorten(this.confidenceLimit * 0.01, 5);
   }
 
   calculate() {
