@@ -21,7 +21,7 @@ export default class DirectMeasurement {
    * @param {number} limit how far you want to limit to, default = 5
    * @returns {number}
    */
-  #shorten(number, limit = 5) {
+  #shorten(number, limit = 10) {
     if (typeof number === "number") {
       return number.toFixed(limit);
     }
