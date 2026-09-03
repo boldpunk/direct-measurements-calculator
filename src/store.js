@@ -231,6 +231,26 @@ export function createOrder(data) {
   return order;
 }
 
+export function updateOrder(orderId, patch) {
+  const order = _state.orders.find((o) => o.id === orderId);
+  if (!order) return;
+  if (patch.clientName !== undefined) order.clientName = patch.clientName;
+  if (patch.clientPhone !== undefined) order.clientPhone = patch.clientPhone;
+  if (patch.productType !== undefined) order.productType = patch.productType;
+  if (patch.amount !== undefined) order.amount = Number(patch.amount) || 0;
+  if (patch.deadline !== undefined) order.deadline = patch.deadline;
+  save();
+}
+
+export function deleteOrder(orderId) {
+  _state.orders = _state.orders.filter((o) => o.id !== orderId);
+  _state.stages = _state.stages.filter((st) => st.orderId !== orderId);
+  _state.tasks = _state.tasks.filter((t) => t.orderId !== orderId);
+  _state.rework = _state.rework.filter((r) => r.orderId !== orderId);
+  delete _state.finance[orderId];
+  save();
+}
+
 function stagesOf(state, orderId) {
   return state.stages
     .filter((st) => st.orderId === orderId)

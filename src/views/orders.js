@@ -1,5 +1,5 @@
 import {
-  getState, createOrder, getOrderStages, completeStage, setStageAssignment,
+  getState, createOrder, updateOrder, deleteOrder, getOrderStages, completeStage, setStageAssignment,
   isOverdue, STAGE_DEFS,
 } from '../store.js';
 import { money, shortDate, escapeHtml, statusBadgeClass } from '../format.js';
@@ -93,7 +93,11 @@ function renderOrderDetail(orderId) {
         <h2>${escapeHtml(order.productType)} #${order.number}</h2>
         <div class="row-item__sub">${escapeHtml(order.clientName)} · ${order.clientPhone ? `<a class="tel-link" href="tel:${escapeHtml(order.clientPhone.replace(/[^+\d]/g, ''))}">${escapeHtml(order.clientPhone)}</a>` : '—'}</div>
       </div>
-      <span class="badge badge--stage-${order.status === 'завершён' ? 'done' : 'active'}">${order.status}</span>
+      <div class="order-detail__actions">
+        <span class="badge badge--stage-${order.status === 'завершён' ? 'done' : 'active'}">${order.status}</span>
+        <button type="button" class="btn btn--sm" data-action="edit-order" data-id="${order.id}"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-order" data-id="${order.id}"><i class="fa-solid fa-trash"></i></button>
+      </div>
     </div>
     <div class="order-detail__stats">
       <div><span>Сумма</span><b>${money(order.amount)}</b></div>
@@ -128,24 +132,44 @@ export function attachOrderHandlers(root, rerender) {
       rerender();
     });
   });
+
+  const editBtn = root.querySelector('[data-action="edit-order"]');
+  if (editBtn) editBtn.addEventListener('click', () => openEditOrderModal(editBtn.getAttribute('data-id'), rerender));
+
+  const deleteBtn = root.querySelector('[data-action="delete-order"]');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', () => {
+      const state = getState();
+      const order = state.orders.find((o) => o.id === deleteBtn.getAttribute('data-id'));
+      if (!order) return;
+      if (window.confirm(`Удалить заказ ${order.productType} #${order.number}? Все связанные этапы, задачи, переделки и финансы будут удалены.`)) {
+        deleteOrder(order.id);
+        selectedOrderId = null;
+        rerender();
+      }
+    });
+  }
+}
+
+function orderFormFields(order) {
+  return `
+    <label>Клиент<input name="clientName" required placeholder="Имя клиента" value="${order ? escapeHtml(order.clientName) : ''}" /></label>
+    <label>Телефон<input name="clientPhone" placeholder="+998 90 000-00-00" value="${order ? escapeHtml(order.clientPhone) : ''}" /></label>
+    <label>Тип изделия
+      <select name="productType">
+        ${['Кухня', 'Шкаф', 'Гардеробная', 'Другое'].map((t) => `<option ${order?.productType === t ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+    </label>
+    <label>Сумма договора, $<input name="amount" type="number" min="0" step="1" required value="${order ? order.amount : ''}" /></label>
+    <label>Дедлайн<input name="deadline" type="date" required value="${order ? order.deadline : ''}" /></label>
+    ${order ? '' : '<label class="checkbox-label"><input type="checkbox" name="needsCarpentry" checked /> Требует этап «Столярка»</label>'}
+  `;
 }
 
 function openNewOrderModal(rerender) {
   openModal('Новый заказ', `
     <form id="order-form" class="form">
-      <label>Клиент<input name="clientName" required placeholder="Имя клиента" /></label>
-      <label>Телефон<input name="clientPhone" placeholder="+998 90 000-00-00" /></label>
-      <label>Тип изделия
-        <select name="productType">
-          <option>Кухня</option>
-          <option>Шкаф</option>
-          <option>Гардеробная</option>
-          <option>Другое</option>
-        </select>
-      </label>
-      <label>Сумма договора, $<input name="amount" type="number" min="0" step="1" required /></label>
-      <label>Дедлайн<input name="deadline" type="date" required /></label>
-      <label class="checkbox-label"><input type="checkbox" name="needsCarpentry" checked /> Требует этап «Столярка»</label>
+      ${orderFormFields(null)}
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
         <button type="submit" class="btn btn--primary">Создать заказ</button>
@@ -165,6 +189,35 @@ function openNewOrderModal(rerender) {
       needsCarpentry: fd.get('needsCarpentry') === 'on',
     });
     selectedOrderId = order.id;
+    closeModal();
+    rerender();
+  });
+}
+
+function openEditOrderModal(orderId, rerender) {
+  const order = getState().orders.find((o) => o.id === orderId);
+  if (!order) return;
+
+  openModal('Изменить заказ', `
+    <form id="order-edit-form" class="form">
+      ${orderFormFields(order)}
+      <div class="form-actions">
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary">Сохранить</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById('order-edit-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    updateOrder(orderId, {
+      clientName: fd.get('clientName'),
+      clientPhone: fd.get('clientPhone'),
+      productType: fd.get('productType'),
+      amount: fd.get('amount'),
+      deadline: fd.get('deadline'),
+    });
     closeModal();
     rerender();
   });

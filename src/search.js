@@ -13,30 +13,49 @@ function computeResults(rawQuery) {
   const results = [];
 
   state.orders.forEach((o) => {
-    if (matches(o.clientName, query) || matches(o.productType, query) || matches(`#${o.number}`, query)) {
+    if (
+      matches(o.clientName, query) || matches(o.productType, query) || matches(`#${o.number}`, query)
+      || matches(o.clientPhone, query) || matches(o.status, query)
+    ) {
       results.push({
         icon: 'fa-box-open',
         title: `${o.productType} #${o.number}`,
-        sub: o.clientName,
+        sub: `${o.clientName} · ${o.status}`,
         go: () => { selectOrder(o.id); window.location.hash = '#/orders'; },
       });
     }
   });
 
   state.tasks.forEach((t) => {
-    if (matches(t.name, query)) {
+    const assignee = state.employees.find((e) => e.id === t.assigneeId);
+    if (
+      matches(t.name, query) || matches(t.comment, query) || matches(t.priority, query)
+      || matches(t.status, query) || matches(assignee?.name, query)
+    ) {
       const order = state.orders.find((o) => o.id === t.orderId);
       results.push({
         icon: 'fa-hammer',
         title: t.name,
-        sub: order ? `${order.productType} #${order.number}` : 'Столярка',
+        sub: `${order ? `${order.productType} #${order.number}` : 'Столярка'} · ${t.status}`,
         go: () => { window.location.hash = '#/carpentry'; },
       });
     }
   });
 
+  state.rework.forEach((r) => {
+    const order = state.orders.find((o) => o.id === r.orderId);
+    if (matches(r.description, query) || matches(r.reason, query)) {
+      results.push({
+        icon: 'fa-rotate',
+        title: r.description,
+        sub: order ? `${order.productType} #${order.number} · ${r.status}` : r.status,
+        go: () => { window.location.hash = '#/rework'; },
+      });
+    }
+  });
+
   state.partners.forEach((p) => {
-    if (matches(p.name, query)) {
+    if (matches(p.name, query) || matches(p.contacts, query) || matches(p.comment, query) || p.services.some((s) => matches(s, query))) {
       results.push({
         icon: 'fa-layer-group',
         title: p.name,
@@ -47,7 +66,7 @@ function computeResults(rawQuery) {
   });
 
   state.employees.forEach((e) => {
-    if (matches(e.name, query)) {
+    if (matches(e.name, query) || matches(e.role, query) || matches(e.phone, query)) {
       results.push({
         icon: 'fa-user',
         title: e.name,
