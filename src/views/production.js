@@ -1,81 +1,89 @@
-import { getState, getActiveStage, completeStage, isOverdue, STAGE_DEFS } from '../store.js';
-import { shortDate, escapeHtml } from '../format.js';
+import { getState, updateOrderStatus, getOrderDeadlineInfo, KANBAN_COLUMNS, ORDER_STATUSES } from '../store.js';
+import { escapeHtml, deadlineBadgeClass } from '../format.js';
 import { selectOrder } from './orders.js';
 
 export function renderProduction() {
   const state = getState();
-  const activeOrders = state.orders.filter((o) => o.status !== 'завершён');
-  const doneOrders = state.orders.filter((o) => o.status === 'завершён');
 
-  const phaseCols = STAGE_DEFS.map((def) => {
-    const orders = activeOrders.filter((o) => getActiveStage(o.id)?.defKey === def.key);
-    return renderColumn(def.name, def.key, orders, state, def.key === 'carpentry');
-  }).join('');
-
-  const doneCol = `
-    <div class="prod-col" data-phase="done">
-      <div class="prod-col__title">Готово <span class="kanban-col__count">${doneOrders.length}</span></div>
-      <div class="prod-col__body">
-        ${doneOrders.map((o) => renderCard(o, state, null)).join('') || '<div class="empty-state empty-state--sm">пусто</div>'}
+  const cols = KANBAN_COLUMNS.map((col) => {
+    const orders = state.orders.filter((o) => o.status === col.status);
+    return `
+      <div class="prod-col" data-status="${escapeHtml(col.status)}">
+        <div class="prod-col__title">${escapeHtml(col.label)} <span class="kanban-col__count">${orders.length}</span></div>
+        <div class="prod-col__body" data-drop-status="${escapeHtml(col.status)}">
+          ${orders.map((o) => renderCard(o, state)).join('') || '<div class="empty-state empty-state--sm">пусто</div>'}
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  }).join('');
 
   return `
     <div class="page-header">
       <h1>Производство</h1>
-      <span class="row-item__sub">Заказы по этапам пайплайна — от продажи до сдачи</span>
+      <span class="row-item__sub">Перетащите карточку или выберите статус — доска Kanban по этапам заказа</span>
     </div>
-    <div class="prod-board">${phaseCols}${doneCol}</div>
+    <div class="prod-board">${cols}</div>
   `;
 }
 
-function renderColumn(title, phaseKey, orders, state, isCarpentry) {
+function renderCard(o, state) {
+  const manager = state.employees.find((e) => e.id === o.managerId);
+  const deadlineInfo = getOrderDeadlineInfo(o);
   return `
-    <div class="prod-col" data-phase="${phaseKey}">
-      <div class="prod-col__title">
-        ${escapeHtml(title)} <span class="kanban-col__count">${orders.length}</span>
-        ${isCarpentry ? '<a href="#/carpentry" class="prod-col__link" title="Открыть доску Столярка"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>' : ''}
-      </div>
-      <div class="prod-col__body">
-        ${orders.map((o) => renderCard(o, state, getActiveStage(o.id))).join('') || '<div class="empty-state empty-state--sm">пусто</div>'}
-      </div>
-    </div>
-  `;
-}
-
-function renderCard(o, state, stage) {
-  const overdue = stage && isOverdue(stage.deadline, stage.status);
-  const assignee = stage ? state.employees.find((e) => e.id === stage.assigneeId) : null;
-  const partner = stage ? state.partners.find((p) => p.id === stage.partnerId) : null;
-  const who = stage?.type === 'outsource' ? partner?.name : assignee?.name;
-
-  return `
-    <div class="prod-card ${overdue ? 'is-overdue' : ''}" data-order-id="${o.id}">
+    <div class="prod-card" data-order-id="${o.id}" draggable="true">
       <div class="prod-card__title">${escapeHtml(o.productType)} #${o.number}</div>
       <div class="prod-card__sub">${escapeHtml(o.clientName)}</div>
       <div class="prod-card__footer">
-        <span>${who ? escapeHtml(who) : 'не назначен'}</span>
-        ${stage ? `<span class="${overdue ? 'is-overdue' : ''}">${shortDate(stage.deadline)}</span>` : '<span><i class="fa-solid fa-check"></i></span>'}
+        <span>${manager ? escapeHtml(manager.name) : 'не назначен'}</span>
+        <span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span>
       </div>
-      ${stage && stage.status === 'в работе' ? `<button type="button" class="btn btn--sm prod-card__advance" data-action="advance" data-stage="${stage.id}">Завершить этап</button>` : ''}
+      <select class="prod-card__status-select" data-order-status="${o.id}" title="Изменить статус">
+        ${ORDER_STATUSES.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
+      </select>
     </div>
   `;
 }
 
 export function attachProductionHandlers(root, rerender) {
-  root.querySelectorAll('[data-action="advance"]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
+  root.querySelectorAll('[data-order-status]').forEach((sel) => {
+    sel.addEventListener('change', (e) => {
       e.stopPropagation();
-      completeStage(btn.getAttribute('data-stage'));
+      updateOrderStatus(sel.getAttribute('data-order-status'), sel.value);
       rerender();
     });
   });
 
-  root.querySelectorAll('[data-order-id]').forEach((card) => {
-    card.addEventListener('click', () => {
+  root.querySelectorAll('.prod-card__title, .prod-card__sub').forEach((el) => {
+    el.addEventListener('click', () => {
+      const card = el.closest('[data-order-id]');
       selectOrder(card.getAttribute('data-order-id'));
       window.location.hash = '#/orders';
+    });
+  });
+
+  let draggedId = null;
+  root.querySelectorAll('.prod-card').forEach((card) => {
+    card.addEventListener('dragstart', () => {
+      draggedId = card.getAttribute('data-order-id');
+      card.classList.add('is-dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
+  });
+
+  root.querySelectorAll('[data-drop-status]').forEach((col) => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      col.classList.add('is-drop-target');
+    });
+    col.addEventListener('dragleave', () => col.classList.remove('is-drop-target'));
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('is-drop-target');
+      if (draggedId) {
+        updateOrderStatus(draggedId, col.getAttribute('data-drop-status'));
+        draggedId = null;
+        rerender();
+      }
     });
   });
 }

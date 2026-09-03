@@ -1,6 +1,6 @@
 import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle } from './ui.js';
 import { initSearch } from './search.js';
-import { renderDashboard } from './views/dashboard.js';
+import { renderDashboard, attachDashboardHandlers } from './views/dashboard.js';
 import { renderOrders, attachOrderHandlers } from './views/orders.js';
 import { renderProduction, attachProductionHandlers } from './views/production.js';
 import { renderCarpentry, attachCarpentryHandlers } from './views/carpentry.js';
@@ -11,7 +11,7 @@ import { renderEmployees, attachEmployeesHandlers } from './views/employees.js';
 import { renderSettings, attachSettingsHandlers } from './views/settings.js';
 
 const ROUTES = {
-  dashboard: { render: renderDashboard, attach: null },
+  dashboard: { render: renderDashboard, attach: attachDashboardHandlers },
   orders: { render: renderOrders, attach: attachOrderHandlers },
   production: { render: renderProduction, attach: attachProductionHandlers },
   carpentry: { render: renderCarpentry, attach: attachCarpentryHandlers },

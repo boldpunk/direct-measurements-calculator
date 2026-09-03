@@ -38,7 +38,7 @@ function renderTaskCard(t, state) {
     <div class="task-card ${overdue ? 'is-overdue' : ''}" data-task-id="${t.id}">
       <div class="task-card__top">
         <span class="priority-select-wrap">
-          ${t.priority !== 'обычный' ? '<i class="fa-solid fa-fire priority-select__icon"></i>' : ''}
+          ${t.priority === 'Срочно' || t.priority === 'Высокий' ? '<i class="fa-solid fa-fire priority-select__icon"></i>' : ''}
           <select class="${priorityBadgeClass(t.priority)} priority-select" data-task-priority="${t.id}" title="Приоритет">
             ${TASK_PRIORITIES.map((p) => `<option value="${p}" ${p === t.priority ? 'selected' : ''}>${p}</option>`).join('')}
           </select>
@@ -105,8 +105,7 @@ function openNewTaskModal(rerender) {
       <label>Дедлайн<input name="deadline" type="date" required /></label>
       <label>Приоритет
         <select name="priority">
-          <option value="обычный">обычный</option>
-          <option value="срочный">срочный</option>
+          ${TASK_PRIORITIES.map((p) => `<option value="${p}" ${p === 'Средний' ? 'selected' : ''}>${p}</option>`).join('')}
         </select>
       </label>
       <label>Комментарий<textarea name="comment" rows="2"></textarea></label>

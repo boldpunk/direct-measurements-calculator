@@ -83,7 +83,7 @@ function openNewReworkModal(rerender) {
       </label>
       <label>Влияние на стоимость<input name="costImpact" type="number" min="0" value="0" /></label>
       <label>Фото (ссылка на изображение)<input name="photoUrl" type="url" placeholder="https://..." /></label>
-      <p class="form-hint">Переделка автоматически создаст задачу «Столярка» с приоритетом «переделка».</p>
+      <p class="form-hint">Переделка автоматически создаст задачу «Столярка» с приоритетом «Срочно».</p>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
         <button type="submit" class="btn btn--primary">Создать переделку</button>

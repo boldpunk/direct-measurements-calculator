@@ -1,4 +1,4 @@
-import { getState } from './store.js';
+import { getState, getOrderStatusTone } from './store.js';
 
 export function money(n) {
   const v = Number(n) || 0;
@@ -31,8 +31,17 @@ export function statusBadgeClass(status) {
 
 export function priorityBadgeClass(priority) {
   switch (priority) {
-    case 'срочный': return 'badge badge--urgent';
-    case 'переделка': return 'badge badge--rework';
-    default: return 'badge badge--muted';
+    case 'Срочно': return 'badge badge--urgent';
+    case 'Высокий': return 'badge badge--high';
+    case 'Низкий': return 'badge badge--muted';
+    default: return 'badge badge--medium';
   }
+}
+
+export function orderStatusBadgeClass(status) {
+  return `badge badge--tone-${getOrderStatusTone(status)}`;
+}
+
+export function deadlineBadgeClass(tone) {
+  return `badge badge--tone-${tone}`;
 }

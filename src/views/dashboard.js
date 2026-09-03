@@ -1,55 +1,67 @@
 import {
-  getState, getOverdueOrders, getInProgressOrders, getCarpentryTasks,
-  getActiveStage, computeMonthlyProfit, isOverdue,
+  getState, getOverdueOrders, getInProgressOrders, getUnpaidOrders, getUpcomingDeadlines,
+  getOrdersByStatusCounts, computeOrderFinance, computeMonthlyProfit, getOrderDeadlineInfo,
+  ORDER_STATUSES, todayISO,
 } from '../store.js';
-import { money, shortDate, escapeHtml, statusBadgeClass, priorityBadgeClass } from '../format.js';
+import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { kpiCard, card } from '../ui.js';
+import { selectOrder } from './orders.js';
 
 export function renderDashboard() {
   const state = getState();
-  const overdue = getOverdueOrders();
-  const inProgress = getInProgressOrders();
-  const carpentryTasks = getCarpentryTasks();
-  const openRework = state.rework.filter((r) => r.status !== 'готово');
-  const reworkCost = openRework.reduce((sum, r) => sum + (r.costImpact || 0), 0);
+  const activeOrders = getInProgressOrders();
+  const overdueOrders = getOverdueOrders();
+  const unpaidOrders = getUnpaidOrders();
+  const toReceive = unpaidOrders.reduce((sum, o) => sum + computeOrderFinance(o.id).remainingAmount, 0);
+  const liveOrders = state.orders.filter((o) => o.status !== 'Отменён');
+  const revenue = liveOrders.reduce((sum, o) => sum + o.amount, 0);
+  const totalProfit = liveOrders.reduce((sum, o) => sum + computeOrderFinance(o.id).profit, 0);
   const monthlyProfit = computeMonthlyProfit();
 
   const kpis = [
-    kpiCard('fa-fire', 'danger', 'Просрочено', `${overdue.length} <small>заказ${plural(overdue.length)}</small>`, '#/orders'),
-    kpiCard('fa-clock', 'warning', 'В работе', `${inProgress.length} <small>заказов</small>`, '#/orders'),
-    kpiCard('fa-hammer', 'info', 'Столярка', `${carpentryTasks.length} <small>задач</small>`, '#/carpentry'),
-    kpiCard('fa-rotate', 'success', 'Переделки', `${openRework.length} <small>откр.</small> ${money(reworkCost)}`, '#/rework'),
+    kpiCard('fa-layer-group', 'info', 'Активные заказы', `${activeOrders.length}`, '#/orders'),
+    kpiCard('fa-fire', 'danger', 'С просрочкой', `${overdueOrders.length}`, '#/orders'),
+    kpiCard('fa-hand-holding-dollar', 'warning', 'К оплате', money(toReceive), '#/orders'),
+    kpiCard('fa-file-invoice-dollar', 'neutral', 'Выручка', money(revenue), '#/orders'),
+    kpiCard('fa-sack-dollar', totalProfit >= 0 ? 'success' : 'danger', 'Прибыль', money(totalProfit), '#/orders'),
   ];
 
-  const orderRows = state.orders.slice(-5).reverse().map((o) => {
-    const active = getActiveStage(o.id);
+  const upcoming = getUpcomingDeadlines(7);
+  const upcomingRows = upcoming.slice(0, 6).map((o) => `
+    <div class="row-item deadline-item" data-order-id="${o.id}">
+      <div class="row-item__title">#${o.number} — ${escapeHtml(o.productType)}</div>
+      <span class="row-item__sub">${escapeHtml(daysPhrase(o.deadline))}</span>
+    </div>
+  `).join('') || emptyState('Ближайших сроков нет');
+
+  const statusCounts = getOrdersByStatusCounts();
+  const statusRows = ORDER_STATUSES
+    .filter((s) => s !== 'Завершён' && s !== 'Отменён' && statusCounts[s] > 0)
+    .map((s) => `
+      <div class="status-count-row">
+        <span class="${orderStatusBadgeClass(s)}">${s}</span>
+        <b>${statusCounts[s]}</b>
+      </div>
+    `).join('') || emptyState('Нет активных заказов');
+
+  const orderRows = [...state.orders].reverse().slice(0, 5).map((o) => {
+    const deadlineInfo = getOrderDeadlineInfo(o);
     return `
-      <div class="row-item">
+      <div class="row-item order-item" data-order-id="${o.id}">
         <div>
           <div class="row-item__title">${escapeHtml(o.productType)} #${o.number}</div>
           <div class="row-item__sub">${escapeHtml(o.clientName)}</div>
         </div>
-        <div class="row-item__meta ${active && isOverdue(active.deadline, active.status) ? 'is-overdue' : ''}">
-          ${active ? shortDate(active.deadline) : money(o.amount)}
+        <div style="text-align:right">
+          <div><span class="${orderStatusBadgeClass(o.status)}">${o.status}</span></div>
+          <div class="row-item__meta ${deadlineInfo.tone === 'danger' ? 'is-overdue' : ''}" style="margin-top:4px">${money(o.amount)}</div>
         </div>
       </div>
     `;
   }).join('') || emptyState('Пока нет заказов');
 
-  const carpentryCols = ['ожидает', 'в работе', 'проверка', 'готово'].map((status) => {
-    const items = carpentryTasks.filter((t) => t.status === status).slice(0, 3);
-    return `
-      <div class="mini-col">
-        <div class="mini-col__title">${status}</div>
-        ${items.map((t) => `
-          <div class="mini-card ${t.priority === 'срочный' || t.priority === 'переделка' ? 'mini-card--hot' : ''}">
-            ${t.priority !== 'обычный' ? '<i class="fa-solid fa-fire"></i> ' : ''}${escapeHtml(t.name)}
-          </div>
-        `).join('') || ''}
-      </div>
-    `;
-  }).join('');
-
+  const openRework = state.rework.filter((r) => r.status !== 'готово');
+  const reworkCost = openRework.reduce((sum, r) => sum + (r.costImpact || 0), 0);
   const reworkRows = state.rework.slice(-3).reverse().map((r) => {
     const order = state.orders.find((o) => o.id === r.orderId);
     return `
@@ -63,31 +75,44 @@ export function renderDashboard() {
     `;
   }).join('') || emptyState('Переделок нет');
 
-  const financeRows = state.orders.slice(-3).reverse().map((o) => {
-    const f = state.finance[o.id] || {};
-    const cost = (f.costOutsource1 || 0) + (f.costOutsource2 || 0) + (f.materials || 0) + (f.salaries || 0);
-    const profit = o.amount - cost;
-    return `
-      <div class="row-item">
-        <div class="row-item__title">${escapeHtml(o.productType)} #${o.number}</div>
-        <div class="row-item__meta">${money(o.amount)} ${money(cost)} <b class="${profit >= 0 ? 'text-pos' : 'text-neg'}">${profit >= 0 ? '↑' : '↓'} ${money(Math.abs(profit))}</b></div>
-      </div>
-    `;
-  }).join('') || emptyState('Нет данных');
-
   return `
+    <div class="page-header">
+      <h1>Главная</h1>
+      <span class="row-item__sub">Прибыль за месяц: <b class="${monthlyProfit >= 0 ? 'text-pos' : 'text-neg'}">${money(monthlyProfit)}</b></span>
+    </div>
     <div class="kpi-row">${kpis.join('')}</div>
     <div class="dash-grid">
-      ${card('1', 'Заказы', `<div class="row-list">${orderRows}</div><a class="link-more" href="#/orders">Все заказы <i class="fa-solid fa-arrow-right"></i></a>`)}
-      ${card('2', 'Столярка', `<div class="mini-board">${carpentryCols}</div><a class="link-more" href="#/carpentry">Открыть доску <i class="fa-solid fa-arrow-right"></i></a>`)}
-      ${card('3', 'Переделки', `<div class="row-list">${reworkRows}</div><a class="link-more" href="#/rework">Все переделки <i class="fa-solid fa-arrow-right"></i></a>`)}
-      ${card('4', 'Финансы', `<div class="row-list">${financeRows}</div><div class="finance-month">Прибыль за месяц: <b class="${monthlyProfit >= 0 ? 'text-pos' : 'text-neg'}">${money(monthlyProfit)}</b></div>`)}
+      ${card('1', 'Ближайшие сроки', `<div class="row-list">${upcomingRows}</div>`)}
+      ${card('2', 'Заказы по статусам', `<div class="status-count-list">${statusRows}</div><a class="link-more" href="#/production">Доска производства <i class="fa-solid fa-arrow-right"></i></a>`)}
+      ${card('3', 'Последние заказы', `<div class="row-list">${orderRows}</div><a class="link-more" href="#/orders">Все заказы <i class="fa-solid fa-arrow-right"></i></a>`)}
+      ${card('4', 'Переделки', `<div class="row-list">${reworkRows}</div>${reworkCost ? `<div class="finance-month">Влияние: <b class="text-neg">${money(reworkCost)}</b></div>` : ''}<a class="link-more" href="#/rework">Все переделки <i class="fa-solid fa-arrow-right"></i></a>`)}
     </div>
   `;
 }
 
-function plural(n) {
-  return n === 1 ? '' : 'ов';
+export function attachDashboardHandlers(root, rerender) {
+  root.querySelectorAll('[data-order-id]').forEach((el) => {
+    el.addEventListener('click', () => {
+      selectOrder(el.getAttribute('data-order-id'));
+      window.location.hash = '#/orders';
+    });
+  });
+}
+
+function daysPhrase(deadline) {
+  const diff = Math.round((new Date(deadline) - new Date(todayISO())) / 86400000);
+  if (diff <= 0) return 'сегодня';
+  if (diff === 1) return 'завтра';
+  return `через ${diff} ${ruDays(diff)}`;
+}
+
+function ruDays(n) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'дней';
+  if (mod10 === 1) return 'день';
+  if (mod10 >= 2 && mod10 <= 4) return 'дня';
+  return 'дней';
 }
 
 function emptyState(text) {
