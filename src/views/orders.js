@@ -33,7 +33,7 @@ export function renderOrders() {
     </div>
     <div class="orders-layout">
       <div class="panel">
-        <div class="panel__body" style="padding:0">
+        <div class="panel__body" style="padding:0; overflow-x:auto">
           <table class="data-table">
             <thead>
               <tr><th>№</th><th>Изделие</th><th>Клиент</th><th>Сумма</th><th>Дедлайн</th><th>Статус</th></tr>

@@ -15,6 +15,9 @@ export const NAV_ITEMS = [
 export function renderShell(currentRoute) {
   return `
     <header class="topbar">
+      <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Открыть меню" aria-haspopup="true">
+        <i class="fa-solid fa-bars"></i>
+      </button>
       <a href="#/dashboard" class="logo">
         <span class="logo__icon"><i class="fa-solid fa-cubes-stacked"></i></span>
         <span class="logo__text">MebelFlow</span>
@@ -35,7 +38,12 @@ export function renderShell(currentRoute) {
       </div>
     </header>
     <div class="app-body">
-      <aside class="sidebar">
+      <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar__mobile-header">
+          <span class="logo__text">MebelFlow</span>
+          <button type="button" class="sidebar__close" id="sidebar-close" aria-label="Закрыть меню"><i class="fa-solid fa-xmark"></i></button>
+        </div>
         <nav>
           <ul class="sidebar__list">
             ${NAV_ITEMS.map((item) => `
@@ -81,6 +89,32 @@ export function initModalHandlers() {
     if (e.target === overlay || e.target.closest('[data-action="close-modal"]')) {
       closeModal();
     }
+  });
+}
+
+export function initSidebarToggle() {
+  const toggle = document.getElementById('menu-toggle');
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const closeBtn = document.getElementById('sidebar-close');
+  if (!toggle || !sidebar || !backdrop) return;
+
+  function open() {
+    sidebar.classList.add('is-open');
+    backdrop.hidden = false;
+  }
+  function close() {
+    sidebar.classList.remove('is-open');
+    backdrop.hidden = true;
+  }
+
+  toggle.addEventListener('click', () => {
+    if (sidebar.classList.contains('is-open')) close(); else open();
+  });
+  backdrop.addEventListener('click', close);
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  sidebar.addEventListener('click', (e) => {
+    if (e.target.closest('.sidebar__link')) close();
   });
 }
 

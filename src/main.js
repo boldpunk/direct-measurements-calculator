@@ -1,4 +1,4 @@
-import { renderShell, initModalHandlers, initProfileMenu } from './ui.js';
+import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle } from './ui.js';
 import { initSearch } from './search.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderOrders, attachOrderHandlers } from './views/orders.js';
@@ -38,6 +38,7 @@ function render() {
     initModalHandlers();
     initSearch(render);
     initProfileMenu();
+    initSidebarToggle();
     shellMounted = true;
   } else {
     document.querySelectorAll('.sidebar__link').forEach((link) => {

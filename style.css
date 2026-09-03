@@ -68,6 +68,18 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
   z-index: 20;
 }
 
+.menu-toggle {
+  display: none;
+  align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border: none; background: none;
+  color: var(--text);
+  font-size: 17px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.menu-toggle:hover { background: var(--bg); }
+
 .logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .logo__icon {
   width: 34px; height: 34px;
@@ -172,7 +184,20 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
   background: var(--panel);
   border-right: 1px solid var(--border);
   padding: 18px 12px;
+  transition: transform var(--ease);
 }
+
+.sidebar__mobile-header { display: none; }
+.sidebar__close { background: none; border: none; color: var(--text-muted); font-size: 16px; padding: 6px; border-radius: 6px; }
+.sidebar__close:hover { background: var(--bg); }
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  z-index: 55;
+}
+.sidebar-backdrop[hidden] { display: none; }
 
 .sidebar__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .sidebar__link {
@@ -625,5 +650,37 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   .finance-card__grid { grid-template-columns: repeat(2, 1fr); }
   .mat-add-form { grid-template-columns: 1fr 1fr; }
   .kanban-board { grid-template-columns: repeat(2, 1fr); }
-  .sidebar { display: none; }
+
+  .menu-toggle { display: flex; }
+
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 60;
+    transform: translateX(-100%);
+    box-shadow: none;
+    overflow-y: auto;
+  }
+  .sidebar.is-open { transform: translateX(0); box-shadow: 12px 0 32px rgba(16, 24, 40, 0.18); }
+  .sidebar__mobile-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 4px 16px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar { padding: 10px 14px; gap: 12px; }
+  .topbar .logo__text { display: none; }
+  .page-header { flex-wrap: wrap; gap: 10px; }
+  .order-detail__stats { flex-wrap: wrap; gap: 14px 22px; }
+  .finance-card__grid { grid-template-columns: 1fr 1fr; }
+  .mat-add-form { grid-template-columns: 1fr; }
+  .mini-board { grid-template-columns: repeat(2, 1fr); }
+
+  .kanban-board { display: flex; overflow-x: auto; padding-bottom: 8px; }
+  .kanban-col { width: 260px; flex-shrink: 0; }
+
+  .prod-col { width: 200px; }
 }
