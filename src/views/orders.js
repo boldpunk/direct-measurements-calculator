@@ -10,6 +10,7 @@ import {
 import { money, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
+import { renderMoneyField, attachMoneyFields } from '../money-field.js';
 
 let selectedOrderId = null;
 let currentQuery = '';
@@ -523,7 +524,7 @@ function orderFormFields(order) {
     <label>Ответственный
       <select name="managerId">${selectOptions(state.employees, 'id', 'name', order?.managerId)}</select>
     </label>
-    <label>Сумма договора<input name="amount" type="number" min="0" step="1" required value="${order ? order.amount : ''}" /></label>
+    ${renderMoneyField({ name: 'amount', label: 'Сумма договора', value: order ? order.amount : '', required: true })}
     <label>Срок выполнения<input name="deadline" type="date" required value="${order ? order.deadline : ''}" /></label>
     <label>Комментарий<textarea name="notes" rows="2" placeholder="Детали заказа">${order ? escapeHtml(order.notes || '') : ''}</textarea></label>
     ${order ? '' : '<label class="checkbox-label"><input type="checkbox" name="needsCarpentry" checked /> Требует этап «Столярка»</label>'}
@@ -541,6 +542,7 @@ function openNewOrderModal(rerender) {
     </form>
   `);
   attachPhoneFields(document.getElementById('order-form'));
+  attachMoneyFields(document.getElementById('order-form'));
 
   document.getElementById('order-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -576,6 +578,7 @@ function openEditOrderModal(orderId, rerender) {
     </form>
   `);
   attachPhoneFields(document.getElementById('order-edit-form'));
+  attachMoneyFields(document.getElementById('order-edit-form'));
 
   document.getElementById('order-edit-form').addEventListener('submit', (e) => {
     e.preventDefault();

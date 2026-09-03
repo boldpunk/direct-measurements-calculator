@@ -99,6 +99,7 @@ function initPhoneField(field) {
   }
 
   input.addEventListener('input', () => applyFormat(input.value.replace(/\D/g, '')));
+  input.addEventListener('focus', () => { dropdown.hidden = true; });
 
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
