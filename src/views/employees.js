@@ -1,0 +1,73 @@
+import { getState, createEmployee, deleteEmployee, getEmployeeActiveTasks, EMPLOYEE_ROLES } from '../store.js';
+import { escapeHtml } from '../format.js';
+import { openModal, closeModal } from '../ui.js';
+
+export function renderEmployees() {
+  const state = getState();
+
+  const rows = state.employees.map((e) => {
+    const activeTasks = getEmployeeActiveTasks(e.id);
+    return `
+      <div class="employee-card">
+        <div class="employee-card__avatar"><i class="fa-solid fa-user"></i></div>
+        <div class="employee-card__body">
+          <b>${escapeHtml(e.name)}</b>
+          <div class="row-item__sub">${escapeHtml(e.role)}</div>
+          <div class="row-item__sub">${escapeHtml(e.phone) || '—'}</div>
+        </div>
+        <div class="employee-card__tasks">
+          <span class="badge badge--muted">${activeTasks.length} задач</span>
+        </div>
+        <button class="btn btn--sm btn--danger-ghost" data-action="delete-employee" data-id="${e.id}">Удалить</button>
+      </div>
+    `;
+  }).join('') || '<div class="empty-state">Сотрудников нет</div>';
+
+  return `
+    <div class="page-header">
+      <h1>Сотрудники</h1>
+      <button class="btn btn--primary" data-action="new-employee"><i class="fa-solid fa-plus"></i> Добавить сотрудника</button>
+    </div>
+    <div class="employee-list">${rows}</div>
+  `;
+}
+
+export function attachEmployeesHandlers(root, rerender) {
+  const newBtn = root.querySelector('[data-action="new-employee"]');
+  if (newBtn) newBtn.addEventListener('click', () => openNewEmployeeModal(rerender));
+
+  root.querySelectorAll('[data-action="delete-employee"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      deleteEmployee(btn.getAttribute('data-id'));
+      rerender();
+    });
+  });
+}
+
+function openNewEmployeeModal(rerender) {
+  openModal('Новый сотрудник', `
+    <form id="employee-form" class="form">
+      <label>Имя<input name="name" required placeholder="Имя сотрудника" /></label>
+      <label>Роль
+        <select name="role">${EMPLOYEE_ROLES.map((r) => `<option value="${r}">${r}</option>`).join('')}</select>
+      </label>
+      <label>Контакты<input name="phone" placeholder="+998 ..." /></label>
+      <div class="form-actions">
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary">Добавить</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById('employee-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    createEmployee({
+      name: fd.get('name'),
+      role: fd.get('role'),
+      phone: fd.get('phone'),
+    });
+    closeModal();
+    rerender();
+  });
+}

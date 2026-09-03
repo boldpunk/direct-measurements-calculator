@@ -1,57 +1,61 @@
-# The Direct Measurements Calculator
+# MebelFlow
 
-## Table of Contents:
+Платформа управления мебельным производством — от заказа до сдачи.
 
-- [Table of Contents](#table-of-contents)
-- [About](#about)
-- [Links](#links)
-- [Contribution](#contribution)
-- [License](#license)
+MebelFlow помогает мебельным студиям (например, Sobirov Mebel, Molly.uz)
+управлять заказами, контролировать внутреннее производство и аутсорс,
+отслеживать переделки и видеть прибыль по каждому заказу.
 
-## About
+Этот репозиторий содержит клиентский MVP-прототип: одностраничное
+приложение на чистом JavaScript, все данные хранятся в `localStorage`
+браузера (бэкенда и базы данных нет).
 
-The Direct Measurements Calculator helps you to easily calculate your measurements and find the following:
+## Возможности MVP
 
-- Average Value
-- Standard Error
-- Random Error
-- Device Error
-- Measurement Error
-- Absolute Error
-- Relative Error
+- **Заказы** — карточка заказа, автоматическое создание всех этапов
+  производства при создании заказа.
+- **Этапы** — последовательный пайплайн из 11 этапов (продажа → замер →
+  проектирование → проверка → аутсорс распил/кромка → доставка → присадка →
+  столярка → покраска → сборка → сдача) с ветвлением после «Присадки»:
+  часть заказов идёт сразу в сборку, минуя столярку.
+- **Доска «Столярка»** — канбан-доска производственных задач мастеров
+  (ожидает / в работе / проверка / готово) с приоритетами и дедлайнами.
+- **Переделки** — при создании переделки автоматически создаётся задача с
+  высоким приоритетом, привязанная к заказу.
+- **Аутсорс-партнёры** — партнёры по распилу, кромке и покраске с рейтингом
+  и средним сроком выполнения.
+- **Финансы** — себестоимость по заказу (аутсорс, материалы, зарплаты),
+  расчёт прибыли по заказу и по месяцу.
+- **Сотрудники** — роли и активные задачи.
+- **Дашборд** — просроченные заказы, узкие места, сводка по производству и
+  прибыли.
 
-## Links
+## Стек
 
-- Website - [Live](https://direct-measurements-calculator.netlify.app/)
-- Code - [Github](https://github.com/dostonnabotov/direct-measurements-calculator)
-- Author - [Doston Nabotov](https://github.com/dostonnabotov/direct-measurements-calculator), also known as _Technophile_
+- [Vite](https://vitejs.dev/) — сборка и dev-сервер.
+- Чистый JavaScript (без фреймворков), хэш-роутинг.
+- Font Awesome — иконки, Google Fonts (Inter) — шрифт.
 
-## Contribution
-
-If you want to contribute to this project, you can open a new issue and make a pull request.
-
-This app is run with the help of [Vite JS](https://vitejs.dev/).
-
-Once you have cloned the repository to your local machine, you can run:
+## Запуск
 
 ```
 npm install
-```
-
-It will install all dev dependencies and packages. After the installation has finished, run:
-
-```
 npm run dev
 ```
 
-It will run the live server, and you should be able to view the project in the browser.
+Приложение откроется на `http://localhost:5173`. Сборка для продакшена:
 
-This app is hosted under the Netlify. You can learn more about it [here](https://www.netlify.com/).
+```
+npm run build
+npm run preview
+```
 
-Finally, do consider that even fixing a typo is much more appreciated and helps the project grow!
+## Дальнейшее развитие
 
-Thank you!
+Согласно ТЗ, после MVP: мобильное приложение, интеграция с Telegram, учёт
+склада, планирование загрузки, AI-анализ узких мест — а также перенос
+данных с `localStorage` на реальный бэкенд для многопользовательской работы.
 
 ## License
 
-The website is licensed under the [MIT License](https://github.com/dostonnabotov/direct-measurements-calculator/blob/main/LICENCE.md)
+Licensed under the [MIT License](./LICENCE.md).
