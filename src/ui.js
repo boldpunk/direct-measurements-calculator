@@ -3,6 +3,7 @@ import { escapeHtml } from './format.js';
 export const NAV_ITEMS = [
   { route: 'dashboard', icon: 'fa-house', label: 'Dashboard' },
   { route: 'orders', icon: 'fa-box-open', label: 'Заказы' },
+  { route: 'production', icon: 'fa-diagram-project', label: 'Производство' },
   { route: 'carpentry', icon: 'fa-hammer', label: 'Столярка' },
   { route: 'rework', icon: 'fa-rotate', label: 'Переделки' },
   { route: 'outsource', icon: 'fa-layer-group', label: 'Аутсорс' },
