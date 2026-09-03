@@ -27,6 +27,13 @@ export const EMPLOYEE_ROLES = [
 export const REWORK_REASONS = ['замер', 'производство', 'сборка'];
 export const REWORK_STATUSES = ['открыто', 'в работе', 'готово'];
 export const OUTSOURCE_SERVICES = ['распил', 'кромка', 'покраска'];
+export const CURRENCIES = ['$', '€', '₽', "so'm"];
+
+export const DEFAULT_SETTINGS = {
+  companyName: 'Sobirov Mebel',
+  currency: '$',
+  stageBufferDays: 3,
+};
 
 function uid(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -66,6 +73,7 @@ function seed() {
     employees,
     finance: {}, // orderId -> { prepayment, costOutsource1, costOutsource2, materials, salaries }
     orderSeq: 114,
+    settings: { ...DEFAULT_SETTINGS },
   };
 
   const s = createState(state);
@@ -94,7 +102,7 @@ function seed() {
   addTask(s, {
     orderId: o1.id, stageKey: 'carpentry', name: 'Фасады МДФ 12 шт', qty: 12,
     assigneeId: 'emp_akhmad', deadline: addDays(todayISO(), 2), priority: 'срочный',
-    status: 'в работе',
+    status: 'в работе', comment: 'Чертёж уточнить у конструктора перед распилом.',
   });
   addTask(s, {
     orderId: o1.id, stageKey: 'drilling', name: 'Присадка корпусов', qty: 8,
@@ -114,6 +122,7 @@ function seed() {
   addRework(s, {
     orderId: o1.id, reason: 'замер', description: 'Фасад неправильный размер',
     responsibleId: 'emp_anna', urgency: 'срочно', costImpact: 2200,
+    photoUrl: 'https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=400',
   });
   addRework(s, {
     orderId: o2.id, reason: 'сборка', description: 'Скол на боковине при сборке',
@@ -132,7 +141,11 @@ function createState(state) {
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      parsed.settings = { ...DEFAULT_SETTINGS, ...parsed.settings };
+      return parsed;
+    }
   } catch (e) {
     console.warn('Failed to load MebelFlow data, reseeding.', e);
   }
@@ -151,6 +164,15 @@ export function getState() {
 
 export function resetDemoData() {
   _state = seed();
+  save();
+}
+
+export function getSettings() {
+  return _state.settings;
+}
+
+export function updateSettings(patch) {
+  _state.settings = { ..._state.settings, ...patch };
   save();
 }
 
@@ -174,6 +196,7 @@ function addOrder(s, data, forcedNumber) {
   };
   state.orders.push(order);
 
+  const bufferDays = (state.settings || DEFAULT_SETTINGS).stageBufferDays;
   STAGE_DEFS.forEach((def, i) => {
     const skip = def.key === 'carpentry' && !order.needsCarpentry;
     const stage = {
@@ -186,7 +209,7 @@ function addOrder(s, data, forcedNumber) {
       order: i,
       assigneeId: null,
       partnerId: null,
-      deadline: addDays(order.startDate, (i + 1) * 3),
+      deadline: addDays(order.startDate, (i + 1) * bufferDays),
       status: skip ? 'готово' : (i === 0 ? 'в работе' : 'ожидает'),
       skipped: skip,
     };

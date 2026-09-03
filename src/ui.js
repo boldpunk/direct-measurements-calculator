@@ -8,6 +8,7 @@ export const NAV_ITEMS = [
   { route: 'outsource', icon: 'fa-layer-group', label: 'Аутсорс' },
   { route: 'finance', icon: 'fa-sack-dollar', label: 'Финансы' },
   { route: 'employees', icon: 'fa-users', label: 'Сотрудники' },
+  { route: 'settings', icon: 'fa-gear', label: 'Настройки' },
 ];
 
 export function renderShell(currentRoute) {
@@ -22,7 +23,15 @@ export function renderShell(currentRoute) {
         <input type="search" id="global-search" placeholder="Поиск заказа, задачи, партнёра..." autocomplete="off" />
         <div class="search-results" id="search-results" hidden></div>
       </div>
-      <div class="topbar__avatar" title="Профиль"><i class="fa-solid fa-user"></i></div>
+      <div class="topbar__profile">
+        <button type="button" class="topbar__avatar" id="profile-toggle" title="Профиль" aria-haspopup="true">
+          <i class="fa-solid fa-user"></i>
+        </button>
+        <div class="profile-menu" id="profile-menu" hidden>
+          <a href="#/settings" class="profile-menu__item"><i class="fa-solid fa-gear"></i> Настройки</a>
+          <a href="#/employees" class="profile-menu__item"><i class="fa-solid fa-users"></i> Сотрудники</a>
+        </div>
+      </div>
     </header>
     <div class="app-body">
       <aside class="sidebar">
@@ -74,21 +83,38 @@ export function initModalHandlers() {
   });
 }
 
+export function initProfileMenu() {
+  const toggle = document.getElementById('profile-toggle');
+  const menu = document.getElementById('profile-menu');
+  if (!toggle || !menu) return;
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+  });
+  menu.addEventListener('click', () => { menu.hidden = true; });
+  document.addEventListener('click', (e) => {
+    if (!menu.hidden && !e.target.closest('.topbar__profile')) menu.hidden = true;
+  });
+}
+
 export function selectOptions(items, valueKey, labelKey, selected) {
   return `<option value="">—</option>` + items.map((it) => `
     <option value="${escapeHtml(it[valueKey])}" ${it[valueKey] === selected ? 'selected' : ''}>${escapeHtml(it[labelKey])}</option>
   `).join('');
 }
 
-export function kpiCard(icon, tone, title, valueHtml) {
+export function kpiCard(icon, tone, title, valueHtml, href) {
+  const tag = href ? 'a' : 'div';
   return `
-    <div class="kpi kpi--${tone}">
+    <${tag} class="kpi kpi--${tone}"${href ? ` href="${href}"` : ''}>
       <div class="kpi__icon"><i class="fa-solid ${icon}"></i></div>
       <div class="kpi__body">
         <div class="kpi__title">${title}</div>
         <div class="kpi__value">${valueHtml}</div>
       </div>
-    </div>
+      ${href ? '<i class="fa-solid fa-chevron-right kpi__chevron"></i>' : ''}
+    </${tag}>
   `;
 }
 

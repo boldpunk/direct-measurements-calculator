@@ -15,7 +15,7 @@ export function renderOutsource() {
         ${p.services.map((s) => `<span class="badge badge--muted">${escapeHtml(s)}</span>`).join(' ')}
       </div>
       <div class="partner-card__meta">
-        <span><i class="fa-solid fa-phone"></i> ${escapeHtml(p.contacts) || '—'}</span>
+        <span><i class="fa-solid fa-phone"></i> ${p.contacts ? `<a class="tel-link" href="tel:${escapeHtml(p.contacts.replace(/[^+\d]/g, ''))}">${escapeHtml(p.contacts)}</a>` : '—'}</span>
         <span><i class="fa-solid fa-clock"></i> ${p.avgLeadDays} дн.</span>
       </div>
       ${p.comment ? `<div class="partner-card__comment">${escapeHtml(p.comment)}</div>` : ''}

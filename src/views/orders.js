@@ -91,7 +91,7 @@ function renderOrderDetail(orderId) {
     <div class="order-detail__header">
       <div>
         <h2>${escapeHtml(order.productType)} #${order.number}</h2>
-        <div class="row-item__sub">${escapeHtml(order.clientName)} · ${escapeHtml(order.clientPhone)}</div>
+        <div class="row-item__sub">${escapeHtml(order.clientName)} · ${order.clientPhone ? `<a class="tel-link" href="tel:${escapeHtml(order.clientPhone.replace(/[^+\d]/g, ''))}">${escapeHtml(order.clientPhone)}</a>` : '—'}</div>
       </div>
       <span class="badge badge--stage-${order.status === 'завершён' ? 'done' : 'active'}">${order.status}</span>
     </div>

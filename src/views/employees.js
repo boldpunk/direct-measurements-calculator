@@ -13,10 +13,12 @@ export function renderEmployees() {
         <div class="employee-card__body">
           <b>${escapeHtml(e.name)}</b>
           <div class="row-item__sub">${escapeHtml(e.role)}</div>
-          <div class="row-item__sub">${escapeHtml(e.phone) || '—'}</div>
+          <div class="row-item__sub">${e.phone ? `<a class="tel-link" href="tel:${escapeHtml(e.phone.replace(/[^+\d]/g, ''))}">${escapeHtml(e.phone)}</a>` : '—'}</div>
         </div>
         <div class="employee-card__tasks">
-          <span class="badge badge--muted">${activeTasks.length} задач</span>
+          ${activeTasks.length
+            ? `<a class="badge badge--muted" href="#/carpentry" title="Открыть доску Столярка">${activeTasks.length} задач</a>`
+            : `<span class="badge badge--muted">0 задач</span>`}
         </div>
         <button class="btn btn--sm btn--danger-ghost" data-action="delete-employee" data-id="${e.id}">Удалить</button>
       </div>

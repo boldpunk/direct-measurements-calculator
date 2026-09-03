@@ -15,10 +15,10 @@ export function renderDashboard() {
   const monthlyProfit = computeMonthlyProfit();
 
   const kpis = [
-    kpiCard('fa-fire', 'danger', 'Просрочено', `${overdue.length} <small>заказ${plural(overdue.length)}</small>`),
-    kpiCard('fa-clock', 'warning', 'В работе', `${inProgress.length} <small>заказов</small>`),
-    kpiCard('fa-hammer', 'info', 'Столярка', `${carpentryTasks.length} <small>задач</small>`),
-    kpiCard('fa-rotate', 'success', 'Переделки', `${openRework.length} <small>откр.</small> ${money(reworkCost)}`),
+    kpiCard('fa-fire', 'danger', 'Просрочено', `${overdue.length} <small>заказ${plural(overdue.length)}</small>`, '#/orders'),
+    kpiCard('fa-clock', 'warning', 'В работе', `${inProgress.length} <small>заказов</small>`, '#/orders'),
+    kpiCard('fa-hammer', 'info', 'Столярка', `${carpentryTasks.length} <small>задач</small>`, '#/carpentry'),
+    kpiCard('fa-rotate', 'success', 'Переделки', `${openRework.length} <small>откр.</small> ${money(reworkCost)}`, '#/rework'),
   ];
 
   const orderRows = state.orders.slice(-5).reverse().map((o) => {

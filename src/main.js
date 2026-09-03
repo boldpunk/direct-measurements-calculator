@@ -1,4 +1,4 @@
-import { renderShell, initModalHandlers } from './ui.js';
+import { renderShell, initModalHandlers, initProfileMenu } from './ui.js';
 import { initSearch } from './search.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderOrders, attachOrderHandlers } from './views/orders.js';
@@ -7,6 +7,7 @@ import { renderRework, attachReworkHandlers } from './views/rework.js';
 import { renderOutsource, attachOutsourceHandlers } from './views/outsource.js';
 import { renderFinance, attachFinanceHandlers } from './views/finance.js';
 import { renderEmployees, attachEmployeesHandlers } from './views/employees.js';
+import { renderSettings, attachSettingsHandlers } from './views/settings.js';
 
 const ROUTES = {
   dashboard: { render: renderDashboard, attach: null },
@@ -16,6 +17,7 @@ const ROUTES = {
   outsource: { render: renderOutsource, attach: attachOutsourceHandlers },
   finance: { render: renderFinance, attach: attachFinanceHandlers },
   employees: { render: renderEmployees, attach: attachEmployeesHandlers },
+  settings: { render: renderSettings, attach: attachSettingsHandlers },
 };
 
 let shellMounted = false;
@@ -33,6 +35,7 @@ function render() {
     app.innerHTML = renderShell(route);
     initModalHandlers();
     initSearch(render);
+    initProfileMenu();
     shellMounted = true;
   } else {
     document.querySelectorAll('.sidebar__link').forEach((link) => {

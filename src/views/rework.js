@@ -20,12 +20,21 @@ export function renderRework() {
             ${REWORK_STATUSES.map((s) => `<option value="${s}" ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}
           </select>
         </div>
-        <div class="rework-card__desc">${escapeHtml(r.description)}</div>
-        <div class="rework-card__meta">
-          <span>Причина: ${r.reason}</span>
-          <span>Ответственный: ${responsible ? escapeHtml(responsible.name) : '—'}</span>
-          <span>Влияние: ${money(r.costImpact)}</span>
-          <span>${shortDate(new Date(r.createdAt).toISOString().slice(0, 10))}</span>
+        <div class="rework-card__body">
+          ${r.photoUrl ? `
+            <a href="${escapeHtml(r.photoUrl)}" target="_blank" rel="noopener noreferrer" class="rework-card__photo">
+              <img src="${escapeHtml(r.photoUrl)}" alt="Фото переделки" loading="lazy" />
+            </a>
+          ` : ''}
+          <div>
+            <div class="rework-card__desc">${escapeHtml(r.description)}</div>
+            <div class="rework-card__meta">
+              <span>Причина: ${r.reason}</span>
+              <span>Ответственный: ${responsible ? escapeHtml(responsible.name) : '—'}</span>
+              <span>Влияние: ${money(r.costImpact)}</span>
+              <span>${shortDate(new Date(r.createdAt).toISOString().slice(0, 10))}</span>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -72,7 +81,8 @@ function openNewReworkModal(rerender) {
           <option value="обычный">обычная</option>
         </select>
       </label>
-      <label>Влияние на стоимость, $<input name="costImpact" type="number" min="0" value="0" /></label>
+      <label>Влияние на стоимость<input name="costImpact" type="number" min="0" value="0" /></label>
+      <label>Фото (ссылка на изображение)<input name="photoUrl" type="url" placeholder="https://..." /></label>
       <p class="form-hint">Переделка автоматически создаст задачу «Столярка» с приоритетом «переделка».</p>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
@@ -91,6 +101,7 @@ function openNewReworkModal(rerender) {
       responsibleId: fd.get('responsibleId'),
       urgency: fd.get('urgency'),
       costImpact: fd.get('costImpact'),
+      photoUrl: fd.get('photoUrl'),
     });
     closeModal();
     rerender();

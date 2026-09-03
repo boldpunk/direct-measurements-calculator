@@ -1,6 +1,9 @@
+import { getState } from './store.js';
+
 export function money(n) {
   const v = Number(n) || 0;
-  return `${v.toLocaleString('ru-RU')} $`;
+  const currency = getState().settings?.currency || '$';
+  return `${v.toLocaleString('ru-RU')} ${currency}`;
 }
 
 export function shortDate(iso) {

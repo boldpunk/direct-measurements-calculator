@@ -1,4 +1,4 @@
-import { getState, getCarpentryTasks, createTask, updateTaskStatus, isOverdue, TASK_STATUSES } from '../store.js';
+import { getState, getCarpentryTasks, createTask, updateTaskStatus, deleteTask, isOverdue, TASK_STATUSES } from '../store.js';
 import { shortDate, escapeHtml, priorityBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 
@@ -35,10 +35,16 @@ function renderTaskCard(t, state) {
     <div class="task-card ${overdue ? 'is-overdue' : ''}" data-task-id="${t.id}">
       <div class="task-card__top">
         <span class="${priorityBadgeClass(t.priority)}">${t.priority !== 'обычный' ? '<i class="fa-solid fa-fire"></i> ' : ''}${t.priority}</span>
-        <span class="task-card__qty">×${t.qty}</span>
+        <span class="task-card__top-right">
+          <span class="task-card__qty">×${t.qty}</span>
+          <button type="button" class="task-card__delete" data-action="delete-task" data-id="${t.id}" title="Удалить задачу">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </span>
       </div>
       <div class="task-card__title">${escapeHtml(t.name)}</div>
       <div class="task-card__meta">${order ? `${escapeHtml(order.productType)} #${order.number}` : '—'}</div>
+      ${t.comment ? `<div class="task-card__comment"><i class="fa-solid fa-message"></i> ${escapeHtml(t.comment)}</div>` : ''}
       <div class="task-card__footer">
         <span>${assignee ? escapeHtml(assignee.name) : 'не назначен'}</span>
         <span class="${overdue ? 'is-overdue' : ''}">${shortDate(t.deadline)}</span>
@@ -57,6 +63,13 @@ export function attachCarpentryHandlers(root, rerender) {
   root.querySelectorAll('[data-task-status]').forEach((sel) => {
     sel.addEventListener('change', () => {
       updateTaskStatus(sel.getAttribute('data-task-status'), sel.value);
+      rerender();
+    });
+  });
+
+  root.querySelectorAll('[data-action="delete-task"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      deleteTask(btn.getAttribute('data-id'));
       rerender();
     });
   });
