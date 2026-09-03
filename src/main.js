@@ -1,3 +1,4 @@
+import 'flag-icons/css/flag-icons.min.css';
 import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle } from './ui.js';
 import { initSearch } from './search.js';
 import { initNotifications } from './notifications.js';

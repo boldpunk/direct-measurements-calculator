@@ -2,8 +2,9 @@ import {
   getState, getClients, createClient, updateClient, deleteClient,
   getClientOrders, getClientStats, computeOrderFinance, getOrderDeadlineInfo,
 } from '../store.js';
-import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
+import { money, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
+import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { selectOrder } from './orders.js';
 
 let selectedClientId = null;
@@ -21,7 +22,7 @@ export function renderClients() {
     return `
       <tr class="${c.id === selectedClientId ? 'is-selected' : ''}" data-client-row="${c.id}">
         <td>${escapeHtml(c.name)}</td>
-        <td>${c.phone ? `<a class="tel-link" href="tel:${escapeHtml(c.phone.replace(/[^+\d]/g, ''))}">${escapeHtml(c.phone)}</a>` : '—'}</td>
+        <td>${c.phone ? `<a class="tel-link" href="tel:${escapeHtml(c.phone.replace(/[^+\d]/g, ''))}">${escapeHtml(formatPhone(c.phone))}</a>` : '—'}</td>
         <td>${escapeHtml(c.address) || '—'}</td>
         <td>${stats.orderCount}</td>
         <td>${money(stats.totalAmount)}</td>
@@ -81,7 +82,7 @@ function renderClientDetail(clientId) {
     <div class="order-detail__header">
       <div>
         <h2>${escapeHtml(client.name)}</h2>
-        <div class="row-item__sub">${client.phone ? `<a class="tel-link" href="tel:${escapeHtml(client.phone.replace(/[^+\d]/g, ''))}">${escapeHtml(client.phone)}</a>` : '—'}</div>
+        <div class="row-item__sub">${client.phone ? `<a class="tel-link" href="tel:${escapeHtml(client.phone.replace(/[^+\d]/g, ''))}">${escapeHtml(formatPhone(client.phone))}</a>` : '—'}</div>
         ${client.address ? `<div class="row-item__sub"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(client.address)}</div>` : ''}
       </div>
       <div class="order-detail__actions">
@@ -146,7 +147,7 @@ function openClientModal(client, rerender) {
   openModal(client ? 'Изменить клиента' : 'Новый клиент', `
     <form id="client-form" class="form">
       <label>ФИО<input name="name" required placeholder="Имя клиента" value="${client ? escapeHtml(client.name) : ''}" /></label>
-      <label>Телефон<input name="phone" placeholder="+998 90 000-00-00" value="${client ? escapeHtml(client.phone) : ''}" /></label>
+      ${renderPhoneField({ name: 'phone', value: client ? client.phone : '' })}
       <label>Адрес<input name="address" placeholder="Город, улица, дом" value="${client ? escapeHtml(client.address || '') : ''}" /></label>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
@@ -154,6 +155,7 @@ function openClientModal(client, rerender) {
       </div>
     </form>
   `);
+  attachPhoneFields(document.getElementById('client-form'));
 
   document.getElementById('client-form').addEventListener('submit', (e) => {
     e.preventDefault();

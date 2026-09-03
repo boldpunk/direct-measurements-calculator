@@ -1,6 +1,7 @@
 import { getState, createEmployee, deleteEmployee, getEmployeeActiveTasks, EMPLOYEE_ROLES } from '../store.js';
-import { escapeHtml } from '../format.js';
+import { escapeHtml, formatPhone } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
+import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 
 export function renderEmployees() {
   const state = getState();
@@ -13,7 +14,7 @@ export function renderEmployees() {
         <div class="employee-card__body">
           <b>${escapeHtml(e.name)}</b>
           <div class="row-item__sub">${escapeHtml(e.role)}</div>
-          <div class="row-item__sub">${e.phone ? `<a class="tel-link" href="tel:${escapeHtml(e.phone.replace(/[^+\d]/g, ''))}">${escapeHtml(e.phone)}</a>` : '—'}</div>
+          <div class="row-item__sub">${e.phone ? `<a class="tel-link" href="tel:${escapeHtml(e.phone.replace(/[^+\d]/g, ''))}">${escapeHtml(formatPhone(e.phone))}</a>` : '—'}</div>
         </div>
         <div class="employee-card__tasks">
           ${activeTasks.length
@@ -53,7 +54,7 @@ function openNewEmployeeModal(rerender) {
       <label>Роль
         <select name="role">${EMPLOYEE_ROLES.map((r) => `<option value="${r}">${r}</option>`).join('')}</select>
       </label>
-      <label>Контакты<input name="phone" placeholder="+998 ..." /></label>
+      ${renderPhoneField({ name: 'phone', label: 'Контакты' })}
       <label>Email для входа <span class="form-hint">(необязательно)</span><input name="email" type="email" placeholder="employee@mebelflow.uz" /></label>
       <label>Пароль <span class="form-hint">(необязательно)</span><input name="password" type="password" placeholder="Оставьте пустым, если вход не нужен" /></label>
       <div class="form-actions">
@@ -62,6 +63,7 @@ function openNewEmployeeModal(rerender) {
       </div>
     </form>
   `);
+  attachPhoneFields(document.getElementById('employee-form'));
 
   document.getElementById('employee-form').addEventListener('submit', (e) => {
     e.preventDefault();

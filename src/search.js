@@ -1,5 +1,5 @@
 import { getState } from './store.js';
-import { escapeHtml } from './format.js';
+import { escapeHtml, formatPhone } from './format.js';
 import { selectOrder } from './views/orders.js';
 import { selectClient } from './views/clients.js';
 
@@ -71,7 +71,7 @@ function computeResults(rawQuery) {
       results.push({
         icon: 'fa-address-book',
         title: c.name,
-        sub: c.phone || c.address || 'Клиент',
+        sub: (c.phone ? formatPhone(c.phone) : '') || c.address || 'Клиент',
         go: () => { selectClient(c.id); window.location.hash = '#/clients'; },
       });
     }

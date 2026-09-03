@@ -7,8 +7,9 @@ import {
   addOutsourceExpense, removeOutsourceExpense, addSalaryExpense, removeSalaryExpense,
   addOtherExpense, removeOtherExpense, UNITS, todayISO,
 } from '../store.js';
-import { money, shortDate, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
+import { money, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
+import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 
 let selectedOrderId = null;
 let currentQuery = '';
@@ -177,7 +178,7 @@ function renderOrderDetail(orderId) {
     <div class="order-detail__header">
       <div>
         <h2>${escapeHtml(order.productType)} #${order.number}</h2>
-        <div class="row-item__sub">${escapeHtml(order.clientName)} · ${order.clientPhone ? `<a class="tel-link" href="tel:${escapeHtml(order.clientPhone.replace(/[^+\d]/g, ''))}">${escapeHtml(order.clientPhone)}</a>` : '—'}</div>
+        <div class="row-item__sub">${escapeHtml(order.clientName)} · ${order.clientPhone ? `<a class="tel-link" href="tel:${escapeHtml(order.clientPhone.replace(/[^+\d]/g, ''))}">${escapeHtml(formatPhone(order.clientPhone))}</a>` : '—'}</div>
         ${order.address ? `<div class="row-item__sub"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(order.address)}</div>` : ''}
       </div>
       <div class="order-detail__actions">
@@ -512,7 +513,7 @@ function orderFormFields(order) {
   const state = getState();
   return `
     <label>Клиент<input name="clientName" required placeholder="Имя клиента" value="${order ? escapeHtml(order.clientName) : ''}" /></label>
-    <label>Телефон<input name="clientPhone" placeholder="+998 90 000-00-00" value="${order ? escapeHtml(order.clientPhone) : ''}" /></label>
+    ${renderPhoneField({ name: 'clientPhone', value: order ? order.clientPhone : '' })}
     <label>Адрес<input name="address" placeholder="Город, улица, дом" value="${order ? escapeHtml(order.address || '') : ''}" /></label>
     <label>Тип изделия
       <select name="productType">
@@ -539,6 +540,7 @@ function openNewOrderModal(rerender) {
       </div>
     </form>
   `);
+  attachPhoneFields(document.getElementById('order-form'));
 
   document.getElementById('order-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -573,6 +575,7 @@ function openEditOrderModal(orderId, rerender) {
       </div>
     </form>
   `);
+  attachPhoneFields(document.getElementById('order-edit-form'));
 
   document.getElementById('order-edit-form').addEventListener('submit', (e) => {
     e.preventDefault();

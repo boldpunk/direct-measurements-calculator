@@ -1,4 +1,5 @@
 import { getState, getOrderStatusTone } from './store.js';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 export function money(n) {
   const v = Number(n) || 0;
@@ -11,6 +12,12 @@ export function shortDate(iso) {
   const d = new Date(iso);
   const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   return `${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+export function formatPhone(value) {
+  if (!value) return '';
+  const parsed = parsePhoneNumberFromString(String(value));
+  return parsed ? parsed.formatInternational() : String(value);
 }
 
 export function escapeHtml(str) {
