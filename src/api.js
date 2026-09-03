@@ -1,6 +1,8 @@
 // Thin fetch client for the MebelFlow backend (see /server).
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+// Falls back to the deployed Render API when VITE_API_URL isn't set (e.g. Netlify
+// deploy previews, which don't have it configured). Local dev sets it via .env.
+const API_BASE = import.meta.env.VITE_API_URL || 'https://mebelflow-api.onrender.com';
 const TOKEN_KEY = 'mebelflow_token';
 const EMPLOYEE_KEY = 'mebelflow_employee';
 
