@@ -50,6 +50,7 @@ export function renderShell(currentRoute) {
         <div class="profile-menu" id="profile-menu" hidden>
           <a href="#/settings" class="profile-menu__item"><i class="fa-solid fa-gear"></i> Настройки</a>
           <a href="#/employees" class="profile-menu__item"><i class="fa-solid fa-users"></i> Сотрудники</a>
+          <button type="button" class="profile-menu__item" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Выйти</button>
         </div>
       </div>
     </header>

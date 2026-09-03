@@ -1,4 +1,4 @@
-import { getState, getSettings, updateSettings, resetDemoData, CURRENCIES } from '../store.js';
+import { getState, getSettings, updateSettings, CURRENCIES } from '../store.js';
 import { escapeHtml } from '../format.js';
 
 export function renderSettings() {
@@ -42,10 +42,7 @@ export function renderSettings() {
             <div><span>Партнёры</span><b>${state.partners.length}</b></div>
             <div><span>Сотрудники</span><b>${state.employees.length}</b></div>
           </div>
-          <p class="form-hint">Все данные хранятся только в этом браузере (localStorage). Бэкенда и синхронизации между устройствами пока нет.</p>
-          <button type="button" class="btn btn--danger-ghost" data-action="reset-demo" style="border:1px solid var(--border)">
-            <i class="fa-solid fa-arrow-rotate-left"></i> Сбросить к демо-данным
-          </button>
+          <p class="form-hint">Данные хранятся на сервере (PostgreSQL) и доступны всем сотрудникам, вошедшим в систему.</p>
         </div>
       </div>
     </div>
@@ -64,16 +61,6 @@ export function attachSettingsHandlers(root, rerender) {
         stageBufferDays: Number(fd.get('stageBufferDays')) || 3,
       });
       rerender();
-    });
-  }
-
-  const resetBtn = root.querySelector('[data-action="reset-demo"]');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      if (window.confirm('Все текущие данные будут удалены и заменены демо-данными. Продолжить?')) {
-        resetDemoData();
-        window.location.reload();
-      }
     });
   }
 }

@@ -12,6 +12,9 @@ import { renderFinance, attachFinanceHandlers } from './views/finance.js';
 import { renderEmployees, attachEmployeesHandlers } from './views/employees.js';
 import { renderSettings, attachSettingsHandlers } from './views/settings.js';
 import { renderTasks, attachTasksHandlers } from './views/tasks.js';
+import { renderLogin, attachLoginHandlers } from './views/login.js';
+import { api, getToken } from './api.js';
+import { initStore, isHydrated, resetStore } from './store.js';
 
 const ROUTES = {
   dashboard: { render: renderDashboard, attach: attachDashboardHandlers },
@@ -34,17 +37,19 @@ function currentRoute() {
   return ROUTES[hash] ? hash : 'dashboard';
 }
 
-function render() {
+function renderApp() {
   const route = currentRoute();
   const app = document.getElementById('app');
 
   if (!shellMounted) {
     app.innerHTML = renderShell(route);
     initModalHandlers();
-    initSearch(render);
+    initSearch(renderApp);
     initProfileMenu();
     initSidebarToggle();
-    initNotifications(render);
+    initNotifications(renderApp);
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
     shellMounted = true;
   } else {
     document.querySelectorAll('.sidebar__link, .bottom-nav__link').forEach((link) => {
@@ -55,16 +60,54 @@ function render() {
   const viewRoot = document.getElementById('view-root');
   const view = ROUTES[route];
   viewRoot.innerHTML = view.render();
-  if (view.attach) view.attach(viewRoot, render);
+  if (view.attach) view.attach(viewRoot, renderApp);
 }
 
-window.addEventListener('hashchange', render);
-window.addEventListener('DOMContentLoaded', () => {
-  if (!window.location.hash) {
-    // Setting the hash queues an async 'hashchange', which will call render();
-    // calling it again here would just re-render the same route twice.
+function renderLoginScreen() {
+  const app = document.getElementById('app');
+  app.innerHTML = renderLogin();
+  attachLoginHandlers(app, boot);
+}
+
+function renderLoading() {
+  const app = document.getElementById('app');
+  app.innerHTML = '<div class="app-loading"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка...</div>';
+}
+
+function logout() {
+  api.logout();
+  resetStore();
+  shellMounted = false;
+  renderLoginScreen();
+}
+
+async function boot() {
+  if (!getToken()) {
+    renderLoginScreen();
+    return;
+  }
+  if (!isHydrated()) {
+    renderLoading();
+    try {
+      await initStore();
+    } catch (e) {
+      console.error('Failed to load app state', e);
+      renderLoginScreen();
+      return;
+    }
+  }
+  if (!window.location.hash || window.location.hash === '#/login') {
     window.location.hash = '#/dashboard';
   } else {
-    render();
+    renderApp();
   }
+}
+
+window.addEventListener('hashchange', () => {
+  if (!getToken()) {
+    renderLoginScreen();
+    return;
+  }
+  renderApp();
 });
+window.addEventListener('DOMContentLoaded', boot);

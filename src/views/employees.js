@@ -54,6 +54,8 @@ function openNewEmployeeModal(rerender) {
         <select name="role">${EMPLOYEE_ROLES.map((r) => `<option value="${r}">${r}</option>`).join('')}</select>
       </label>
       <label>Контакты<input name="phone" placeholder="+998 ..." /></label>
+      <label>Email для входа <span class="form-hint">(необязательно)</span><input name="email" type="email" placeholder="employee@mebelflow.uz" /></label>
+      <label>Пароль <span class="form-hint">(необязательно)</span><input name="password" type="password" placeholder="Оставьте пустым, если вход не нужен" /></label>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
         <button type="submit" class="btn btn--primary">Добавить</button>
@@ -68,6 +70,8 @@ function openNewEmployeeModal(rerender) {
       name: fd.get('name'),
       role: fd.get('role'),
       phone: fd.get('phone'),
+      email: fd.get('email'),
+      password: fd.get('password'),
     });
     closeModal();
     rerender();

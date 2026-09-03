@@ -203,11 +203,17 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
 }
 .profile-menu__item {
   display: flex; align-items: center; gap: 10px;
+  width: 100%;
   padding: 8px 10px;
+  border: none;
   border-radius: 8px;
+  background: transparent;
+  font: inherit;
   font-size: 13.5px;
   font-weight: 500;
   color: var(--text);
+  text-align: left;
+  cursor: pointer;
 }
 .profile-menu__item:hover { background: var(--bg); }
 .profile-menu__item i { width: 16px; text-align: center; color: var(--text-muted); }
@@ -887,4 +893,63 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 
 @media (max-width: 480px) {
   .kpi-row { grid-template-columns: 1fr; }
+}
+
+/* ---- Login ---- */
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.login-card__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 18px;
+}
+
+.login-card__subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  margin: -8px 0 0;
+}
+
+.login-card__error {
+  background: var(--danger-light);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.login-card__submit { justify-content: center; }
+
+.app-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  gap: 10px;
+  font-size: 14px;
 }

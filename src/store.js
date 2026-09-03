@@ -1,7 +1,18 @@
-// MebelFlow data layer: entities, persistence, business logic.
-// Client-side only — everything lives in localStorage under STORAGE_KEY.
+// MebelFlow data layer: entities, in-memory cache, business logic.
+// State is hydrated once from the backend (see /server) via initStore(), then
+// every getter below reads that in-memory cache synchronously — exactly like
+// the old localStorage-backed version did. Mutators update the cache
+// immediately (so the UI stays instant) and persist to the server in the
+// background; a failed persist is logged to the console.
+//
+// Note: order numbers and any client/task records implicitly created as a
+// side effect of another action (e.g. a new client from an order, or the
+// task auto-created for a rework) are computed independently on the client
+// and on the server. Within a session this is invisible — the local cache is
+// self-consistent — and any drift resolves itself on the next reload when
+// initStore() re-hydrates from the server, which is the source of truth.
 
-const STORAGE_KEY = 'mebelflow_data_v2';
+import { api } from './api.js';
 
 export const STAGE_DEFS = [
   { key: 'sale', name: 'Продажа', type: 'internal' },
@@ -110,206 +121,50 @@ function pushActivity(order, text) {
   if (order.activity.length > 50) order.activity.length = 50;
 }
 
-function fmtMoneyOn(state, n) {
-  const currency = state.settings?.currency || '$';
+function fmtMoney(n) {
+  const currency = _state.settings?.currency || '$';
   return `${(Number(n) || 0).toLocaleString('ru-RU')} ${currency}`;
 }
 
-// ---- Seed data ----
+function logSyncError(action, err) {
+  console.error(`MebelFlow: не удалось синхронизировать «${action}» с сервером`, err);
+}
 
-function findOrCreateClientOn(state, { name, phone, address }) {
-  if (phone) {
-    const existing = state.clients.find((c) => c.phone === phone);
+function findOrCreateClientLocal({ clientId, clientName, clientPhone, address }) {
+  if (clientId) {
+    const existing = _state.clients.find((c) => c.id === clientId);
+    if (existing) return existing;
+  }
+  if (clientPhone) {
+    const existing = _state.clients.find((c) => c.phone === clientPhone);
     if (existing) {
       if (address && !existing.address) existing.address = address;
       return existing;
     }
   }
-  const client = { id: uid('cli'), name: name || 'Без имени', phone: phone || '', address: address || '', createdAt: Date.now() };
-  state.clients.push(client);
+  const client = { id: uid('cli'), name: clientName || 'Без имени', phone: clientPhone || '', address: address || '', createdAt: Date.now() };
+  _state.clients.push(client);
   return client;
 }
 
-function seed() {
-  const employees = [
-    { id: 'emp_ivan', name: 'Иван', role: 'Старший ПМ', phone: '+998 90 123-45-67' },
-    { id: 'emp_akhmad', name: 'Ахмад', role: 'Столяр', phone: '+998 90 222-33-44' },
-    { id: 'emp_alexey', name: 'Алексей', role: 'Сборщик', phone: '+998 90 333-44-55' },
-    { id: 'emp_anna', name: 'Анна', role: 'Бригадир', phone: '+998 90 444-55-66' },
-    { id: 'emp_aimad', name: 'Аимад', role: 'Доставщик', phone: '+998 90 555-66-77' },
-    { id: 'emp_salim', name: 'Салим', role: 'Конструктор', phone: '+998 90 666-77-88' },
-  ];
+// ---- Hydration ----
 
-  const partners = [
-    { id: uid('ptn'), name: 'ДСП-Раскрой Ташкент', services: ['распил', 'кромка'], contacts: '+998 71 200-10-10', avgLeadDays: 2, rating: 4, comment: 'Стабильно, иногда срывает сроки на кромке.' },
-    { id: uid('ptn'), name: 'КрасПро', services: ['покраска'], contacts: '+998 71 300-20-20', avgLeadDays: 3, rating: 5, comment: 'Лучшее качество эмали в городе.' },
-  ];
+let _state = null;
 
-  const state = {
-    orders: [],
-    stages: [],
-    tasks: [],
-    rework: [],
-    partners,
-    employees,
-    clients: [],
-    finance: {},
-    orderSeq: 106,
-    settings: { ...DEFAULT_SETTINGS },
-  };
-
-  const s = { state };
-
-  const o1 = addOrder(s, {
-    clientName: 'Иван Петров', clientPhone: '+998 90 111-22-33', address: 'г. Ташкент, ул. Мирзо-Улугбека, 12',
-    productType: 'Кухня', amount: 5000, startDate: addDays(todayISO(), -20),
-    deadline: addDays(todayISO(), 5), needsCarpentry: true, managerId: 'emp_ivan',
-    status: 'Производство', notes: 'Фасады МДФ, ручки чёрные матовые.',
-  }, 120);
-  const o2 = addOrder(s, {
-    clientName: 'Расул Каримов', clientPhone: '+998 90 222-33-44', address: 'г. Ташкент, массив Чиланзар, 45',
-    productType: 'Шкаф', amount: 1800, startDate: addDays(todayISO(), -10),
-    deadline: addDays(todayISO(), -1), needsCarpentry: false, managerId: 'emp_ivan',
-    status: 'Установка',
-  }, 118);
-  const o3 = addOrder(s, {
-    clientName: 'Флот Юсупов', clientPhone: '+998 90 333-44-55', address: 'г. Ташкент, массив Себзар, 8',
-    productType: 'Кухня', amount: 4200, startDate: addDays(todayISO(), -15),
-    deadline: addDays(todayISO(), -3), needsCarpentry: true, managerId: 'emp_ivan',
-    status: 'Сборка', notes: 'Клиент просил ускорить — вторая просрочка подряд.',
-  }, 115);
-  const o4 = addOrder(s, {
-    clientName: 'Дилноза Ахмедова', clientPhone: '+998 90 777-88-99', address: 'г. Ташкент, ул. Амира Темура, 100',
-    productType: 'Гардеробная', amount: 3200, startDate: addDays(todayISO(), -4),
-    deadline: addDays(todayISO(), 2), needsCarpentry: true, managerId: 'emp_ivan',
-    status: 'Дизайн',
-  }, 121);
-  const o5 = addOrder(s, {
-    clientName: 'Шерзод Рахимов', clientPhone: '+998 90 888-99-00', address: 'г. Ташкент, ул. Бунёдкор, 22',
-    productType: 'Тумба', amount: 650, startDate: addDays(todayISO(), -6),
-    deadline: addDays(todayISO(), 1), needsCarpentry: false, managerId: 'emp_ivan',
-    status: 'Готов',
-  }, 122);
-  const o6 = addOrder(s, {
-    clientName: 'Иван Петров', clientPhone: '+998 90 111-22-33',
-    productType: 'Стол', amount: 900, startDate: addDays(todayISO(), -40),
-    deadline: addDays(todayISO(), -25), needsCarpentry: false, managerId: 'emp_ivan',
-    status: 'Завершён',
-  }, 110);
-  const o7 = addOrder(s, {
-    clientName: 'Расул Каримов', clientPhone: '+998 90 222-33-44',
-    productType: 'Комод', amount: 500, startDate: addDays(todayISO(), -12),
-    deadline: addDays(todayISO(), -5), needsCarpentry: false, managerId: 'emp_ivan',
-    status: 'Отменён', notes: 'Клиент отказался — передумал по бюджету.',
-  }, 108);
-
-  advanceTo(s, o1.id, 'carpentry');
-  advanceTo(s, o2.id, 'handover');
-  advanceTo(s, o3.id, 'assembly');
-  advanceTo(s, o4.id, 'design');
-
-  addTask(s, {
-    orderId: o1.id, stageKey: 'carpentry', name: 'Фасады МДФ 12 шт', qty: 12,
-    assigneeId: 'emp_akhmad', deadline: addDays(todayISO(), 2), priority: 'Высокий',
-    status: 'в работе', comment: 'Чертёж уточнить у конструктора перед распилом.',
-  });
-  addTask(s, {
-    orderId: o1.id, stageKey: 'drilling', name: 'Присадка корпусов', qty: 8,
-    assigneeId: 'emp_ivan', deadline: addDays(todayISO(), 1), priority: 'Средний',
-    status: 'готово',
-  });
-  addTask(s, {
-    orderId: o3.id, stageKey: 'carpentry', name: 'Каркас нижних шкафов', qty: 6,
-    assigneeId: 'emp_akhmad', deadline: addDays(todayISO(), -1), priority: 'Высокий',
-    status: 'ожидает',
-  });
-
-  addPaymentOn(state, o1.id, { date: addDays(todayISO(), -18), comment: 'Предоплата', amount: 2000 });
-  addPaymentOn(state, o1.id, { date: addDays(todayISO(), -6), comment: 'Вторая оплата', amount: 400 });
-  addMaterialOn(state, o1.id, { name: 'ЛДСП Egger Белый', qty: 3, unit: 'лист', unitPrice: 80 });
-  addMaterialOn(state, o1.id, { name: 'Петли Blum', qty: 12, unit: 'шт.', unitPrice: 4 });
-  addOutsourceOn(state, o1.id, { name: 'Распил', amount: 120 });
-  addSalaryOn(state, o1.id, { name: 'Столяр', amount: 300 });
-  addSalaryOn(state, o1.id, { name: 'Сборщик', amount: 150 });
-  addOtherExpenseOn(state, o1.id, { name: 'Доставка материалов', amount: 40 });
-
-  addPaymentOn(state, o2.id, { date: addDays(todayISO(), -9), comment: 'Предоплата', amount: 900 });
-  addMaterialOn(state, o2.id, { name: 'ЛДСП Egger Дуб Сонома', qty: 2, unit: 'лист', unitPrice: 85 });
-  addOutsourceOn(state, o2.id, { name: 'Покраска', amount: 200 });
-  addSalaryOn(state, o2.id, { name: 'Установщик', amount: 100 });
-
-  addPaymentOn(state, o3.id, { date: addDays(todayISO(), -14), comment: 'Предоплата', amount: 2100 });
-  addMaterialOn(state, o3.id, { name: 'ЛДСП 18мм, лист', qty: 4, unit: 'лист', unitPrice: 90 });
-  addMaterialOn(state, o3.id, { name: 'Фурнитура (комплект)', qty: 1, unit: 'комплект', unitPrice: 125 });
-  addOutsourceOn(state, o3.id, { name: 'Распил и кромка', amount: 250 });
-  addOutsourceOn(state, o3.id, { name: 'Стекло', amount: 180 });
-  addSalaryOn(state, o3.id, { name: 'Столяр', amount: 320 });
-  addOtherExpenseOn(state, o3.id, { name: 'Подъём на этаж', amount: 30 });
-
-  addMaterialOn(state, o4.id, { name: 'ЛДСП белое', qty: 5, unit: 'лист', unitPrice: 78 });
-  addSalaryOn(state, o4.id, { name: 'Дизайнер', amount: 50 });
-
-  addPaymentOn(state, o5.id, { date: addDays(todayISO(), -5), comment: 'Предоплата', amount: 400 });
-  addPaymentOn(state, o5.id, { date: addDays(todayISO(), -1), comment: 'Окончательный расчёт', amount: 250 });
-  addMaterialOn(state, o5.id, { name: 'ЛДСП остаток', qty: 1, unit: 'лист', unitPrice: 80 });
-  addSalaryOn(state, o5.id, { name: 'Сборщик', amount: 60 });
-
-  addPaymentOn(state, o6.id, { date: addDays(todayISO(), -38), comment: 'Полная оплата', amount: 900 });
-  addMaterialOn(state, o6.id, { name: 'Массив дуба', qty: 1, unit: 'м²', unitPrice: 220 });
-  addSalaryOn(state, o6.id, { name: 'Столяр', amount: 150 });
-
-  addPaymentOn(state, o7.id, { date: addDays(todayISO(), -11), comment: 'Предоплата', amount: 200 });
-
-  const orderLabel = (o) => `${o.productType} #${o.number}`;
-  pushActivity(o1, `Статус изменён: Замер → ${o1.status}`);
-  pushActivity(o1, 'Добавлена оплата: ' + fmtMoneyOn(state, 400));
-  pushActivity(o2, 'Заказ просрочен');
-  pushActivity(o3, `Статус изменён: Производство → ${o3.status}`);
-  void orderLabel;
-
-  addRework(s, {
-    orderId: o1.id, reason: 'замер', description: 'Фасад неправильный размер',
-    responsibleId: 'emp_anna', urgency: 'срочно', costImpact: 220,
-    photoUrl: 'https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=400',
-  });
-  addRework(s, {
-    orderId: o2.id, reason: 'сборка', description: 'Скол на боковине при сборке',
-    responsibleId: 'emp_alexey', urgency: 'обычный', costImpact: 200,
-  });
-
-  state.orderSeq = Math.max(state.orderSeq, ...state.orders.map((o) => o.number));
-
-  return state;
+export function isHydrated() {
+  return _state !== null;
 }
 
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      parsed.settings = { ...DEFAULT_SETTINGS, ...parsed.settings };
-      parsed.clients = parsed.clients || [];
-      return parsed;
-    }
-  } catch (e) {
-    console.warn('Failed to load MebelFlow data, reseeding.', e);
-  }
-  return seed();
+export async function initStore() {
+  _state = await api.getState();
 }
 
-let _state = load();
-
-function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(_state));
+export function resetStore() {
+  _state = null;
 }
 
 export function getState() {
   return _state;
-}
-
-export function resetDemoData() {
-  _state = seed();
-  save();
 }
 
 export function getSettings() {
@@ -318,7 +173,7 @@ export function getSettings() {
 
 export function updateSettings(patch) {
   _state.settings = { ..._state.settings, ...patch };
-  save();
+  api.updateSettings(patch).catch((e) => logSyncError('настройки', e));
 }
 
 // ---- Clients ----
@@ -330,7 +185,7 @@ export function getClients() {
 export function createClient(data) {
   const client = { id: uid('cli'), name: data.name, phone: data.phone || '', address: data.address || '', createdAt: Date.now() };
   _state.clients.push(client);
-  save();
+  api.createClient(client).catch((e) => logSyncError('клиент', e));
   return client;
 }
 
@@ -340,13 +195,13 @@ export function updateClient(clientId, patch) {
   if (patch.name !== undefined) client.name = patch.name;
   if (patch.phone !== undefined) client.phone = patch.phone;
   if (patch.address !== undefined) client.address = patch.address;
-  save();
+  api.updateClient(clientId, patch).catch((e) => logSyncError('клиент', e));
 }
 
 export function deleteClient(clientId) {
   if (_state.orders.some((o) => o.clientId === clientId)) return false;
   _state.clients = _state.clients.filter((c) => c.id !== clientId);
-  save();
+  api.deleteClient(clientId).catch((e) => logSyncError('удаление клиента', e));
   return true;
 }
 
@@ -363,13 +218,12 @@ export function getClientStats(clientId) {
 
 // ---- Orders & stages ----
 
-function addOrder(s, data, forcedNumber) {
-  const state = s.state;
+export function createOrder(data) {
   const client = data.clientId
-    ? state.clients.find((c) => c.id === data.clientId)
-    : findOrCreateClientOn(state, { name: data.clientName, phone: data.clientPhone, address: data.address });
+    ? _state.clients.find((c) => c.id === data.clientId)
+    : findOrCreateClientLocal(data);
 
-  const number = forcedNumber ?? ++state.orderSeq;
+  const number = ++_state.orderSeq;
   const order = {
     id: uid('ord'),
     number,
@@ -388,10 +242,10 @@ function addOrder(s, data, forcedNumber) {
     activity: [],
     createdAt: Date.now(),
   };
-  state.orders.push(order);
+  _state.orders.push(order);
   pushActivity(order, 'Заказ создан');
 
-  const bufferDays = (state.settings || DEFAULT_SETTINGS).stageBufferDays;
+  const bufferDays = (_state.settings || DEFAULT_SETTINGS).stageBufferDays;
   STAGE_DEFS.forEach((def, i) => {
     const skip = def.key === 'carpentry' && !order.needsCarpentry;
     const stage = {
@@ -408,15 +262,10 @@ function addOrder(s, data, forcedNumber) {
       status: skip ? 'готово' : (i === 0 ? 'в работе' : 'ожидает'),
       skipped: skip,
     };
-    state.stages.push(stage);
+    _state.stages.push(stage);
   });
 
-  return order;
-}
-
-export function createOrder(data) {
-  const order = addOrder({ state: _state }, data);
-  save();
+  api.createOrder({ ...data, id: order.id }).catch((e) => logSyncError('заказ', e));
   return order;
 }
 
@@ -438,7 +287,7 @@ export function updateOrder(orderId, patch) {
     if (patch.clientPhone !== undefined) client.phone = patch.clientPhone;
     if (patch.address !== undefined && !client.address) client.address = patch.address;
   }
-  save();
+  api.updateOrder(orderId, patch).catch((e) => logSyncError('заказ', e));
 }
 
 export function updateOrderStatus(orderId, status) {
@@ -448,7 +297,7 @@ export function updateOrderStatus(orderId, status) {
   if (from === status) return;
   order.status = status;
   pushActivity(order, `Статус изменён: ${from} → ${status}`);
-  save();
+  api.updateOrderStatus(orderId, status).catch((e) => logSyncError('статус заказа', e));
 }
 
 export function deleteOrder(orderId) {
@@ -457,7 +306,7 @@ export function deleteOrder(orderId) {
   _state.tasks = _state.tasks.filter((t) => t.orderId !== orderId);
   _state.rework = _state.rework.filter((r) => r.orderId !== orderId);
   delete _state.finance[orderId];
-  save();
+  api.deleteOrder(orderId).catch((e) => logSyncError('удаление заказа', e));
 }
 
 function stagesOf(state, orderId) {
@@ -474,18 +323,6 @@ export function getActiveStage(orderId) {
   return getOrderStages(orderId).find((st) => !st.skipped && st.status !== 'готово');
 }
 
-function advanceTo(s, orderId, targetKey) {
-  const stages = stagesOf(s.state, orderId);
-  for (const st of stages) {
-    if (st.skipped) continue;
-    if (st.defKey === targetKey) {
-      st.status = 'в работе';
-      break;
-    }
-    st.status = 'готово';
-  }
-}
-
 export function completeStage(stageId) {
   const stage = _state.stages.find((st) => st.id === stageId);
   if (!stage) return;
@@ -493,7 +330,7 @@ export function completeStage(stageId) {
   const stages = stagesOf(_state, stage.orderId);
   const next = stages.find((st) => !st.skipped && st.status === 'ожидает');
   if (next) next.status = 'в работе';
-  save();
+  api.completeStage(stage.orderId, stageId).catch((e) => logSyncError('этап', e));
 }
 
 export function setStageAssignment(stageId, { assigneeId, partnerId, deadline }) {
@@ -502,7 +339,7 @@ export function setStageAssignment(stageId, { assigneeId, partnerId, deadline })
   if (assigneeId !== undefined) stage.assigneeId = assigneeId || null;
   if (partnerId !== undefined) stage.partnerId = partnerId || null;
   if (deadline !== undefined) stage.deadline = deadline;
-  save();
+  api.setStageAssignment(stage.orderId, stageId, { assigneeId, partnerId, deadline }).catch((e) => logSyncError('этап', e));
 }
 
 export function isOverdue(deadline, status) {
@@ -520,9 +357,8 @@ export function isOrderOverdue(order) {
 
 // ---- Production tasks ----
 
-function addTask(s, data) {
-  const state = s.state;
-  const stage = state.stages.find((st) => st.orderId === data.orderId && st.defKey === data.stageKey);
+export function createTask(data) {
+  const stage = _state.stages.find((st) => st.orderId === data.orderId && st.defKey === data.stageKey);
   const task = {
     id: uid('tsk'),
     orderId: data.orderId || null,
@@ -537,13 +373,8 @@ function addTask(s, data) {
     comment: data.comment || '',
     createdAt: Date.now(),
   };
-  state.tasks.push(task);
-  return task;
-}
-
-export function createTask(data) {
-  const task = addTask({ state: _state }, data);
-  save();
+  _state.tasks.push(task);
+  api.createTask({ ...data, id: task.id }).catch((e) => logSyncError('задача', e));
   return task;
 }
 
@@ -555,25 +386,24 @@ export function updateTaskStatus(taskId, status) {
     const rw = _state.rework.find((r) => r.taskId === taskId);
     if (rw) rw.status = 'готово';
   }
-  save();
+  api.updateTask(taskId, { status }).catch((e) => logSyncError('задача', e));
 }
 
 export function updateTask(taskId, patch) {
   const task = _state.tasks.find((t) => t.id === taskId);
   if (!task) return;
   Object.assign(task, patch);
-  save();
+  api.updateTask(taskId, patch).catch((e) => logSyncError('задача', e));
 }
 
 export function deleteTask(taskId) {
   _state.tasks = _state.tasks.filter((t) => t.id !== taskId);
-  save();
+  api.deleteTask(taskId).catch((e) => logSyncError('удаление задачи', e));
 }
 
 // ---- Rework ----
 
-function addRework(s, data) {
-  const state = s.state;
+export function createRework(data) {
   const rework = {
     id: uid('rwk'),
     orderId: data.orderId,
@@ -586,9 +416,9 @@ function addRework(s, data) {
     costImpact: Number(data.costImpact) || 0,
     createdAt: Date.now(),
   };
-  state.rework.push(rework);
+  _state.rework.push(rework);
 
-  const task = addTask(s, {
+  const task = createTaskLocalOnly({
     orderId: data.orderId,
     stageKey: 'carpentry',
     name: `Переделка: ${data.description}`,
@@ -601,13 +431,28 @@ function addRework(s, data) {
   });
   rework.taskId = task.id;
 
+  api.createRework({ ...data, id: rework.id }).catch((e) => logSyncError('переделка', e));
   return rework;
 }
 
-export function createRework(data) {
-  const rework = addRework({ state: _state }, data);
-  save();
-  return rework;
+function createTaskLocalOnly(data) {
+  const stage = _state.stages.find((st) => st.orderId === data.orderId && st.defKey === data.stageKey);
+  const task = {
+    id: uid('tsk'),
+    orderId: data.orderId || null,
+    stageId: stage ? stage.id : null,
+    stageKey: data.stageKey,
+    name: data.name,
+    qty: Number(data.qty) || 1,
+    assigneeId: data.assigneeId || null,
+    deadline: data.deadline || addDays(todayISO(), 3),
+    status: data.status || 'ожидает',
+    priority: data.priority || 'Средний',
+    comment: data.comment || '',
+    createdAt: Date.now(),
+  };
+  _state.tasks.push(task);
+  return task;
 }
 
 export function updateReworkStatus(reworkId, status) {
@@ -618,7 +463,7 @@ export function updateReworkStatus(reworkId, status) {
     const task = _state.tasks.find((t) => t.id === rw.taskId);
     if (task && status === 'готово') task.status = 'готово';
   }
-  save();
+  api.updateReworkStatus(reworkId, status).catch((e) => logSyncError('переделка', e));
 }
 
 // ---- Outsource partners ----
@@ -634,13 +479,13 @@ export function createPartner(data) {
     comment: data.comment || '',
   };
   _state.partners.push(partner);
-  save();
+  api.createPartner({ ...data, id: partner.id }).catch((e) => logSyncError('партнёр', e));
   return partner;
 }
 
 export function deletePartner(partnerId) {
   _state.partners = _state.partners.filter((p) => p.id !== partnerId);
-  save();
+  api.deletePartner(partnerId).catch((e) => logSyncError('удаление партнёра', e));
 }
 
 // ---- Employees ----
@@ -651,15 +496,16 @@ export function createEmployee(data) {
     name: data.name,
     role: data.role,
     phone: data.phone || '',
+    email: data.email || null,
   };
   _state.employees.push(employee);
-  save();
+  api.createEmployee({ ...data, id: employee.id }).catch((e) => logSyncError('сотрудник', e));
   return employee;
 }
 
 export function deleteEmployee(employeeId) {
   _state.employees = _state.employees.filter((e) => e.id !== employeeId);
-  save();
+  api.deleteEmployee(employeeId).catch((e) => logSyncError('удаление сотрудника', e));
 }
 
 export function getEmployeeActiveTasks(employeeId) {
@@ -668,77 +514,81 @@ export function getEmployeeActiveTasks(employeeId) {
 
 // ---- Finance ----
 
-function ensureFinanceOn(state, orderId) {
-  if (!state.finance[orderId]) {
-    state.finance[orderId] = { payments: [], materials: [], outsourcing: [], salaries: [], otherExpenses: [] };
+function ensureFinance(orderId) {
+  if (!_state.finance[orderId]) {
+    _state.finance[orderId] = { payments: [], materials: [], outsourcing: [], salaries: [], otherExpenses: [] };
   }
-  return state.finance[orderId];
+  return _state.finance[orderId];
 }
 
 export function getFinance(orderId) {
-  const f = ensureFinanceOn(_state, orderId);
-  return f;
+  return ensureFinance(orderId);
 }
 
-function addPaymentOn(state, orderId, data) {
-  const f = ensureFinanceOn(state, orderId);
-  f.payments.push({ id: uid('pay'), date: data.date || todayISO(), comment: data.comment || '', amount: Number(data.amount) || 0 });
-  const order = state.orders.find((o) => o.id === orderId);
-  if (order) pushActivity(order, `Добавлена оплата: ${fmtMoneyOn(state, data.amount)}`);
+export function addPayment(orderId, data) {
+  const f = ensureFinance(orderId);
+  const record = { id: uid('pay'), date: data.date || todayISO(), comment: data.comment || '', amount: Number(data.amount) || 0 };
+  f.payments.push(record);
+  const order = _state.orders.find((o) => o.id === orderId);
+  if (order) pushActivity(order, `Добавлена оплата: ${fmtMoney(data.amount)}`);
+  api.addPayment(orderId, { ...data, id: record.id }).catch((e) => logSyncError('оплата', e));
 }
-export function addPayment(orderId, data) { addPaymentOn(_state, orderId, data); save(); }
 export function removePayment(orderId, id) {
-  const f = ensureFinanceOn(_state, orderId);
+  const f = ensureFinance(orderId);
   f.payments = f.payments.filter((p) => p.id !== id);
-  save();
+  api.removePayment(orderId, id).catch((e) => logSyncError('удаление оплаты', e));
 }
 
-function addMaterialOn(state, orderId, data) {
-  const f = ensureFinanceOn(state, orderId);
-  f.materials.push({ id: uid('mat'), name: data.name, qty: Number(data.qty) || 0, unit: data.unit || 'шт.', unitPrice: Number(data.unitPrice) || 0 });
-  const order = state.orders.find((o) => o.id === orderId);
+export function addMaterial(orderId, data) {
+  const f = ensureFinance(orderId);
+  const record = { id: uid('mat'), name: data.name, qty: Number(data.qty) || 0, unit: data.unit || 'шт.', unitPrice: Number(data.unitPrice) || 0 };
+  f.materials.push(record);
+  const order = _state.orders.find((o) => o.id === orderId);
   if (order) pushActivity(order, `Добавлен материал: ${data.name}`);
+  api.addMaterial(orderId, { ...data, id: record.id }).catch((e) => logSyncError('материал', e));
 }
-export function addMaterial(orderId, data) { addMaterialOn(_state, orderId, data); save(); }
 export function removeMaterial(orderId, id) {
-  const f = ensureFinanceOn(_state, orderId);
+  const f = ensureFinance(orderId);
   f.materials = f.materials.filter((m) => m.id !== id);
-  save();
+  api.removeMaterial(orderId, id).catch((e) => logSyncError('удаление материала', e));
 }
 
-function addOutsourceOn(state, orderId, data) {
-  const f = ensureFinanceOn(state, orderId);
-  f.outsourcing.push({ id: uid('out'), name: data.name, amount: Number(data.amount) || 0 });
-  const order = state.orders.find((o) => o.id === orderId);
+export function addOutsourceExpense(orderId, data) {
+  const f = ensureFinance(orderId);
+  const record = { id: uid('out'), name: data.name, amount: Number(data.amount) || 0 };
+  f.outsourcing.push(record);
+  const order = _state.orders.find((o) => o.id === orderId);
   if (order) pushActivity(order, `Добавлен аутсорс: ${data.name}`);
+  api.addOutsourceExpense(orderId, { ...data, id: record.id }).catch((e) => logSyncError('аутсорс', e));
 }
-export function addOutsourceExpense(orderId, data) { addOutsourceOn(_state, orderId, data); save(); }
 export function removeOutsourceExpense(orderId, id) {
-  const f = ensureFinanceOn(_state, orderId);
+  const f = ensureFinance(orderId);
   f.outsourcing = f.outsourcing.filter((o) => o.id !== id);
-  save();
+  api.removeOutsourceExpense(orderId, id).catch((e) => logSyncError('удаление аутсорса', e));
 }
 
-function addSalaryOn(state, orderId, data) {
-  const f = ensureFinanceOn(state, orderId);
-  f.salaries.push({ id: uid('sal'), name: data.name, amount: Number(data.amount) || 0 });
+export function addSalaryExpense(orderId, data) {
+  const f = ensureFinance(orderId);
+  const record = { id: uid('sal'), name: data.name, amount: Number(data.amount) || 0 };
+  f.salaries.push(record);
+  api.addSalaryExpense(orderId, { ...data, id: record.id }).catch((e) => logSyncError('зарплата', e));
 }
-export function addSalaryExpense(orderId, data) { addSalaryOn(_state, orderId, data); save(); }
 export function removeSalaryExpense(orderId, id) {
-  const f = ensureFinanceOn(_state, orderId);
+  const f = ensureFinance(orderId);
   f.salaries = f.salaries.filter((sa) => sa.id !== id);
-  save();
+  api.removeSalaryExpense(orderId, id).catch((e) => logSyncError('удаление зарплаты', e));
 }
 
-function addOtherExpenseOn(state, orderId, data) {
-  const f = ensureFinanceOn(state, orderId);
-  f.otherExpenses.push({ id: uid('exp'), name: data.name, amount: Number(data.amount) || 0 });
+export function addOtherExpense(orderId, data) {
+  const f = ensureFinance(orderId);
+  const record = { id: uid('exp'), name: data.name, amount: Number(data.amount) || 0 };
+  f.otherExpenses.push(record);
+  api.addOtherExpense(orderId, { ...data, id: record.id }).catch((e) => logSyncError('расход', e));
 }
-export function addOtherExpense(orderId, data) { addOtherExpenseOn(_state, orderId, data); save(); }
 export function removeOtherExpense(orderId, id) {
-  const f = ensureFinanceOn(_state, orderId);
+  const f = ensureFinance(orderId);
   f.otherExpenses = f.otherExpenses.filter((e) => e.id !== id);
-  save();
+  api.removeOtherExpense(orderId, id).catch((e) => logSyncError('удаление расхода', e));
 }
 
 export function computeOrderFinance(orderId) {
