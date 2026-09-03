@@ -48,6 +48,11 @@ function render() {
 
 window.addEventListener('hashchange', render);
 window.addEventListener('DOMContentLoaded', () => {
-  if (!window.location.hash) window.location.hash = '#/dashboard';
-  render();
+  if (!window.location.hash) {
+    // Setting the hash queues an async 'hashchange', which will call render();
+    // calling it again here would just re-render the same route twice.
+    window.location.hash = '#/dashboard';
+  } else {
+    render();
+  }
 });

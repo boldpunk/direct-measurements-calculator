@@ -174,7 +174,6 @@ function addOrder(s, data, forcedNumber) {
   };
   state.orders.push(order);
 
-  let order_idx = 0;
   STAGE_DEFS.forEach((def, i) => {
     const skip = def.key === 'carpentry' && !order.needsCarpentry;
     const stage = {
@@ -183,6 +182,7 @@ function addOrder(s, data, forcedNumber) {
       defKey: def.key,
       name: def.name,
       type: def.type,
+      service: def.service || null,
       order: i,
       assigneeId: null,
       partnerId: null,
@@ -252,13 +252,13 @@ export function setStageAssignment(stageId, { assigneeId, partnerId, deadline })
 function syncOrderStatus(state, orderId) {
   const order = state.orders.find((o) => o.id === orderId);
   if (!order) return;
-  const stages = stagesOf(state, orderId);
-  const real = stages.filter((st) => !st.skipped);
+  const real = stagesOf(state, orderId).filter((st) => !st.skipped);
   if (real.every((st) => st.status === 'готово')) {
     order.status = 'завершён';
-  } else if (real[0].status !== 'ожидает' && real.some((st) => st.status !== 'ожидает')) {
-    order.status = stages[0].status === 'в работе' ? 'в продаже' : 'в производстве';
-    if (real.slice(1).some((st) => st.status !== 'ожидает')) order.status = 'в производстве';
+  } else if (real.slice(1).some((st) => st.status !== 'ожидает')) {
+    order.status = 'в производстве';
+  } else {
+    order.status = 'в продаже';
   }
 }
 
@@ -300,6 +300,10 @@ export function updateTaskStatus(taskId, status) {
   const task = _state.tasks.find((t) => t.id === taskId);
   if (!task) return;
   task.status = status;
+  if (status === 'готово') {
+    const rw = _state.rework.find((r) => r.taskId === taskId);
+    if (rw) rw.status = 'готово';
+  }
   save();
 }
 

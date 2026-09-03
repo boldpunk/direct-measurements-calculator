@@ -1,6 +1,6 @@
 import {
   getState, getOverdueOrders, getInProgressOrders, getCarpentryTasks,
-  getActiveStage, computeMonthlyProfit,
+  getActiveStage, computeMonthlyProfit, isOverdue,
 } from '../store.js';
 import { money, shortDate, escapeHtml, statusBadgeClass, priorityBadgeClass } from '../format.js';
 import { kpiCard, card } from '../ui.js';
@@ -29,7 +29,7 @@ export function renderDashboard() {
           <div class="row-item__title">${escapeHtml(o.productType)} #${o.number}</div>
           <div class="row-item__sub">${escapeHtml(o.clientName)}</div>
         </div>
-        <div class="row-item__meta ${active && active.deadline < todayISO() ? 'is-overdue' : ''}">
+        <div class="row-item__meta ${active && isOverdue(active.deadline, active.status) ? 'is-overdue' : ''}">
           ${active ? shortDate(active.deadline) : money(o.amount)}
         </div>
       </div>
@@ -84,10 +84,6 @@ export function renderDashboard() {
       ${card('4', 'Финансы', `<div class="row-list">${financeRows}</div><div class="finance-month">Прибыль за месяц: <b class="${monthlyProfit >= 0 ? 'text-pos' : 'text-neg'}">${money(monthlyProfit)}</b></div>`)}
     </div>
   `;
-}
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function plural(n) {

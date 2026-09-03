@@ -72,7 +72,10 @@ function renderOrderDetail(orderId) {
             <div class="stage-row__controls">
               <select class="stage-row__select" data-stage-field="${st.type === 'outsource' ? 'partnerId' : 'assigneeId'}" data-stage-id="${st.id}">
                 ${st.type === 'outsource'
-                  ? selectOptions(state.partners, 'id', 'name', st.partnerId)
+                  ? selectOptions(
+                      st.service ? state.partners.filter((p) => p.services.includes(st.service)) : state.partners,
+                      'id', 'name', st.partnerId,
+                    )
                   : selectOptions(state.employees, 'id', 'name', st.assigneeId)}
               </select>
               <input type="date" class="stage-row__date" data-stage-field="deadline" data-stage-id="${st.id}" value="${st.deadline}" />
