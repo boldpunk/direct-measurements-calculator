@@ -115,7 +115,13 @@ function seed() {
     status: 'ожидает',
   });
 
-  s.state.finance[o1.id] = { prepayment: 2400, costOutsource1: 900, costOutsource2: 700, materials: 500, salaries: 900 };
+  s.state.finance[o1.id] = {
+    prepayment: 2400, costOutsource1: 900, costOutsource2: 700, materials: 500, salaries: 900,
+    materialItems: [
+      { id: uid('mat'), name: 'ЛДСП 18мм, лист', unitPrice: 125, qty: 3 },
+      { id: uid('mat'), name: 'Фурнитура (комплект)', unitPrice: 125, qty: 1 },
+    ],
+  };
   s.state.finance[o2.id] = { prepayment: 900, costOutsource1: 400, costOutsource2: 300, materials: 250, salaries: 300 };
   s.state.finance[o3.id] = { prepayment: 2100, costOutsource1: 700, costOutsource2: 500, materials: 400, salaries: 700 };
 
@@ -441,12 +447,34 @@ export function getEmployeeActiveTasks(employeeId) {
 // ---- Finance ----
 
 export function getFinance(orderId) {
-  return _state.finance[orderId] || { prepayment: 0, costOutsource1: 0, costOutsource2: 0, materials: 0, salaries: 0 };
+  const f = _state.finance[orderId] || { prepayment: 0, costOutsource1: 0, costOutsource2: 0, materials: 0, salaries: 0 };
+  return { materialItems: [], ...f };
 }
 
 export function setFinance(orderId, patch) {
   const current = getFinance(orderId);
   _state.finance[orderId] = { ...current, ...patch };
+  save();
+}
+
+function recomputeMaterialsTotal(orderId) {
+  const f = getFinance(orderId);
+  const materials = f.materialItems.reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (Number(it.qty) || 0), 0);
+  _state.finance[orderId] = { ...f, materials };
+}
+
+export function addMaterialItem(orderId, item) {
+  const f = getFinance(orderId);
+  const newItem = { id: uid('mat'), name: item.name, unitPrice: Number(item.unitPrice) || 0, qty: Number(item.qty) || 0 };
+  _state.finance[orderId] = { ...f, materialItems: [...f.materialItems, newItem] };
+  recomputeMaterialsTotal(orderId);
+  save();
+}
+
+export function removeMaterialItem(orderId, itemId) {
+  const f = getFinance(orderId);
+  _state.finance[orderId] = { ...f, materialItems: f.materialItems.filter((it) => it.id !== itemId) };
+  recomputeMaterialsTotal(orderId);
   save();
 }
 
