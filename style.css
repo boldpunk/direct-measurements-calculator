@@ -1009,7 +1009,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  max-height: 320px;
+  max-height: 220px;
   display: flex;
   flex-direction: column;
   background: var(--panel);
