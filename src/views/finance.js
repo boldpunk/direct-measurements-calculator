@@ -1,6 +1,7 @@
 import { getState, computeOrderFinance, computeMonthlyProfit, getOrderDeadlineInfo } from '../store.js';
 import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { kpiCard } from '../ui.js';
+import { maskUnless } from '../permissions.js';
 import { selectOrder } from './orders.js';
 
 export function renderFinance() {
@@ -18,11 +19,11 @@ export function renderFinance() {
   }, { revenue: 0, cost: 0, profit: 0, received: 0, remaining: 0 });
 
   const kpis = [
-    kpiCard('fa-file-invoice-dollar', 'info', 'Выручка (все заказы)', money(totals.revenue)),
-    kpiCard('fa-layer-group', 'warning', 'Себестоимость (все заказы)', money(totals.cost)),
-    kpiCard('fa-sack-dollar', totals.profit >= 0 ? 'success' : 'danger', 'Прибыль (все заказы)', money(totals.profit)),
-    kpiCard('fa-hand-holding-dollar', 'neutral', 'К получению', money(totals.remaining)),
-    kpiCard('fa-calendar-check', monthlyProfit >= 0 ? 'success' : 'danger', 'Прибыль за месяц', money(monthlyProfit)),
+    kpiCard('fa-file-invoice-dollar', 'info', 'Выручка (все заказы)', maskUnless('seesFinanceAnalytics', money(totals.revenue))),
+    kpiCard('fa-layer-group', 'warning', 'Себестоимость (все заказы)', maskUnless('seesCostPrice', money(totals.cost))),
+    kpiCard('fa-sack-dollar', totals.profit >= 0 ? 'success' : 'danger', 'Прибыль (все заказы)', maskUnless('seesProfit', money(totals.profit))),
+    kpiCard('fa-hand-holding-dollar', 'neutral', 'К получению', maskUnless('seesFinanceAnalytics', money(totals.remaining))),
+    kpiCard('fa-calendar-check', monthlyProfit >= 0 ? 'success' : 'danger', 'Прибыль за месяц', maskUnless('seesProfit', money(monthlyProfit))),
   ];
 
   const rows = [...state.orders].reverse().map((o) => {
@@ -35,9 +36,9 @@ export function renderFinance() {
         <td>${money(o.amount)}</td>
         <td>${money(fin.receivedAmount)}</td>
         <td class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : 'Оплачено'}</td>
-        <td>${money(fin.costPrice)}</td>
-        <td class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}"><b>${money(fin.profit)}</b></td>
-        <td class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">${fin.margin.toFixed(1)}%</td>
+        <td>${maskUnless('seesCostPrice', money(fin.costPrice))}</td>
+        <td class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}"><b>${maskUnless('seesProfit', money(fin.profit))}</b></td>
+        <td class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">${maskUnless('seesMargin', `${fin.margin.toFixed(1)}%`)}</td>
         <td><span class="${orderStatusBadgeClass(o.status)}">${o.status}</span></td>
         <td><span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span></td>
       </tr>

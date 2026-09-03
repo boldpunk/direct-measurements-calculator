@@ -5,7 +5,12 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 
 const router = Router();
 
-const publicEmployee = (e) => ({ id: e.id, name: e.name, role: e.role, phone: e.phone, email: e.email });
+const basicEmployee = (e) => ({ id: e.id, name: e.name, role: e.role, phone: e.phone, email: e.email });
+const fullEmployee = (e) => ({
+  ...basicEmployee(e),
+  accessRole: e.accessRole, permissions: e.permissions, financialFlags: e.financialFlags,
+  scopeFlags: e.scopeFlags, isBlocked: e.isBlocked,
+});
 
 // Returns the full app state in the same shape src/store.js keeps in memory,
 // so the frontend can hydrate its local cache in one round trip.
@@ -75,7 +80,9 @@ router.get('/', ah(async (req, res) => {
     tasks,
     rework,
     partners,
-    employees: employees.map(publicEmployee),
+    employees: req.employee?.permissions?.employees?.edit
+      ? employees.map(fullEmployee)
+      : employees.map((e) => (e.id === req.employee?.id ? fullEmployee(e) : basicEmployee(e))),
     clients,
     finance: financeByOrder,
     orderSeq: settingsRow ? settingsRow.orderSeq : 100,

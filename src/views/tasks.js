@@ -4,6 +4,7 @@ import {
 } from '../store.js';
 import { shortDate, escapeHtml, priorityBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
+import { can } from '../permissions.js';
 import { selectOrder } from './orders.js';
 
 let currentFilter = 'all';
@@ -37,7 +38,7 @@ export function renderTasks() {
   return `
     <div class="page-header">
       <h1>Задачи</h1>
-      <button class="btn btn--primary" data-action="new-task"><i class="fa-solid fa-plus"></i> Новая задача</button>
+      ${can('tasks', 'create') ? '<button class="btn btn--primary" data-action="new-task"><i class="fa-solid fa-plus"></i> Новая задача</button>' : ''}
     </div>
     <div class="orders-filters">
       ${FILTERS.map((f) => `<button type="button" class="chip ${f.key === currentFilter ? 'is-active' : ''}" data-task-filter="${f.key}">${f.label}</button>`).join('')}
@@ -61,15 +62,17 @@ function renderTaskRow(t, state) {
           <span class="${overdue ? 'is-overdue' : ''}">${shortDate(t.deadline)}</span>
         </div>
       </div>
-      <select class="${priorityBadgeClass(t.priority)} priority-select" data-task-priority="${t.id}">
+      <select class="${priorityBadgeClass(t.priority)} priority-select" data-task-priority="${t.id}" ${can('tasks', 'edit') ? '' : 'disabled'}>
         ${TASK_PRIORITIES.map((p) => `<option value="${p}" ${p === t.priority ? 'selected' : ''}>${p}</option>`).join('')}
       </select>
-      <select class="task-row-card__status" data-task-status="${t.id}">
+      <select class="task-row-card__status" data-task-status="${t.id}" ${can('tasks', 'edit') ? '' : 'disabled'}>
         ${TASK_STATUSES.map((s) => `<option value="${s}" ${s === t.status ? 'selected' : ''}>${s}</option>`).join('')}
       </select>
-      <button type="button" class="task-card__delete" data-action="delete-task" data-id="${t.id}" title="Удалить задачу">
-        <i class="fa-solid fa-trash"></i>
-      </button>
+      ${can('tasks', 'delete') ? `
+        <button type="button" class="task-card__delete" data-action="delete-task" data-id="${t.id}" title="Удалить задачу">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      ` : ''}
     </div>
   `;
 }

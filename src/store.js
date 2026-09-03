@@ -489,23 +489,19 @@ export function deletePartner(partnerId) {
 }
 
 // ---- Employees ----
+// Employee create/update/block/delete go through api.js directly (see
+// views/employees.js) rather than the optimistic pattern above: the server
+// validates role+permissions on creation and can reject it, so the UI needs
+// to await the real result instead of assuming success.
 
-export function createEmployee(data) {
-  const employee = {
-    id: uid('emp'),
-    name: data.name,
-    role: data.role,
-    phone: data.phone || '',
-    email: data.email || null,
-  };
-  _state.employees.push(employee);
-  api.createEmployee({ ...data, id: employee.id }).catch((e) => logSyncError('сотрудник', e));
-  return employee;
+export function replaceEmployeeInState(employee) {
+  const i = _state.employees.findIndex((e) => e.id === employee.id);
+  if (i >= 0) _state.employees[i] = employee;
+  else _state.employees.push(employee);
 }
 
-export function deleteEmployee(employeeId) {
+export function removeEmployeeFromState(employeeId) {
   _state.employees = _state.employees.filter((e) => e.id !== employeeId);
-  api.deleteEmployee(employeeId).catch((e) => logSyncError('удаление сотрудника', e));
 }
 
 export function getEmployeeActiveTasks(employeeId) {

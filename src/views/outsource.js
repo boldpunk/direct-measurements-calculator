@@ -1,9 +1,11 @@
 import { getState, createPartner, deletePartner, OUTSOURCE_SERVICES } from '../store.js';
 import { escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
+import { can, sees, maskUnless } from '../permissions.js';
 
 export function renderOutsource() {
   const state = getState();
+  const seesContacts = sees('seesSupplierData');
 
   const rows = state.partners.map((p) => `
     <div class="partner-card">
@@ -15,18 +17,18 @@ export function renderOutsource() {
         ${p.services.map((s) => `<span class="badge badge--muted">${escapeHtml(s)}</span>`).join(' ')}
       </div>
       <div class="partner-card__meta">
-        <span><i class="fa-solid fa-phone"></i> ${p.contacts ? `<a class="tel-link" href="tel:${escapeHtml(p.contacts.replace(/[^+\d]/g, ''))}">${escapeHtml(p.contacts)}</a>` : '—'}</span>
+        <span><i class="fa-solid fa-phone"></i> ${p.contacts ? (seesContacts ? `<a class="tel-link" href="tel:${escapeHtml(p.contacts.replace(/[^+\d]/g, ''))}">${escapeHtml(p.contacts)}</a>` : maskUnless('seesSupplierData', '')) : '—'}</span>
         <span><i class="fa-solid fa-clock"></i> ${p.avgLeadDays} дн.</span>
       </div>
       ${p.comment ? `<div class="partner-card__comment">${escapeHtml(p.comment)}</div>` : ''}
-      <button class="btn btn--sm btn--danger-ghost" data-action="delete-partner" data-id="${p.id}">Удалить</button>
+      ${can('outsource', 'delete') ? `<button class="btn btn--sm btn--danger-ghost" data-action="delete-partner" data-id="${p.id}">Удалить</button>` : ''}
     </div>
   `).join('') || '<div class="empty-state">Партнёров нет</div>';
 
   return `
     <div class="page-header">
       <h1>Аутсорс партнёры</h1>
-      <button class="btn btn--primary" data-action="new-partner"><i class="fa-solid fa-plus"></i> Новый партнёр</button>
+      ${can('outsource', 'create') ? '<button class="btn btn--primary" data-action="new-partner"><i class="fa-solid fa-plus"></i> Новый партнёр</button>' : ''}
     </div>
     <div class="partner-grid">${rows}</div>
   `;

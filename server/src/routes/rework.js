@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ah, uid, todayISO, addDays } from '../util.js';
+import { requirePermission } from '../middleware/auth.js';
+import { logAudit } from '../audit.js';
 
 const router = Router();
 
-router.post('/', ah(async (req, res) => {
+router.post('/', requirePermission('rework', 'create'), ah(async (req, res) => {
   const body = req.body || {};
   const rework = await prisma.$transaction(async (tx) => {
     const task = await tx.task.create({
@@ -38,11 +40,13 @@ router.post('/', ah(async (req, res) => {
       },
     });
   });
+  await logAudit(req, { action: 'rework.create', entityType: 'rework', entityId: rework.id, newValue: rework });
   res.status(201).json(rework);
 }));
 
-router.patch('/:id/status', ah(async (req, res) => {
+router.patch('/:id/status', requirePermission('rework', 'edit'), ah(async (req, res) => {
   const { status } = req.body || {};
+  const before = await prisma.rework.findUnique({ where: { id: req.params.id } });
   const rework = await prisma.$transaction(async (tx) => {
     const updated = await tx.rework.update({ where: { id: req.params.id }, data: { status } }).catch(() => null);
     if (!updated) return null;
@@ -52,6 +56,11 @@ router.patch('/:id/status', ah(async (req, res) => {
     return updated;
   });
   if (!rework) return res.status(404).json({ error: 'Переделка не найдена' });
+  await logAudit(req, {
+    action: 'rework.status_change', entityType: 'rework', entityId: rework.id,
+    oldValue: before ? { status: before.status } : undefined,
+    newValue: { status: rework.status },
+  });
   res.json(rework);
 }));
 

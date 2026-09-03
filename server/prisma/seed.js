@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import { uid, todayISO, addDays } from '../src/util.js';
 import { STAGE_DEFS, DEFAULT_SETTINGS } from '../src/constants.js';
+import { PRESET_ROLES } from '../src/rbac.js';
 
 const prisma = new PrismaClient();
 
@@ -176,15 +177,28 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
   const employees = [
-    { id: 'emp_ivan', name: 'Иван', role: 'Старший ПМ', phone: '+998 90 123-45-67', email: 'ivan@mebelflow.uz' },
-    { id: 'emp_akhmad', name: 'Ахмад', role: 'Столяр', phone: '+998 90 222-33-44', email: 'akhmad@mebelflow.uz' },
-    { id: 'emp_alexey', name: 'Алексей', role: 'Сборщик', phone: '+998 90 333-44-55', email: 'alexey@mebelflow.uz' },
-    { id: 'emp_anna', name: 'Анна', role: 'Бригадир', phone: '+998 90 444-55-66', email: 'anna@mebelflow.uz' },
-    { id: 'emp_aimad', name: 'Аимад', role: 'Доставщик', phone: '+998 90 555-66-77', email: 'aimad@mebelflow.uz' },
-    { id: 'emp_salim', name: 'Салим', role: 'Конструктор', phone: '+998 90 666-77-88', email: 'salim@mebelflow.uz' },
+    { id: 'emp_ivan', name: 'Иван', role: 'Старший ПМ', phone: '+998 90 123-45-67', email: 'ivan@mebelflow.uz', accessRole: 'Руководитель' },
+    { id: 'emp_akhmad', name: 'Ахмад', role: 'Столяр', phone: '+998 90 222-33-44', email: 'akhmad@mebelflow.uz', accessRole: 'Производственник' },
+    { id: 'emp_alexey', name: 'Алексей', role: 'Сборщик', phone: '+998 90 333-44-55', email: 'alexey@mebelflow.uz', accessRole: 'Производственник' },
+    { id: 'emp_anna', name: 'Анна', role: 'Бригадир', phone: '+998 90 444-55-66', email: 'anna@mebelflow.uz', accessRole: 'Производственник' },
+    { id: 'emp_aimad', name: 'Аимад', role: 'Доставщик', phone: '+998 90 555-66-77', email: 'aimad@mebelflow.uz', accessRole: 'Монтажник' },
+    { id: 'emp_salim', name: 'Салим', role: 'Конструктор', phone: '+998 90 666-77-88', email: 'salim@mebelflow.uz', accessRole: 'Технолог' },
+    { id: 'emp_nasiba', name: 'Насиба', role: 'Администратор системы', phone: '+998 90 777-11-22', email: 'nasiba@mebelflow.uz', accessRole: 'Суперадминистратор' },
+    { id: 'emp_dilorom', name: 'Дилором', role: 'Менеджер по продажам', phone: '+998 90 777-33-44', email: 'dilorom@mebelflow.uz', accessRole: 'Менеджер продаж' },
+    { id: 'emp_feruza', name: 'Феруза', role: 'Бухгалтер', phone: '+998 90 777-55-66', email: 'feruza@mebelflow.uz', accessRole: 'Бухгалтер' },
   ];
   for (const e of employees) {
-    await prisma.employee.create({ data: { ...e, passwordHash, createdAt: Date.now() } });
+    const preset = PRESET_ROLES[e.accessRole];
+    await prisma.employee.create({
+      data: {
+        ...e,
+        passwordHash,
+        createdAt: Date.now(),
+        permissions: preset.permissions,
+        financialFlags: preset.financialFlags,
+        scopeFlags: preset.scopeFlags,
+      },
+    });
   }
 
   await prisma.partner.createMany({

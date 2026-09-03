@@ -25,10 +25,39 @@ model Employee {
   passwordHash String?
   createdAt    Float    @default(0)
 
+  // RBAC
+  accessRole       String   @default("Индивидуальная")
+  permissions       Json    @default("{}")
+  financialFlags    Json    @default("{}")
+  scopeFlags        Json    @default("{}")
+  isBlocked         Boolean @default(false)
+  failedLoginCount  Int     @default(0)
+  lockedUntil       Float?
+  lastActivityAt    Float?
+
   managedOrders   Order[]  @relation("OrderManager")
   assignedStages  Stage[]  @relation("StageAssignee")
   assignedTasks   Task[]   @relation("TaskAssignee")
   reworkResponsible Rework[] @relation("ReworkResponsible")
+  auditLogs         AuditLog[]
+}
+
+model AuditLog {
+  id         String   @id
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employeeName String  @default("")
+  timestamp  Float
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ip         String   @default("")
+  userAgent  String   @default("")
+
+  @@index([timestamp])
+  @@index([employeeId])
 }
 
 model Partner {

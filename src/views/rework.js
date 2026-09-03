@@ -1,6 +1,7 @@
 import { getState, createRework, updateReworkStatus, REWORK_REASONS, REWORK_STATUSES } from '../store.js';
 import { money, shortDate, escapeHtml } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
+import { can } from '../permissions.js';
 
 export function renderRework() {
   const state = getState();
@@ -16,7 +17,7 @@ export function renderRework() {
             ${r.urgency === 'срочно' ? '<i class="fa-solid fa-fire" style="color:#f97316"></i>' : ''}
             <b>${order ? `${escapeHtml(order.productType)} #${order.number}` : '—'}</b>
           </div>
-          <select data-rework-status="${r.id}">
+          <select data-rework-status="${r.id}" ${can('rework', 'edit') ? '' : 'disabled'}>
             ${REWORK_STATUSES.map((s) => `<option value="${s}" ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}
           </select>
         </div>
@@ -43,7 +44,7 @@ export function renderRework() {
   return `
     <div class="page-header">
       <h1>Переделки</h1>
-      <button class="btn btn--primary" data-action="new-rework"><i class="fa-solid fa-plus"></i> Новая переделка</button>
+      ${can('rework', 'create') ? '<button class="btn btn--primary" data-action="new-rework"><i class="fa-solid fa-plus"></i> Новая переделка</button>' : ''}
     </div>
     <div class="rework-list">${rows}</div>
   `;

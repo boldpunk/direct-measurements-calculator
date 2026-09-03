@@ -21,7 +21,7 @@ export function getCurrentEmployee() {
 
 function setSession(token, employee) {
   localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(EMPLOYEE_KEY, JSON.stringify(employee));
+  if (employee) localStorage.setItem(EMPLOYEE_KEY, JSON.stringify(employee));
 }
 
 export function clearSession() {
@@ -81,6 +81,11 @@ export const api = {
   logout() {
     clearSession();
   },
+  async refresh() {
+    const data = await request('/api/auth/refresh', { method: 'POST' });
+    setSession(data.token);
+    return data.token;
+  },
   getState: () => request('/api/state'),
 
   createClient: (data) => request('/api/clients', { method: 'POST', body: data }),
@@ -117,7 +122,16 @@ export const api = {
   deletePartner: (id) => request(`/api/partners/${id}`, { method: 'DELETE' }),
 
   createEmployee: (data) => request('/api/employees', { method: 'POST', body: data }),
+  updateEmployee: (id, patch) => request(`/api/employees/${id}`, { method: 'PATCH', body: patch }),
+  blockEmployee: (id, blocked) => request(`/api/employees/${id}/block`, { method: 'PATCH', body: { blocked } }),
   deleteEmployee: (id) => request(`/api/employees/${id}`, { method: 'DELETE' }),
+  getRolePresets: () => request('/api/employees/roles'),
 
   updateSettings: (patch) => request('/api/settings', { method: 'PATCH', body: patch }),
+
+  getAuditLog: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return request(`/api/audit-log${suffix}`);
+  },
 };

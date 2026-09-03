@@ -1,5 +1,6 @@
 import { getState, updateOrderStatus, getOrderDeadlineInfo, KANBAN_COLUMNS, ORDER_STATUSES } from '../store.js';
 import { escapeHtml, deadlineBadgeClass } from '../format.js';
+import { can } from '../permissions.js';
 import { selectOrder } from './orders.js';
 
 export function renderProduction() {
@@ -29,15 +30,16 @@ export function renderProduction() {
 function renderCard(o, state) {
   const manager = state.employees.find((e) => e.id === o.managerId);
   const deadlineInfo = getOrderDeadlineInfo(o);
+  const canMove = can('production', 'changeStatus');
   return `
-    <div class="prod-card" data-order-id="${o.id}" draggable="true">
+    <div class="prod-card" data-order-id="${o.id}" draggable="${canMove}">
       <div class="prod-card__title">${escapeHtml(o.productType)} #${o.number}</div>
       <div class="prod-card__sub">${escapeHtml(o.clientName)}</div>
       <div class="prod-card__footer">
         <span>${manager ? escapeHtml(manager.name) : 'не назначен'}</span>
         <span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span>
       </div>
-      <select class="prod-card__status-select" data-order-status="${o.id}" title="Изменить статус">
+      <select class="prod-card__status-select" data-order-status="${o.id}" title="Изменить статус" ${canMove ? '' : 'disabled'}>
         ${ORDER_STATUSES.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
       </select>
     </div>
@@ -45,6 +47,8 @@ function renderCard(o, state) {
 }
 
 export function attachProductionHandlers(root, rerender) {
+  const canMove = can('production', 'changeStatus');
+
   root.querySelectorAll('[data-order-status]').forEach((sel) => {
     sel.addEventListener('change', (e) => {
       e.stopPropagation();
@@ -60,6 +64,8 @@ export function attachProductionHandlers(root, rerender) {
       window.location.hash = '#/orders';
     });
   });
+
+  if (!canMove) return;
 
   let draggedId = null;
   root.querySelectorAll('.prod-card').forEach((card) => {

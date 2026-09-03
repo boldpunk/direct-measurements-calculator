@@ -1,27 +1,35 @@
 import { escapeHtml } from './format.js';
+import { can, canAny } from './permissions.js';
 
 export const NAV_ITEMS = [
-  { route: 'dashboard', icon: 'fa-house', label: 'Главная' },
-  { route: 'orders', icon: 'fa-box-open', label: 'Заказы' },
-  { route: 'clients', icon: 'fa-address-book', label: 'Клиенты' },
-  { route: 'production', icon: 'fa-diagram-project', label: 'Производство' },
-  { route: 'carpentry', icon: 'fa-hammer', label: 'Столярка' },
-  { route: 'rework', icon: 'fa-rotate', label: 'Переделки' },
-  { route: 'tasks', icon: 'fa-list-check', label: 'Задачи' },
-  { route: 'outsource', icon: 'fa-layer-group', label: 'Аутсорс' },
-  { route: 'finance', icon: 'fa-sack-dollar', label: 'Финансы' },
-  { route: 'employees', icon: 'fa-users', label: 'Сотрудники' },
-  { route: 'settings', icon: 'fa-gear', label: 'Настройки' },
+  { route: 'dashboard', icon: 'fa-house', label: 'Главная', guard: () => true },
+  { route: 'orders', icon: 'fa-box-open', label: 'Заказы', guard: () => can('orders', 'view') },
+  { route: 'clients', icon: 'fa-address-book', label: 'Клиенты', guard: () => can('clients', 'view') },
+  { route: 'production', icon: 'fa-diagram-project', label: 'Производство', guard: () => can('production', 'view') },
+  { route: 'carpentry', icon: 'fa-hammer', label: 'Столярка', guard: () => can('carpentry', 'view') },
+  { route: 'rework', icon: 'fa-rotate', label: 'Переделки', guard: () => can('rework', 'view') },
+  { route: 'tasks', icon: 'fa-list-check', label: 'Задачи', guard: () => can('tasks', 'view') },
+  { route: 'outsource', icon: 'fa-layer-group', label: 'Аутсорс', guard: () => can('outsource', 'view') },
+  { route: 'finance', icon: 'fa-sack-dollar', label: 'Финансы', guard: () => can('finance', 'view') },
+  { route: 'employees', icon: 'fa-users', label: 'Сотрудники', guard: () => canAny('employees') },
+  { route: 'audit-log', icon: 'fa-clock-rotate-left', label: 'Журнал действий', guard: () => can('settings', 'manageRoles') },
+  { route: 'settings', icon: 'fa-gear', label: 'Настройки', guard: () => canAny('settings') },
 ];
 
 export const BOTTOM_NAV_ITEMS = [
-  { route: 'dashboard', icon: 'fa-house', label: 'Главная' },
-  { route: 'orders', icon: 'fa-box-open', label: 'Заказы' },
-  { route: 'production', icon: 'fa-diagram-project', label: 'Производство' },
-  { route: 'tasks', icon: 'fa-list-check', label: 'Задачи' },
+  { route: 'dashboard', icon: 'fa-house', label: 'Главная', guard: () => true },
+  { route: 'orders', icon: 'fa-box-open', label: 'Заказы', guard: () => can('orders', 'view') },
+  { route: 'production', icon: 'fa-diagram-project', label: 'Производство', guard: () => can('production', 'view') },
+  { route: 'tasks', icon: 'fa-list-check', label: 'Задачи', guard: () => can('tasks', 'view') },
 ];
 
+export function visibleNavItems(items) {
+  return items.filter((item) => item.guard());
+}
+
 export function renderShell(currentRoute) {
+  const navItems = visibleNavItems(NAV_ITEMS);
+  const bottomItems = visibleNavItems(BOTTOM_NAV_ITEMS);
   return `
     <header class="topbar">
       <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Открыть меню" aria-haspopup="true">
@@ -48,8 +56,8 @@ export function renderShell(currentRoute) {
           <i class="fa-solid fa-user"></i>
         </button>
         <div class="profile-menu" id="profile-menu" hidden>
-          <a href="#/settings" class="profile-menu__item"><i class="fa-solid fa-gear"></i> Настройки</a>
-          <a href="#/employees" class="profile-menu__item"><i class="fa-solid fa-users"></i> Сотрудники</a>
+          ${canAny('settings') ? '<a href="#/settings" class="profile-menu__item"><i class="fa-solid fa-gear"></i> Настройки</a>' : ''}
+          ${canAny('employees') ? '<a href="#/employees" class="profile-menu__item"><i class="fa-solid fa-users"></i> Сотрудники</a>' : ''}
           <button type="button" class="profile-menu__item" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Выйти</button>
         </div>
       </div>
@@ -63,7 +71,7 @@ export function renderShell(currentRoute) {
         </div>
         <nav>
           <ul class="sidebar__list">
-            ${NAV_ITEMS.map((item) => `
+            ${navItems.map((item) => `
               <li>
                 <a href="#/${item.route}" class="sidebar__link ${currentRoute === item.route ? 'is-active' : ''}">
                   <i class="fa-solid ${item.icon}"></i>
@@ -77,7 +85,7 @@ export function renderShell(currentRoute) {
       <main class="content" id="view-root"></main>
     </div>
     <nav class="bottom-nav">
-      ${BOTTOM_NAV_ITEMS.map((item) => `
+      ${bottomItems.map((item) => `
         <a href="#/${item.route}" class="bottom-nav__link ${currentRoute === item.route ? 'is-active' : ''}">
           <i class="fa-solid ${item.icon}"></i>
           <span>${item.label}</span>

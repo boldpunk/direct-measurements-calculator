@@ -764,6 +764,25 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .employee-card__avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .employee-card__body { flex: 1; }
 .employee-card__tasks { margin-right: 8px; }
+.employee-card--blocked { opacity: 0.6; }
+.employee-card__actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+
+/* ---- Employee permission matrix (Сотрудники modal) ---- */
+
+.access-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.perm-matrix { display: flex; flex-direction: column; gap: 10px; }
+.perm-module { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.perm-module__title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.perm-module__actions { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.perm-check { font-weight: 500 !important; color: var(--text) !important; font-size: 12.5px !important; }
+.fin-flags, .scope-flags { display: flex; flex-direction: column; gap: 8px; }
+#scope-own-fields { display: flex; flex-direction: column; gap: 8px; padding-left: 22px; margin-top: 4px; }
 
 /* Empty state */
 
@@ -1115,3 +1134,30 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   font-weight: 600;
   font-size: 13.5px;
 }
+
+/* ---- Audit log ---- */
+
+.audit-log { display: flex; flex-direction: column; gap: 2px; }
+.audit-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.audit-row:last-child { border-bottom: none; }
+.audit-row__text { font-size: 13.5px; color: var(--text); flex: 1; min-width: 200px; }
+.audit-row__meta {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ---- Masked value (financial visibility off) ---- */
+
+.masked-value { color: var(--text-muted); letter-spacing: 1px; user-select: none; }

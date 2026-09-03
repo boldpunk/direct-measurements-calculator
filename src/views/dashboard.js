@@ -5,15 +5,19 @@ import {
 } from '../store.js';
 import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { kpiCard, card } from '../ui.js';
+import { maskUnless, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
 import { selectOrder } from './orders.js';
 
 export function renderDashboard() {
   const state = getState();
-  const activeOrders = getInProgressOrders();
-  const overdueOrders = getOverdueOrders();
-  const unpaidOrders = getUnpaidOrders();
+  const ownOnly = isOwnScopeOnly('orders');
+  const mine = (o) => !ownOnly || o.managerId === currentEmployeeId();
+
+  const activeOrders = getInProgressOrders().filter(mine);
+  const overdueOrders = getOverdueOrders().filter(mine);
+  const unpaidOrders = getUnpaidOrders().filter(mine);
   const toReceive = unpaidOrders.reduce((sum, o) => sum + computeOrderFinance(o.id).remainingAmount, 0);
-  const liveOrders = state.orders.filter((o) => o.status !== 'Отменён');
+  const liveOrders = state.orders.filter((o) => o.status !== 'Отменён' && mine(o));
   const revenue = liveOrders.reduce((sum, o) => sum + o.amount, 0);
   const totalProfit = liveOrders.reduce((sum, o) => sum + computeOrderFinance(o.id).profit, 0);
   const monthlyProfit = computeMonthlyProfit();
@@ -22,11 +26,11 @@ export function renderDashboard() {
     kpiCard('fa-layer-group', 'info', 'Активные заказы', `${activeOrders.length}`, '#/orders'),
     kpiCard('fa-fire', 'danger', 'С просрочкой', `${overdueOrders.length}`, '#/orders'),
     kpiCard('fa-hand-holding-dollar', 'warning', 'К оплате', money(toReceive), '#/orders'),
-    kpiCard('fa-file-invoice-dollar', 'neutral', 'Выручка', money(revenue), '#/orders'),
-    kpiCard('fa-sack-dollar', totalProfit >= 0 ? 'success' : 'danger', 'Прибыль', money(totalProfit), '#/orders'),
+    kpiCard('fa-file-invoice-dollar', 'neutral', 'Выручка', maskUnless('seesFinanceAnalytics', money(revenue)), '#/orders'),
+    kpiCard('fa-sack-dollar', totalProfit >= 0 ? 'success' : 'danger', 'Прибыль', maskUnless('seesProfit', money(totalProfit)), '#/orders'),
   ];
 
-  const upcoming = getUpcomingDeadlines(7);
+  const upcoming = getUpcomingDeadlines(7).filter(mine);
   const upcomingRows = upcoming.slice(0, 6).map((o) => `
     <div class="row-item deadline-item" data-order-id="${o.id}">
       <div class="row-item__title">#${o.number} — ${escapeHtml(o.productType)}</div>
@@ -34,7 +38,9 @@ export function renderDashboard() {
     </div>
   `).join('') || emptyState('Ближайших сроков нет');
 
-  const statusCounts = getOrdersByStatusCounts();
+  const statusCounts = ownOnly
+    ? state.orders.filter(mine).reduce((acc, o) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {})
+    : getOrdersByStatusCounts();
   const statusRows = ORDER_STATUSES
     .filter((s) => s !== 'Завершён' && s !== 'Отменён' && statusCounts[s] > 0)
     .map((s) => `
@@ -44,7 +50,7 @@ export function renderDashboard() {
       </div>
     `).join('') || emptyState('Нет активных заказов');
 
-  const orderRows = [...state.orders].reverse().slice(0, 5).map((o) => {
+  const orderRows = [...state.orders].filter(mine).reverse().slice(0, 5).map((o) => {
     const deadlineInfo = getOrderDeadlineInfo(o);
     return `
       <div class="row-item order-item" data-order-id="${o.id}">
@@ -78,7 +84,7 @@ export function renderDashboard() {
   return `
     <div class="page-header">
       <h1>Главная</h1>
-      <span class="row-item__sub">Прибыль за месяц: <b class="${monthlyProfit >= 0 ? 'text-pos' : 'text-neg'}">${money(monthlyProfit)}</b></span>
+      <span class="row-item__sub">Прибыль за месяц: <b class="${monthlyProfit >= 0 ? 'text-pos' : 'text-neg'}">${maskUnless('seesProfit', money(monthlyProfit))}</b></span>
     </div>
     <div class="kpi-row">${kpis.join('')}</div>
     <div class="dash-grid">

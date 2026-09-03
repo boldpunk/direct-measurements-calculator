@@ -5,6 +5,7 @@ import {
 import { money, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
+import { can, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
 import { selectOrder } from './orders.js';
 
 let selectedClientId = null;
@@ -13,8 +14,16 @@ export function selectClient(clientId) {
   selectedClientId = clientId;
 }
 
-export function renderClients() {
+// Clients don't have an owner field of their own; "own" is approximated as
+// clients with at least one order managed by the current user.
+function getVisibleClients() {
   const clients = getClients();
+  if (!isOwnScopeOnly('clients')) return clients;
+  return clients.filter((c) => getClientOrders(c.id).some((o) => o.managerId === currentEmployeeId()));
+}
+
+export function renderClients() {
+  const clients = getVisibleClients();
   if (!selectedClientId && clients.length) selectedClientId = clients[clients.length - 1].id;
 
   const rows = [...clients].reverse().map((c) => {
@@ -34,7 +43,7 @@ export function renderClients() {
   return `
     <div class="page-header">
       <h1>Клиенты</h1>
-      <button class="btn btn--primary" data-action="new-client"><i class="fa-solid fa-plus"></i> Новый клиент</button>
+      ${can('clients', 'create') ? '<button class="btn btn--primary" data-action="new-client"><i class="fa-solid fa-plus"></i> Новый клиент</button>' : ''}
     </div>
     <div class="orders-layout">
       <div class="panel">
@@ -86,8 +95,8 @@ function renderClientDetail(clientId) {
         ${client.address ? `<div class="row-item__sub"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(client.address)}</div>` : ''}
       </div>
       <div class="order-detail__actions">
-        <button type="button" class="btn btn--sm" data-action="edit-client" data-id="${client.id}"><i class="fa-solid fa-pen"></i></button>
-        <button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-client" data-id="${client.id}"><i class="fa-solid fa-trash"></i></button>
+        ${can('clients', 'edit') ? `<button type="button" class="btn btn--sm" data-action="edit-client" data-id="${client.id}"><i class="fa-solid fa-pen"></i></button>` : ''}
+        ${can('clients', 'delete') ? `<button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-client" data-id="${client.id}"><i class="fa-solid fa-trash"></i></button>` : ''}
       </div>
     </div>
     <div class="order-detail__stats">

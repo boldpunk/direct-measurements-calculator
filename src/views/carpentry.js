@@ -4,6 +4,7 @@ import {
 } from '../store.js';
 import { shortDate, escapeHtml, priorityBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
+import { can } from '../permissions.js';
 
 export function renderCarpentry() {
   const tasks = getCarpentryTasks();
@@ -24,7 +25,7 @@ export function renderCarpentry() {
   return `
     <div class="page-header">
       <h1>Столярка</h1>
-      <button class="btn btn--primary" data-action="new-task"><i class="fa-solid fa-plus"></i> Новая задача</button>
+      ${can('carpentry', 'create') ? '<button class="btn btn--primary" data-action="new-task"><i class="fa-solid fa-plus"></i> Новая задача</button>' : ''}
     </div>
     <div class="kanban-board">${columns}</div>
   `;
@@ -34,20 +35,24 @@ function renderTaskCard(t, state) {
   const order = state.orders.find((o) => o.id === t.orderId);
   const assignee = state.employees.find((e) => e.id === t.assigneeId);
   const overdue = isOverdue(t.deadline, t.status);
+  const canChangeStatus = can('carpentry', 'changeStatus') || can('tasks', 'edit');
+  const canDelete = can('carpentry', 'delete') || can('tasks', 'delete');
   return `
     <div class="task-card ${overdue ? 'is-overdue' : ''}" data-task-id="${t.id}">
       <div class="task-card__top">
         <span class="priority-select-wrap">
           ${t.priority === 'Срочно' || t.priority === 'Высокий' ? '<i class="fa-solid fa-fire priority-select__icon"></i>' : ''}
-          <select class="${priorityBadgeClass(t.priority)} priority-select" data-task-priority="${t.id}" title="Приоритет">
+          <select class="${priorityBadgeClass(t.priority)} priority-select" data-task-priority="${t.id}" title="Приоритет" ${canChangeStatus ? '' : 'disabled'}>
             ${TASK_PRIORITIES.map((p) => `<option value="${p}" ${p === t.priority ? 'selected' : ''}>${p}</option>`).join('')}
           </select>
         </span>
         <span class="task-card__top-right">
           <span class="task-card__qty">×${t.qty}</span>
-          <button type="button" class="task-card__delete" data-action="delete-task" data-id="${t.id}" title="Удалить задачу">
-            <i class="fa-solid fa-trash"></i>
-          </button>
+          ${canDelete ? `
+            <button type="button" class="task-card__delete" data-action="delete-task" data-id="${t.id}" title="Удалить задачу">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          ` : ''}
         </span>
       </div>
       <div class="task-card__title">${escapeHtml(t.name)}</div>
@@ -57,7 +62,7 @@ function renderTaskCard(t, state) {
         <span>${assignee ? escapeHtml(assignee.name) : 'не назначен'}</span>
         <span class="${overdue ? 'is-overdue' : ''}">${shortDate(t.deadline)}</span>
       </div>
-      <select class="task-card__status" data-task-status="${t.id}">
+      <select class="task-card__status" data-task-status="${t.id}" ${canChangeStatus ? '' : 'disabled'}>
         ${TASK_STATUSES.map((s) => `<option value="${s}" ${s === t.status ? 'selected' : ''}>${s}</option>`).join('')}
       </select>
     </div>

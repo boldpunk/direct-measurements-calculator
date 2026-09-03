@@ -11,6 +11,7 @@ import { money, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadl
 import { openModal, closeModal, selectOptions } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { renderMoneyField, attachMoneyFields } from '../money-field.js';
+import { can, sees, maskUnless, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
 
 let selectedOrderId = null;
 let currentQuery = '';
@@ -60,6 +61,7 @@ function matchesFilter(o, filter) {
 
 function getFilteredOrders(state) {
   let list = state.orders.filter((o) => matchesQuery(o, currentQuery) && matchesFilter(o, currentFilter));
+  if (isOwnScopeOnly('orders')) list = list.filter((o) => o.managerId === currentEmployeeId());
   if (currentStatusFilter) list = list.filter((o) => o.status === currentStatusFilter);
 
   const withFin = list.map((o) => ({ o, fin: computeOrderFinance(o.id) }));
@@ -85,7 +87,7 @@ export function renderOrders() {
   return `
     <div class="page-header">
       <h1>Заказы</h1>
-      <button class="btn btn--primary" data-action="new-order"><i class="fa-solid fa-plus"></i> Новый заказ</button>
+      ${can('orders', 'create') ? '<button class="btn btn--primary" data-action="new-order"><i class="fa-solid fa-plus"></i> Новый заказ</button>' : ''}
     </div>
 
     <div class="orders-toolbar">
@@ -137,7 +139,7 @@ function orderRow(o, fin) {
       <td class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : 'Оплачено'}</td>
       <td><span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span></td>
       <td><span class="${orderStatusBadgeClass(o.status)}">${o.status}</span></td>
-      <td class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">${money(fin.profit)}</td>
+      <td class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">${maskUnless('seesProfit', money(fin.profit))}</td>
     </tr>
   `;
 }
@@ -157,9 +159,25 @@ function orderListCard(o, fin) {
       </div>
       <div class="order-list-card__row">
         <span class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? `Остаток ${money(fin.remainingAmount)}` : 'Оплачено'}</span>
-        <span class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">Прибыль ${money(fin.profit)}</span>
+        <span class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">Прибыль ${maskUnless('seesProfit', money(fin.profit))}</span>
       </div>
     </div>
+  `;
+}
+
+function renderStatusControl(order) {
+  if (!can('orders', 'edit')) {
+    return `<span class="${orderStatusBadgeClass(order.status)}">${order.status}</span>`;
+  }
+  const options = ORDER_STATUSES.filter((s) => {
+    if (s === 'Завершён') return can('orders', 'close') || s === order.status;
+    if (s === 'Отменён') return can('orders', 'cancel') || s === order.status;
+    return true;
+  });
+  return `
+    <select class="${orderStatusBadgeClass(order.status)} status-select" data-order-status="${order.id}">
+      ${options.map((s) => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s}</option>`).join('')}
+    </select>
   `;
 }
 
@@ -183,11 +201,9 @@ function renderOrderDetail(orderId) {
         ${order.address ? `<div class="row-item__sub"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(order.address)}</div>` : ''}
       </div>
       <div class="order-detail__actions">
-        <select class="${orderStatusBadgeClass(order.status)} status-select" data-order-status="${order.id}">
-          ${ORDER_STATUSES.map((s) => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s}</option>`).join('')}
-        </select>
-        <button type="button" class="btn btn--sm" data-action="edit-order" data-id="${order.id}"><i class="fa-solid fa-pen"></i></button>
-        <button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-order" data-id="${order.id}"><i class="fa-solid fa-trash"></i></button>
+        ${renderStatusControl(order)}
+        ${can('orders', 'edit') ? `<button type="button" class="btn btn--sm" data-action="edit-order" data-id="${order.id}"><i class="fa-solid fa-pen"></i></button>` : ''}
+        ${can('orders', 'delete') ? `<button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-order" data-id="${order.id}"><i class="fa-solid fa-trash"></i></button>` : ''}
       </div>
     </div>
     <div class="order-detail__stats">
@@ -213,12 +229,13 @@ function renderOrderDetail(orderId) {
 }
 
 function renderPaymentsSection(order, finance, fin) {
+  const canDelete = can('finance', 'deletePayment');
   const rows = finance.payments.map((p) => `
     <div class="pay-row">
       <span class="pay-row__date">${shortDate(p.date)}</span>
       <span class="pay-row__comment">${escapeHtml(p.comment || 'Оплата')}</span>
       <span class="pay-row__amount">${money(p.amount)}</span>
-      <button type="button" class="mat-row__remove" data-remove-payment="${p.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>
+      ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-payment="${p.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
     </div>
   `).join('') || '<div class="empty-state empty-state--sm">Оплат пока нет</div>';
 
@@ -231,12 +248,14 @@ function renderPaymentsSection(order, finance, fin) {
     <div class="order-detail__section-title">Оплаты</div>
     <div class="section-block">
       <div class="pay-rows">${rows}</div>
-      <form class="add-row-form add-row-form--payment" data-order="${order.id}">
-        <input type="date" name="date" value="${todayISO()}" required />
-        <input type="text" name="comment" placeholder="Комментарий" />
-        <input type="number" name="amount" placeholder="Сумма" min="0" step="0.01" required />
-        <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i> Добавить оплату</button>
-      </form>
+      ${can('finance', 'addPayment') ? `
+        <form class="add-row-form add-row-form--payment" data-order="${order.id}">
+          <input type="date" name="date" value="${todayISO()}" required />
+          <input type="text" name="comment" placeholder="Комментарий" />
+          <input type="number" name="amount" placeholder="Сумма" min="0" step="0.01" required />
+          <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i> Добавить оплату</button>
+        </form>
+      ` : ''}
       <div class="section-totals">
         <span>Получено: <b>${money(fin.receivedAmount)}</b></span>
         <span>Остаток: <b>${remainingLine}</b></span>
@@ -246,12 +265,14 @@ function renderPaymentsSection(order, finance, fin) {
 }
 
 function renderMaterialsSection(order, finance) {
+  const canDelete = can('finance', 'deletePayment');
+  const seesPrices = sees('seesPurchasePrices');
   const rows = finance.materials.map((m) => `
     <div class="mat-row">
       <span class="mat-row__name">${escapeHtml(m.name)}</span>
-      <span class="mat-row__calc">${m.qty} ${escapeHtml(m.unit)} × ${money(m.unitPrice)}</span>
-      <span class="mat-row__sum">${money(m.qty * m.unitPrice)}</span>
-      <button type="button" class="mat-row__remove" data-remove-material="${m.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>
+      <span class="mat-row__calc">${m.qty} ${escapeHtml(m.unit)} × ${seesPrices ? money(m.unitPrice) : maskUnless('seesPurchasePrices', '')}</span>
+      <span class="mat-row__sum">${maskUnless('seesPurchasePrices', money(m.qty * m.unitPrice))}</span>
+      ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-material="${m.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
     </div>
   `).join('') || '<div class="empty-state empty-state--sm">Материалы пока не добавлены</div>';
 
@@ -261,14 +282,16 @@ function renderMaterialsSection(order, finance) {
     <div class="order-detail__section-title">Материалы</div>
     <div class="section-block">
       <div class="mat-rows">${rows}</div>
-      <form class="add-row-form add-row-form--material" data-order="${order.id}">
-        <input type="text" name="name" placeholder="Материал" required />
-        <input type="number" name="qty" placeholder="Кол-во" min="0" step="0.01" value="1" required />
-        <select name="unit">${UNITS.map((u) => `<option>${u}</option>`).join('')}</select>
-        <input type="number" name="unitPrice" placeholder="Цена/ед." min="0" step="0.01" required />
-        <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
-      </form>
-      <div class="section-totals"><span>Материалы: <b>${money(materialsTotal)}</b></span></div>
+      ${can('finance', 'editPayment') ? `
+        <form class="add-row-form add-row-form--material" data-order="${order.id}">
+          <input type="text" name="name" placeholder="Материал" required />
+          <input type="number" name="qty" placeholder="Кол-во" min="0" step="0.01" value="1" required />
+          <select name="unit">${UNITS.map((u) => `<option>${u}</option>`).join('')}</select>
+          <input type="number" name="unitPrice" placeholder="Цена/ед." min="0" step="0.01" required />
+          <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
+        </form>
+      ` : ''}
+      <div class="section-totals"><span>Материалы: <b>${maskUnless('seesPurchasePrices', money(materialsTotal))}</b></span></div>
     </div>
   `;
 }
@@ -280,11 +303,15 @@ const EXPENSE_ACTIONS = {
 };
 
 function renderExpenseSection(kind, title, placeholder, items, orderId) {
+  const canDelete = can('finance', 'deletePayment');
+  const financialFlag = kind === 'salary' ? 'seesSalaries' : null;
+  const displayAmount = (amount) => (financialFlag ? maskUnless(financialFlag, money(amount)) : money(amount));
+
   const rows = items.map((it) => `
     <div class="mat-row">
       <span class="mat-row__name">${escapeHtml(it.name)}</span>
-      <span class="mat-row__sum">${money(it.amount)}</span>
-      <button type="button" class="mat-row__remove" data-remove-${kind}="${it.id}" data-order="${orderId}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>
+      <span class="mat-row__sum">${displayAmount(it.amount)}</span>
+      ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-${kind}="${it.id}" data-order="${orderId}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
     </div>
   `).join('') || `<div class="empty-state empty-state--sm">Пока не добавлено</div>`;
 
@@ -294,12 +321,14 @@ function renderExpenseSection(kind, title, placeholder, items, orderId) {
     <div class="order-detail__section-title">${title}</div>
     <div class="section-block">
       <div class="mat-rows">${rows}</div>
-      <form class="add-row-form add-row-form--${kind}" data-order="${orderId}">
-        <input type="text" name="name" placeholder="${placeholder}" required />
-        <input type="number" name="amount" placeholder="Сумма" min="0" step="0.01" required />
-        <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
-      </form>
-      <div class="section-totals"><span>${EXPENSE_ACTIONS[kind].label}: <b>${money(total)}</b></span></div>
+      ${can('finance', 'editPayment') ? `
+        <form class="add-row-form add-row-form--${kind}" data-order="${orderId}">
+          <input type="text" name="name" placeholder="${placeholder}" required />
+          <input type="number" name="amount" placeholder="Сумма" min="0" step="0.01" required />
+          <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
+        </form>
+      ` : ''}
+      <div class="section-totals"><span>${EXPENSE_ACTIONS[kind].label}: <b>${displayAmount(total)}</b></span></div>
     </div>
   `;
 }
@@ -313,14 +342,14 @@ function renderFinanceSummary(order, fin) {
       <div class="finance-summary__row"><span>Получено</span><b>${money(fin.receivedAmount)}</b></div>
       <div class="finance-summary__row"><span>Остаток</span><b class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : (fin.remainingAmount < 0 ? `Переплата ${money(Math.abs(fin.remainingAmount))}` : 'Оплачено')}</b></div>
       <div class="finance-summary__divider"></div>
-      <div class="finance-summary__row"><span>Материалы</span><b>${money(fin.materialsTotal)}</b></div>
+      <div class="finance-summary__row"><span>Материалы</span><b>${maskUnless('seesPurchasePrices', money(fin.materialsTotal))}</b></div>
       <div class="finance-summary__row"><span>Аутсорс</span><b>${money(fin.outsourcingTotal)}</b></div>
-      <div class="finance-summary__row"><span>Зарплаты</span><b>${money(fin.salaryTotal)}</b></div>
+      <div class="finance-summary__row"><span>Зарплаты</span><b>${maskUnless('seesSalaries', money(fin.salaryTotal))}</b></div>
       <div class="finance-summary__row"><span>Прочие расходы</span><b>${money(fin.otherExpensesTotal)}</b></div>
-      <div class="finance-summary__row finance-summary__row--strong"><span>Себестоимость</span><b>${money(fin.costPrice)}</b></div>
+      <div class="finance-summary__row finance-summary__row--strong"><span>Себестоимость</span><b>${maskUnless('seesCostPrice', money(fin.costPrice))}</b></div>
       <div class="finance-summary__divider"></div>
-      <div class="finance-summary__row finance-summary__row--big finance-summary__row--${profitTone}"><span>Прибыль</span><b>${money(fin.profit)}</b></div>
-      <div class="finance-summary__row finance-summary__row--${profitTone}"><span>Маржа</span><b>${fin.margin.toFixed(1)}%</b></div>
+      <div class="finance-summary__row finance-summary__row--big finance-summary__row--${profitTone}"><span>Прибыль</span><b>${maskUnless('seesProfit', money(fin.profit))}</b></div>
+      <div class="finance-summary__row finance-summary__row--${profitTone}"><span>Маржа</span><b>${maskUnless('seesMargin', `${fin.margin.toFixed(1)}%`)}</b></div>
     </div>
   `;
 }
@@ -342,7 +371,7 @@ function renderStagePipeline(orderId, state) {
           </div>
           ${st.skipped ? '' : `
             <div class="stage-row__controls">
-              <select class="stage-row__select" data-stage-field="${st.type === 'outsource' ? 'partnerId' : 'assigneeId'}" data-stage-id="${st.id}">
+              <select class="stage-row__select" data-stage-field="${st.type === 'outsource' ? 'partnerId' : 'assigneeId'}" data-stage-id="${st.id}" ${can('production', 'assign') ? '' : 'disabled'}>
                 ${st.type === 'outsource'
                   ? selectOptions(
                       st.service ? state.partners.filter((p) => p.services.includes(st.service)) : state.partners,
@@ -350,11 +379,11 @@ function renderStagePipeline(orderId, state) {
                     )
                   : selectOptions(state.employees, 'id', 'name', st.assigneeId)}
               </select>
-              <input type="date" class="stage-row__date" data-stage-field="deadline" data-stage-id="${st.id}" value="${st.deadline}" />
+              <input type="date" class="stage-row__date" data-stage-field="deadline" data-stage-id="${st.id}" value="${st.deadline}" ${can('production', 'assign') ? '' : 'disabled'} />
             </div>
           `}
         </div>
-        ${!st.skipped && st.status === 'в работе' ? `<button class="btn btn--sm" data-action="complete-stage" data-stage="${st.id}">Завершить</button>` : ''}
+        ${!st.skipped && st.status === 'в работе' && can('production', 'changeStatus') ? `<button class="btn btn--sm" data-action="complete-stage" data-stage="${st.id}">Завершить</button>` : ''}
       </div>
     `;
   }).join('');

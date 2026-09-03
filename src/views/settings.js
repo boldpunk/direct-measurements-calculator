@@ -1,9 +1,11 @@
 import { getState, getSettings, updateSettings, CURRENCIES } from '../store.js';
 import { escapeHtml } from '../format.js';
+import { can } from '../permissions.js';
 
 export function renderSettings() {
   const settings = getSettings();
   const state = getState();
+  const canEdit = can('settings', 'edit');
 
   return `
     <div class="page-header">
@@ -14,20 +16,22 @@ export function renderSettings() {
         <header class="panel__header"><h2>Компания</h2></header>
         <div class="panel__body">
           <form id="settings-form" class="form">
-            <label>Название компании<input name="companyName" value="${escapeHtml(settings.companyName)}" required /></label>
+            <label>Название компании<input name="companyName" value="${escapeHtml(settings.companyName)}" required ${canEdit ? '' : 'disabled'} /></label>
             <label>Валюта
-              <select name="currency">
+              <select name="currency" ${canEdit ? '' : 'disabled'}>
                 ${CURRENCIES.map((c) => `<option value="${escapeHtml(c)}" ${c === settings.currency ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
               </select>
             </label>
             <label>
               Буфер между этапами, дней
-              <input name="stageBufferDays" type="number" min="1" max="30" value="${settings.stageBufferDays}" />
+              <input name="stageBufferDays" type="number" min="1" max="30" value="${settings.stageBufferDays}" ${canEdit ? '' : 'disabled'} />
             </label>
             <p class="form-hint">Буфер используется при создании нового заказа для расчёта дедлайна каждого из 11 этапов пайплайна.</p>
-            <div class="form-actions">
-              <button type="submit" class="btn btn--primary">Сохранить</button>
-            </div>
+            ${canEdit ? `
+              <div class="form-actions">
+                <button type="submit" class="btn btn--primary">Сохранить</button>
+              </div>
+            ` : ''}
           </form>
         </div>
       </div>

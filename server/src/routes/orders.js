@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ah, uid, todayISO, addDays } from '../util.js';
 import { STAGE_DEFS, DEFAULT_SETTINGS } from '../constants.js';
+import { requirePermission } from '../middleware/auth.js';
+import { logAudit } from '../audit.js';
 
 const router = Router();
 
@@ -39,7 +41,7 @@ async function findOrCreateClient(tx, { clientId, clientName, clientPhone, addre
   });
 }
 
-router.post('/', ah(async (req, res) => {
+router.post('/', requirePermission('orders', 'create'), ah(async (req, res) => {
   const body = req.body || {};
   const order = await prisma.$transaction(async (tx) => {
     const settings = await tx.settings.upsert({
@@ -91,10 +93,14 @@ router.post('/', ah(async (req, res) => {
     await pushActivity(tx, created.id, 'Заказ создан');
     return created;
   });
+  await logAudit(req, {
+    action: 'order.create', entityType: 'order', entityId: order.id,
+    newValue: { number: order.number, clientName: order.clientName, amount: order.amount, status: order.status },
+  });
   res.status(201).json(order);
 }));
 
-router.patch('/:id', ah(async (req, res) => {
+router.patch('/:id', requirePermission('orders', 'edit'), ah(async (req, res) => {
   const body = req.body || {};
   const data = {};
   if (body.clientName !== undefined) data.clientName = body.clientName;
@@ -105,6 +111,9 @@ router.patch('/:id', ah(async (req, res) => {
   if (body.deadline !== undefined) data.deadline = body.deadline;
   if (body.managerId !== undefined) data.managerId = body.managerId || null;
   if (body.notes !== undefined) data.notes = body.notes;
+
+  const before = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!before) return res.status(404).json({ error: 'Заказ не найден' });
 
   const order = await prisma.$transaction(async (tx) => {
     const updated = await tx.order.update({ where: { id: req.params.id }, data }).catch(() => null);
@@ -124,11 +133,21 @@ router.patch('/:id', ah(async (req, res) => {
     return updated;
   });
   if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+
+  const changedFields = Object.keys(data);
+  await logAudit(req, {
+    action: 'order.update', entityType: 'order', entityId: order.id,
+    oldValue: Object.fromEntries(changedFields.map((k) => [k, before[k]])),
+    newValue: Object.fromEntries(changedFields.map((k) => [k, order[k]])),
+  });
   res.json(order);
 }));
 
 router.patch('/:id/status', ah(async (req, res) => {
   const { status } = req.body || {};
+  const action = status === 'Завершён' ? 'close' : status === 'Отменён' ? 'cancel' : 'edit';
+  if (!req.employee?.permissions?.orders?.[action]) return res.status(403).json({ error: 'Недостаточно прав' });
+
   const order = await prisma.$transaction(async (tx) => {
     const existing = await tx.order.findUnique({ where: { id: req.params.id } });
     if (!existing) return null;
@@ -137,18 +156,30 @@ router.patch('/:id/status', ah(async (req, res) => {
     await pushActivity(tx, existing.id, `Статус изменён: ${existing.status} → ${status}`);
     return updated;
   });
+
   if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+  await logAudit(req, {
+    action: `order.status_change`, entityType: 'order', entityId: order.id,
+    newValue: { status: order.status },
+  });
   res.json(order);
 }));
 
-router.delete('/:id', ah(async (req, res) => {
+router.delete('/:id', requirePermission('orders', 'delete'), ah(async (req, res) => {
+  const before = await prisma.order.findUnique({ where: { id: req.params.id } });
   await prisma.order.delete({ where: { id: req.params.id } }).catch(() => null);
+  if (before) {
+    await logAudit(req, {
+      action: 'order.delete', entityType: 'order', entityId: before.id,
+      oldValue: { number: before.number, clientName: before.clientName, amount: before.amount },
+    });
+  }
   res.status(204).end();
 }));
 
 // ---- Stages ----
 
-router.post('/:id/stages/:stageId/complete', ah(async (req, res) => {
+router.post('/:id/stages/:stageId/complete', requirePermission('production', 'changeStatus'), ah(async (req, res) => {
   await prisma.$transaction(async (tx) => {
     const stage = await tx.stage.findUnique({ where: { id: req.params.stageId } });
     if (!stage || stage.orderId !== req.params.id) return;
@@ -162,7 +193,7 @@ router.post('/:id/stages/:stageId/complete', ah(async (req, res) => {
   res.status(204).end();
 }));
 
-router.patch('/:id/stages/:stageId', ah(async (req, res) => {
+router.patch('/:id/stages/:stageId', requirePermission('production', 'assign'), ah(async (req, res) => {
   const { assigneeId, partnerId, deadline } = req.body || {};
   const data = {};
   if (assigneeId !== undefined) data.assigneeId = assigneeId || null;
@@ -175,8 +206,8 @@ router.patch('/:id/stages/:stageId', ah(async (req, res) => {
 
 // ---- Finance sub-resources ----
 
-function financeResource(field, model, buildData, activityText) {
-  router.post(`/:id/${field}`, ah(async (req, res) => {
+function financeResource(field, model, buildData, activityText, { createPerm, deletePerm }) {
+  router.post(`/:id/${field}`, requirePermission('finance', createPerm), ah(async (req, res) => {
     const body = req.body || {};
     const record = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({ where: { id: req.params.id } });
@@ -189,31 +220,41 @@ function financeResource(field, model, buildData, activityText) {
       return created;
     });
     if (!record) return res.status(404).json({ error: 'Заказ не найден' });
+    await logAudit(req, { action: `${field}.create`, entityType: field, entityId: record.id, newValue: record });
     res.status(201).json(record);
   }));
 
-  router.delete(`/:id/${field}/:itemId`, ah(async (req, res) => {
+  router.delete(`/:id/${field}/:itemId`, requirePermission('finance', deletePerm), ah(async (req, res) => {
+    const before = await prisma[model].findUnique({ where: { id: req.params.itemId } }).catch(() => null);
     await prisma[model].delete({ where: { id: req.params.itemId } }).catch(() => null);
+    if (before) await logAudit(req, { action: `${field}.delete`, entityType: field, entityId: before.id, oldValue: before });
     res.status(204).end();
   }));
 }
 
 financeResource('payments', 'payment',
   (b) => ({ date: b.date || todayISO(), comment: b.comment || '', amount: Number(b.amount) || 0 }),
-  (b, currency) => `Добавлена оплата: ${fmtMoney(b.amount, currency)}`);
+  (b, currency) => `Добавлена оплата: ${fmtMoney(b.amount, currency)}`,
+  { createPerm: 'addPayment', deletePerm: 'deletePayment' });
 
 financeResource('materials', 'material',
   (b) => ({ name: b.name, qty: Number(b.qty) || 0, unit: b.unit || 'шт.', unitPrice: Number(b.unitPrice) || 0 }),
-  (b) => `Добавлен материал: ${b.name}`);
+  (b) => `Добавлен материал: ${b.name}`,
+  { createPerm: 'editPayment', deletePerm: 'deletePayment' });
 
 financeResource('outsourcing', 'outsourceExpense',
   (b) => ({ name: b.name, amount: Number(b.amount) || 0 }),
-  (b) => `Добавлен аутсорс: ${b.name}`);
+  (b) => `Добавлен аутсорс: ${b.name}`,
+  { createPerm: 'editPayment', deletePerm: 'deletePayment' });
 
 financeResource('salaries', 'salaryExpense',
-  (b) => ({ name: b.name, amount: Number(b.amount) || 0 }));
+  (b) => ({ name: b.name, amount: Number(b.amount) || 0 }),
+  null,
+  { createPerm: 'editPayment', deletePerm: 'deletePayment' });
 
 financeResource('other-expenses', 'otherExpense',
-  (b) => ({ name: b.name, amount: Number(b.amount) || 0 }));
+  (b) => ({ name: b.name, amount: Number(b.amount) || 0 }),
+  null,
+  { createPerm: 'editPayment', deletePerm: 'deletePayment' });
 
 export default router;
