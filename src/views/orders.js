@@ -7,6 +7,10 @@ import { openModal, closeModal, selectOptions } from '../ui.js';
 
 let selectedOrderId = null;
 
+export function selectOrder(orderId) {
+  selectedOrderId = orderId;
+}
+
 export function renderOrders() {
   const state = getState();
   if (!selectedOrderId && state.orders.length) selectedOrderId = state.orders[state.orders.length - 1].id;
@@ -53,8 +57,6 @@ function renderOrderDetail(orderId) {
 
   const stageRows = stages.map((st) => {
     const overdue = isOverdue(st.deadline, st.status);
-    const assignee = state.employees.find((e) => e.id === st.assigneeId);
-    const partner = state.partners.find((p) => p.id === st.partnerId);
     return `
       <div class="stage-row ${st.skipped ? 'stage-row--skipped' : ''} ${overdue ? 'is-overdue' : ''}">
         <div class="stage-row__status stage-row__status--${st.status === 'готово' ? 'done' : st.status === 'в работе' ? 'active' : 'pending'}">
@@ -66,12 +68,16 @@ function renderOrderDetail(orderId) {
             ${st.type === 'outsource' ? '<span class="badge badge--muted">аутсорс</span>' : ''}
             ${st.skipped ? '<span class="badge badge--muted">пропущен</span>' : ''}
           </div>
-          <div class="stage-row__meta">
-            ${st.type === 'outsource'
-              ? (partner ? escapeHtml(partner.name) : 'партнёр не назначен')
-              : (assignee ? escapeHtml(assignee.name) : 'не назначен')}
-            · дедлайн ${shortDate(st.deadline)}
-          </div>
+          ${st.skipped ? '' : `
+            <div class="stage-row__controls">
+              <select class="stage-row__select" data-stage-field="${st.type === 'outsource' ? 'partnerId' : 'assigneeId'}" data-stage-id="${st.id}">
+                ${st.type === 'outsource'
+                  ? selectOptions(state.partners, 'id', 'name', st.partnerId)
+                  : selectOptions(state.employees, 'id', 'name', st.assigneeId)}
+              </select>
+              <input type="date" class="stage-row__date" data-stage-field="deadline" data-stage-id="${st.id}" value="${st.deadline}" />
+            </div>
+          `}
         </div>
         ${!st.skipped && st.status === 'в работе' ? `<button class="btn btn--sm" data-action="complete-stage" data-stage="${st.id}">Завершить</button>` : ''}
       </div>
@@ -109,6 +115,13 @@ export function attachOrderHandlers(root, rerender) {
   root.querySelectorAll('[data-action="complete-stage"]').forEach((btn) => {
     btn.addEventListener('click', () => {
       completeStage(btn.getAttribute('data-stage'));
+      rerender();
+    });
+  });
+
+  root.querySelectorAll('[data-stage-field]').forEach((el) => {
+    el.addEventListener('change', () => {
+      setStageAssignment(el.getAttribute('data-stage-id'), { [el.getAttribute('data-stage-field')]: el.value });
       rerender();
     });
   });

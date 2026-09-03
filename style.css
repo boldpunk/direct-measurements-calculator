@@ -61,6 +61,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .logo__text { font-weight: 700; font-size: 19px; color: var(--text); }
 
 .topbar__search {
+  position: relative;
   flex: 1;
   max-width: 560px;
   display: flex;
@@ -78,6 +79,34 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
   flex: 1;
   color: var(--text);
 }
+
+.search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+  border: 1px solid var(--border);
+  padding: 6px;
+  z-index: 30;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.search-results__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+}
+.search-results__item:hover { background: var(--bg); }
+.search-results__item i { width: 16px; color: var(--text-muted); text-align: center; }
+.search-results__title { font-weight: 600; font-size: 13px; }
+.search-results__sub { font-size: 12px; color: var(--text-muted); }
 
 .topbar__avatar {
   margin-left: auto;
@@ -310,6 +339,17 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .stage-row__body { flex: 1; min-width: 0; }
 .stage-row__title { font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .stage-row__meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.stage-row__controls { display: flex; gap: 8px; margin-top: 6px; }
+.stage-row__select, .stage-row__date {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  background: var(--bg);
+  color: var(--text);
+}
+.stage-row__select { flex: 1; min-width: 0; }
+.stage-row__date { flex-shrink: 0; }
 
 /* Kanban (carpentry) */
 

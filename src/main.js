@@ -1,4 +1,5 @@
 import { renderShell, initModalHandlers } from './ui.js';
+import { initSearch } from './search.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderOrders, attachOrderHandlers } from './views/orders.js';
 import { renderCarpentry, attachCarpentryHandlers } from './views/carpentry.js';
@@ -31,6 +32,7 @@ function render() {
   if (!shellMounted) {
     app.innerHTML = renderShell(route);
     initModalHandlers();
+    initSearch(render);
     shellMounted = true;
   } else {
     document.querySelectorAll('.sidebar__link').forEach((link) => {
