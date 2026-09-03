@@ -15,7 +15,6 @@
     "vite": "^3.1.0"
   },
   "dependencies": {
-    "countries-list": "^3.4.1",
     "flag-icons": "^7.5.0",
     "libphonenumber-js": "^1.13.12"
   }

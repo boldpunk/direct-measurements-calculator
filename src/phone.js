@@ -1,33 +1,22 @@
 // Country/phone metadata: dial codes, formatting-as-you-type and Russian
-// country names, grouped with CIS countries first (this app's core market),
-// then the rest of the world by continent.
+// country names. Only CIS countries are offered in the picker (this app's
+// market); libphonenumber-js's full metadata is still used to parse/format
+// any number regardless of country, so existing non-CIS numbers still work.
 
-import { AsYouType, getCountryCallingCode, getCountries, parsePhoneNumberFromString } from 'libphonenumber-js';
-import { countries as countryMeta } from 'countries-list';
+import { AsYouType, getCountryCallingCode, parsePhoneNumberFromString } from 'libphonenumber-js';
 
 export const DEFAULT_COUNTRY = 'UZ';
 
 // Ordered by relevance to this app's market, not alphabetically.
 const CIS_ORDER = ['UZ', 'RU', 'KZ', 'KG', 'TJ', 'TM', 'AZ', 'AM', 'BY', 'MD'];
 
-const GROUP_LABELS = {
-  cis: 'СНГ',
-  AS: 'Азия',
-  EU: 'Европа',
-  NA: 'Северная Америка',
-  SA: 'Южная Америка',
-  AF: 'Африка',
-  OC: 'Океания',
-  AN: 'Антарктика',
-};
-
 let regionNames = null;
 function countryName(iso2) {
   try {
     if (!regionNames) regionNames = new Intl.DisplayNames(['ru'], { type: 'region' });
-    return regionNames.of(iso2) || countryMeta[iso2]?.name || iso2;
+    return regionNames.of(iso2) || iso2;
   } catch {
-    return countryMeta[iso2]?.name || iso2;
+    return iso2;
   }
 }
 
@@ -38,30 +27,9 @@ function buildEntry(iso2) {
 let _groups = null;
 
 export function getCountryGroups() {
-  if (_groups) return _groups;
-
-  const supported = getCountries().filter((iso2) => countryMeta[iso2]);
-  const seen = new Set();
-  const groups = [];
-
-  const cis = { key: 'cis', label: GROUP_LABELS.cis, items: [] };
-  CIS_ORDER.forEach((iso2) => {
-    if (!supported.includes(iso2)) return;
-    seen.add(iso2);
-    cis.items.push(buildEntry(iso2));
-  });
-  groups.push(cis);
-
-  ['AS', 'EU', 'NA', 'SA', 'AF', 'OC'].forEach((continent) => {
-    const items = supported
-      .filter((iso2) => !seen.has(iso2) && countryMeta[iso2]?.continent === continent)
-      .map(buildEntry)
-      .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-    items.forEach((entry) => seen.add(entry.iso2));
-    if (items.length) groups.push({ key: continent, label: GROUP_LABELS[continent], items });
-  });
-
-  _groups = groups;
+  if (!_groups) {
+    _groups = [{ key: 'cis', label: 'СНГ', items: CIS_ORDER.map(buildEntry) }];
+  }
   return _groups;
 }
 

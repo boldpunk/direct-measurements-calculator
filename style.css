@@ -1010,14 +1010,16 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   left: 0;
   right: 0;
   max-height: 220px;
-  display: flex;
-  flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
   z-index: 40;
   overflow: hidden;
+}
+.phone-field__dropdown:not([hidden]) {
+  display: flex;
+  flex-direction: column;
 }
 .phone-field__search {
   display: flex;
