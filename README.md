@@ -117,6 +117,30 @@ npm run build
 npm run preview
 ```
 
+### 3. Публичный сервер (чтобы открыть Netlify deploy preview)
+
+Deploy preview на Netlify собирает только клиент — ему нужен публично
+доступный API. Проще всего поднять сервер на [Render](https://render.com)
+(бесплатный план, карта не нужна):
+
+1. Зарегистрируйтесь на render.com и подключите этот GitHub-репозиторий.
+2. **New +** → **Blueprint** → выберите репозиторий — Render найдёт
+   `render.yaml` в корне и сам создаст сервис `mebelflow-api` (Node,
+   `/server`) и базу `mebelflow-db` (Postgres), сразу их связав.
+   `JWT_SECRET` сгенерируется автоматически; при каждом деплое база
+   мигрируется и заполняется демо-данными (`prisma migrate deploy` +
+   `seed`).
+3. После деплоя скопируйте URL сервиса (вида
+   `https://mebelflow-api.onrender.com`).
+4. В настройках Netlify-сайта (Site configuration → Environment
+   variables) добавьте `VITE_API_URL` с этим URL и запустите пересборку
+   preview (**Deploys** → **Trigger deploy**).
+5. При необходимости добавьте origin превью в `CORS_ORIGIN` сервиса на
+   Render (Environment → `CORS_ORIGIN`, через запятую).
+
+Бесплатный Postgres на Render существует 30 дней и засыпает после
+простоя — этого достаточно, чтобы посмотреть превью, но не для продакшена.
+
 ### Известные ограничения MVP
 
 - Клиент кеширует данные в памяти и обновляет их на сервере в фоне

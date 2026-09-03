@@ -13,8 +13,18 @@ import employeesRoutes from './routes/employees.js';
 import settingsRoutes from './routes/settings.js';
 import { requireAuth } from './middleware/auth.js';
 
+const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map((s) => s.trim()).filter(Boolean);
+
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+}));
 app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ ok: true }));
