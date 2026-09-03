@@ -2,6 +2,7 @@ import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle } fr
 import { initSearch } from './search.js';
 import { renderDashboard, attachDashboardHandlers } from './views/dashboard.js';
 import { renderOrders, attachOrderHandlers } from './views/orders.js';
+import { renderClients, attachClientsHandlers } from './views/clients.js';
 import { renderProduction, attachProductionHandlers } from './views/production.js';
 import { renderCarpentry, attachCarpentryHandlers } from './views/carpentry.js';
 import { renderRework, attachReworkHandlers } from './views/rework.js';
@@ -9,13 +10,16 @@ import { renderOutsource, attachOutsourceHandlers } from './views/outsource.js';
 import { renderFinance, attachFinanceHandlers } from './views/finance.js';
 import { renderEmployees, attachEmployeesHandlers } from './views/employees.js';
 import { renderSettings, attachSettingsHandlers } from './views/settings.js';
+import { renderTasks, attachTasksHandlers } from './views/tasks.js';
 
 const ROUTES = {
   dashboard: { render: renderDashboard, attach: attachDashboardHandlers },
   orders: { render: renderOrders, attach: attachOrderHandlers },
+  clients: { render: renderClients, attach: attachClientsHandlers },
   production: { render: renderProduction, attach: attachProductionHandlers },
   carpentry: { render: renderCarpentry, attach: attachCarpentryHandlers },
   rework: { render: renderRework, attach: attachReworkHandlers },
+  tasks: { render: renderTasks, attach: attachTasksHandlers },
   outsource: { render: renderOutsource, attach: attachOutsourceHandlers },
   finance: { render: renderFinance, attach: attachFinanceHandlers },
   employees: { render: renderEmployees, attach: attachEmployeesHandlers },
@@ -41,7 +45,7 @@ function render() {
     initSidebarToggle();
     shellMounted = true;
   } else {
-    document.querySelectorAll('.sidebar__link').forEach((link) => {
+    document.querySelectorAll('.sidebar__link, .bottom-nav__link').forEach((link) => {
       link.classList.toggle('is-active', link.getAttribute('href') === `#/${route}`);
     });
   }

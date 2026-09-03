@@ -1,15 +1,24 @@
 import { escapeHtml } from './format.js';
 
 export const NAV_ITEMS = [
-  { route: 'dashboard', icon: 'fa-house', label: 'Dashboard' },
+  { route: 'dashboard', icon: 'fa-house', label: 'Главная' },
   { route: 'orders', icon: 'fa-box-open', label: 'Заказы' },
+  { route: 'clients', icon: 'fa-address-book', label: 'Клиенты' },
   { route: 'production', icon: 'fa-diagram-project', label: 'Производство' },
   { route: 'carpentry', icon: 'fa-hammer', label: 'Столярка' },
   { route: 'rework', icon: 'fa-rotate', label: 'Переделки' },
+  { route: 'tasks', icon: 'fa-list-check', label: 'Задачи' },
   { route: 'outsource', icon: 'fa-layer-group', label: 'Аутсорс' },
   { route: 'finance', icon: 'fa-sack-dollar', label: 'Финансы' },
   { route: 'employees', icon: 'fa-users', label: 'Сотрудники' },
   { route: 'settings', icon: 'fa-gear', label: 'Настройки' },
+];
+
+export const BOTTOM_NAV_ITEMS = [
+  { route: 'dashboard', icon: 'fa-house', label: 'Главная' },
+  { route: 'orders', icon: 'fa-box-open', label: 'Заказы' },
+  { route: 'production', icon: 'fa-diagram-project', label: 'Производство' },
+  { route: 'tasks', icon: 'fa-list-check', label: 'Задачи' },
 ];
 
 export function renderShell(currentRoute) {
@@ -59,6 +68,18 @@ export function renderShell(currentRoute) {
       </aside>
       <main class="content" id="view-root"></main>
     </div>
+    <nav class="bottom-nav">
+      ${BOTTOM_NAV_ITEMS.map((item) => `
+        <a href="#/${item.route}" class="bottom-nav__link ${currentRoute === item.route ? 'is-active' : ''}">
+          <i class="fa-solid ${item.icon}"></i>
+          <span>${item.label}</span>
+        </a>
+      `).join('')}
+      <button type="button" class="bottom-nav__link" id="bottom-nav-more">
+        <i class="fa-solid fa-ellipsis"></i>
+        <span>Ещё</span>
+      </button>
+    </nav>
     <div class="modal-overlay" id="modal-overlay" hidden>
       <div class="modal" id="modal-body"></div>
     </div>
@@ -116,6 +137,9 @@ export function initSidebarToggle() {
   sidebar.addEventListener('click', (e) => {
     if (e.target.closest('.sidebar__link')) close();
   });
+
+  const moreBtn = document.getElementById('bottom-nav-more');
+  if (moreBtn) moreBtn.addEventListener('click', open);
 }
 
 export function initProfileMenu() {

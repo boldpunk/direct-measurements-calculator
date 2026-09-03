@@ -228,6 +228,39 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
   min-width: 0;
 }
 
+/* Bottom navigation (mobile) */
+
+.bottom-nav {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 40;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  align-items: stretch;
+  justify-content: space-around;
+}
+.bottom-nav__link {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px;
+  padding: 6px 2px;
+  min-height: 48px;
+  border: none; background: none;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+.bottom-nav__link i { font-size: 16px; }
+.bottom-nav__link.is-active { color: var(--primary); }
+
+@media (max-width: 768px) {
+  .bottom-nav { display: flex; }
+  .content { padding-bottom: calc(24px + 64px + env(safe-area-inset-bottom)); }
+}
+
 /* Page header */
 
 .page-header {
@@ -588,6 +621,24 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .task-card__footer { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
 .task-card__footer .is-overdue { color: var(--danger); font-weight: 600; }
 .task-card__status { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; background: var(--panel); }
+
+/* Задачи (general task list) */
+
+.task-list { display: flex; flex-direction: column; gap: 10px; }
+.task-row-card {
+  background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  transition: box-shadow var(--ease);
+}
+.task-row-card:hover { box-shadow: var(--shadow-hover); }
+.task-row-card.is-overdue { border-left: 3px solid var(--danger); }
+.task-row-card__main { flex: 1; min-width: 180px; }
+.task-row-card__title { font-weight: 600; margin-bottom: 3px; }
+.task-row-card__meta { font-size: 12px; color: var(--text-muted); }
+.task-row-card__meta a { color: var(--primary); font-weight: 500; }
+.task-row-card__meta a:hover { text-decoration: underline; }
+.task-row-card__status { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; background: var(--bg); color: var(--text); }
 
 /* Production board (kanban by phase) */
 

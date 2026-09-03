@@ -1,6 +1,7 @@
 import { getState } from './store.js';
 import { escapeHtml } from './format.js';
 import { selectOrder } from './views/orders.js';
+import { selectClient } from './views/clients.js';
 
 function matches(text, query) {
   return String(text ?? '').toLowerCase().includes(query);
@@ -61,6 +62,17 @@ function computeResults(rawQuery) {
         title: p.name,
         sub: p.services.join(', '),
         go: () => { window.location.hash = '#/outsource'; },
+      });
+    }
+  });
+
+  state.clients.forEach((c) => {
+    if (matches(c.name, query) || matches(c.phone, query) || matches(c.address, query)) {
+      results.push({
+        icon: 'fa-address-book',
+        title: c.name,
+        sub: c.phone || c.address || 'Клиент',
+        go: () => { selectClient(c.id); window.location.hash = '#/clients'; },
       });
     }
   });

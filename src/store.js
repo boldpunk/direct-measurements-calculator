@@ -525,7 +525,7 @@ function addTask(s, data) {
   const stage = state.stages.find((st) => st.orderId === data.orderId && st.defKey === data.stageKey);
   const task = {
     id: uid('tsk'),
-    orderId: data.orderId,
+    orderId: data.orderId || null,
     stageId: stage ? stage.id : null,
     stageKey: data.stageKey,
     name: data.name,
