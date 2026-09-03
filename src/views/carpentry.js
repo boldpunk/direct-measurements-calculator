@@ -1,4 +1,7 @@
-import { getState, getCarpentryTasks, createTask, updateTaskStatus, deleteTask, isOverdue, TASK_STATUSES } from '../store.js';
+import {
+  getState, getCarpentryTasks, createTask, updateTaskStatus, updateTask, deleteTask,
+  isOverdue, TASK_STATUSES, TASK_PRIORITIES,
+} from '../store.js';
 import { shortDate, escapeHtml, priorityBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 
@@ -34,7 +37,12 @@ function renderTaskCard(t, state) {
   return `
     <div class="task-card ${overdue ? 'is-overdue' : ''}" data-task-id="${t.id}">
       <div class="task-card__top">
-        <span class="${priorityBadgeClass(t.priority)}">${t.priority !== 'обычный' ? '<i class="fa-solid fa-fire"></i> ' : ''}${t.priority}</span>
+        <span class="priority-select-wrap">
+          ${t.priority !== 'обычный' ? '<i class="fa-solid fa-fire priority-select__icon"></i>' : ''}
+          <select class="${priorityBadgeClass(t.priority)} priority-select" data-task-priority="${t.id}" title="Приоритет">
+            ${TASK_PRIORITIES.map((p) => `<option value="${p}" ${p === t.priority ? 'selected' : ''}>${p}</option>`).join('')}
+          </select>
+        </span>
         <span class="task-card__top-right">
           <span class="task-card__qty">×${t.qty}</span>
           <button type="button" class="task-card__delete" data-action="delete-task" data-id="${t.id}" title="Удалить задачу">
@@ -63,6 +71,13 @@ export function attachCarpentryHandlers(root, rerender) {
   root.querySelectorAll('[data-task-status]').forEach((sel) => {
     sel.addEventListener('change', () => {
       updateTaskStatus(sel.getAttribute('data-task-status'), sel.value);
+      rerender();
+    });
+  });
+
+  root.querySelectorAll('[data-task-priority]').forEach((sel) => {
+    sel.addEventListener('change', () => {
+      updateTask(sel.getAttribute('data-task-priority'), { priority: sel.value });
       rerender();
     });
   });
