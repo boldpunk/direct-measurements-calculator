@@ -36,6 +36,13 @@ export function renderShell(currentRoute) {
         <input type="search" id="global-search" placeholder="Поиск заказа, задачи, партнёра..." autocomplete="off" />
         <div class="search-results" id="search-results" hidden></div>
       </div>
+      <div class="notif-wrap">
+        <button type="button" class="topbar__avatar" id="notif-toggle" title="Уведомления" aria-haspopup="true">
+          <i class="fa-solid fa-bell"></i>
+          <span class="notif-badge" id="notif-badge" hidden>0</span>
+        </button>
+        <div class="notif-panel" id="notif-panel" hidden></div>
+      </div>
       <div class="topbar__profile">
         <button type="button" class="topbar__avatar" id="profile-toggle" title="Профиль" aria-haspopup="true">
           <i class="fa-solid fa-user"></i>

@@ -1,5 +1,6 @@
 import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle } from './ui.js';
 import { initSearch } from './search.js';
+import { initNotifications } from './notifications.js';
 import { renderDashboard, attachDashboardHandlers } from './views/dashboard.js';
 import { renderOrders, attachOrderHandlers } from './views/orders.js';
 import { renderClients, attachClientsHandlers } from './views/clients.js';
@@ -43,6 +44,7 @@ function render() {
     initSearch(render);
     initProfileMenu();
     initSidebarToggle();
+    initNotifications(render);
     shellMounted = true;
   } else {
     document.querySelectorAll('.sidebar__link, .bottom-nav__link').forEach((link) => {
