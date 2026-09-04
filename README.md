@@ -139,7 +139,13 @@ npm run build
 npm run preview
 ```
 
-### 3. Публичный сервер (чтобы открыть Netlify deploy preview)
+### 3. Продакшен-деплой на свой сервер
+
+Боевой домен `mebelflow.uz` разворачивается на одном VPS (frontend + API +
+PostgreSQL вместе, без Render/Netlify) — пошаговая инструкция в
+[`deploy/README.md`](./deploy/README.md).
+
+### 4. Публичный сервер только для проверки Netlify deploy preview
 
 Deploy preview на Netlify собирает только клиент — ему нужен публично
 доступный API. Проще всего поднять сервер на [Render](https://render.com)

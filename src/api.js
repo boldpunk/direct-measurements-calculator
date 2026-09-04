@@ -1,8 +1,10 @@
 // Thin fetch client for the MebelFlow backend (see /server).
 
-// Falls back to the deployed Render API when VITE_API_URL isn't set (e.g. Netlify
-// deploy previews, which don't have it configured). Local dev sets it via .env.
-const API_BASE = import.meta.env.VITE_API_URL || 'https://mebelflow-api.onrender.com';
+// Falls back to the deployed Render API when VITE_API_URL isn't set at all (e.g.
+// Netlify deploy previews). An explicitly empty string (same-origin deploys, where
+// the frontend and API share one domain) is kept as-is, not treated as "unset" —
+// that's why this is `??` and not `||`.
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://mebelflow-api.onrender.com';
 const TOKEN_KEY = 'mebelflow_token';
 const EMPLOYEE_KEY = 'mebelflow_employee';
 
