@@ -100,7 +100,7 @@ function openNewTaskModal(rerender) {
   openModal('Новая задача', `
     <form id="task-form" class="form">
       <label>Заказ
-        <select name="orderId" required>${selectOptions(state.orders.map((o) => ({ id: o.id, label: `${o.productType} #${o.number}` })), 'id', 'label')}</select>
+        <select name="orderId" required>${selectOptions(state.orders.map((o) => ({ id: o.id, label: `${o.clientName} — ${o.productType} #${o.number}` })), 'id', 'label')}</select>
       </label>
       <label>Название задачи<input name="name" required placeholder="Фасады МДФ 12 шт" /></label>
       <label>Количество<input name="qty" type="number" min="1" value="1" /></label>

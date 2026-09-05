@@ -67,7 +67,7 @@ function openNewReworkModal(rerender) {
   openModal('Новая переделка', `
     <form id="rework-form" class="form">
       <label>Заказ
-        <select name="orderId" required>${selectOptions(state.orders.map((o) => ({ id: o.id, label: `${o.productType} #${o.number}` })), 'id', 'label')}</select>
+        <select name="orderId" required>${selectOptions(state.orders.map((o) => ({ id: o.id, label: `${o.clientName} — ${o.productType} #${o.number}` })), 'id', 'label')}</select>
       </label>
       <label>Причина
         <select name="reason">${REWORK_REASONS.map((r) => `<option value="${r}">${r}</option>`).join('')}</select>

@@ -109,7 +109,7 @@ function openNewTaskModal(rerender) {
     <form id="general-task-form" class="form">
       <label>Название<input name="name" required placeholder="Заказать фасады" /></label>
       <label>Связанный заказ
-        <select name="orderId">${selectOptions(state.orders.map((o) => ({ id: o.id, label: `${o.productType} #${o.number}` })), 'id', 'label')}</select>
+        <select name="orderId">${selectOptions(state.orders.map((o) => ({ id: o.id, label: `${o.clientName} — ${o.productType} #${o.number}` })), 'id', 'label')}</select>
       </label>
       <label>Ответственный
         <select name="assigneeId">${selectOptions(state.employees, 'id', 'name')}</select>
