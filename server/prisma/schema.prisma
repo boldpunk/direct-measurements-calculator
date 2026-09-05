@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Singleton row (id always "default") holding company settings + order numbering.
+model Settings {
+  id              String @id @default("default")
+  companyName     String @default("Sobirov Mebel")
+  currency        String @default("$")
+  stageBufferDays Int    @default(3)
+  orderSeq        Int    @default(100)
+}
+
+model Employee {
+  id           String   @id
+  name         String
+  role         String
+  phone        String   @default("")
+  email        String?  @unique
+  passwordHash String?
+  createdAt    Float    @default(0)
+
+  // RBAC
+  accessRole       String   @default("Индивидуальная")
+  permissions       Json    @default("{}")
+  financialFlags    Json    @default("{}")
+  scopeFlags        Json    @default("{}")
+  isBlocked         Boolean @default(false)
+  failedLoginCount  Int     @default(0)
+  lockedUntil       Float?
+  lastActivityAt    Float?
+
+  managedOrders   Order[]  @relation("OrderManager")
+  assignedStages  Stage[]  @relation("StageAssignee")
+  assignedTasks   Task[]   @relation("TaskAssignee")
+  reworkResponsible Rework[] @relation("ReworkResponsible")
+  auditLogs         AuditLog[]
+}
+
+model AuditLog {
+  id         String   @id
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  employeeName String  @default("")
+  timestamp  Float
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ip         String   @default("")
+  userAgent  String   @default("")
+
+  @@index([timestamp])
+  @@index([employeeId])
+}
+
+model Partner {
+  id          String   @id
+  name        String
+  services    String[]
+  contacts    String   @default("")
+  avgLeadDays Int      @default(0)
+  rating      Int      @default(0)
+  comment     String   @default("")
+
+  stages Stage[]
+}
+
+model Client {
+  id        String   @id
+  name      String
+  phone     String   @default("")
+  address   String   @default("")
+  createdAt Float    @default(0)
+
+  orders Order[]
+}
+
+model Order {
+  id            String   @id
+  number        Int      @unique
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientName    String   @default("")
+  clientPhone   String   @default("")
+  address       String   @default("")
+  productType   String
+  managerId     String?
+  manager       Employee? @relation("OrderManager", fields: [managerId], references: [id], onDelete: SetNull)
+  amount        Float    @default(0)
+  startDate     String
+  deadline      String
+  status        String
+  needsCarpentry Boolean @default(true)
+  notes         String   @default("")
+  createdAt     Float    @default(0)
+
+  stages         Stage[]
+  tasks          Task[]
+  rework         Rework[]
+  activity       Activity[]
+  payments       Payment[]
+  materials      Material[]
+  outsourcing    OutsourceExpense[]
+  salaries       SalaryExpense[]
+  otherExpenses  OtherExpense[]
+}
+
+model Activity {
+  id        String @id
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  timestamp Float
+  text      String
+
+  @@index([orderId])
+}
+
+model Stage {
+  id         String   @id
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  defKey     String
+  name       String
+  type       String
+  service    String?
+  position   Int
+  assigneeId String?
+  assignee   Employee? @relation("StageAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  partnerId  String?
+  partner    Partner?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  deadline   String
+  status     String
+  skipped    Boolean  @default(false)
+
+  tasks Task[]
+
+  @@index([orderId])
+}
+
+model Task {
+  id         String   @id
+  orderId    String?
+  order      Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stageId    String?
+  stage      Stage?   @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  stageKey   String?
+  name       String
+  qty        Int      @default(1)
+  assigneeId String?
+  assignee   Employee? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  deadline   String
+  status     String
+  priority   String
+  comment    String   @default("")
+  createdAt  Float    @default(0)
+
+  rework Rework?
+
+  @@index([orderId])
+}
+
+model Rework {
+  id            String   @id
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason        String
+  description   String
+  photoUrl      String   @default("")
+  responsibleId String?
+  responsible   Employee? @relation("ReworkResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  urgency       String
+  status        String
+  costImpact    Float    @default(0)
+  taskId        String?  @unique
+  task          Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdAt     Float    @default(0)
+
+  @@index([orderId])
+}
+
+model Payment {
+  id      String @id
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  date    String
+  comment String @default("")
+  amount  Float  @default(0)
+
+  @@index([orderId])
+}
+
+model Material {
+  id        String @id
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name      String
+  qty       Float  @default(0)
+  unit      String @default("шт.")
+  unitPrice Float  @default(0)
+
+  @@index([orderId])
+}
+
+model OutsourceExpense {
+  id      String @id
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name    String
+  amount  Float  @default(0)
+
+  @@index([orderId])
+}
+
+model SalaryExpense {
+  id      String @id
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name    String
+  amount  Float  @default(0)
+
+  @@index([orderId])
+}
+
+model OtherExpense {
+  id      String @id
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name    String
+  amount  Float  @default(0)
+
+  @@index([orderId])
+}
