@@ -52,7 +52,7 @@ refResource('categories', 'category', (b) => ({ name: b.name }), { uniqueByName:
 refResource('brands', 'brand', (b) => ({ name: b.name }), { uniqueByName: true });
 refResource('suppliers', 'supplier', (b) => ({
   name: b.name, phone: b.phone || '', contactPerson: b.contactPerson || '', comment: b.comment || '',
-}));
+}), { uniqueByName: true });
 
 // ---- Supplier balances (owed = cost of income movements, minus payments made) ----
 

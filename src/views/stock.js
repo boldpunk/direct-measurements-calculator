@@ -459,7 +459,9 @@ function refRow(item) {
         ${isSupplier ? ` · Долг: ${maskUnless('seesSupplierData', money(item.balance))}` : ''}
       </span>
       ${isSupplier && can('stock', 'income') ? `<button type="button" class="btn btn--sm" data-ref-pay-supplier="${item.id}">Оплатить</button>` : ''}
-      <button type="button" class="mat-row__remove" data-ref-rename="${item.id}" title="Переименовать"><i class="fa-solid fa-pen"></i></button>
+      ${isSupplier
+        ? `<button type="button" class="mat-row__remove" data-ref-edit-supplier="${item.id}" title="Изменить"><i class="fa-solid fa-pen"></i></button>`
+        : `<button type="button" class="mat-row__remove" data-ref-rename="${item.id}" title="Переименовать"><i class="fa-solid fa-pen"></i></button>`}
       <button type="button" class="mat-row__remove" data-ref-delete="${item.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>
     </div>
   `;
@@ -588,5 +590,43 @@ function openRefsModal(rerender) {
         openSupplierPaymentModal(supplier, async () => { await loadRefs(); openRefsModal(rerender); });
       });
     });
+    suppliersContainer.querySelectorAll('[data-ref-edit-supplier]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const supplier = suppliers.find((s) => s.id === btn.getAttribute('data-ref-edit-supplier'));
+        openEditSupplierModal(supplier, rerender);
+      });
+    });
   }
+}
+
+function openEditSupplierModal(supplier, rerender) {
+  openModal('Изменить поставщика', `
+    <form id="edit-supplier-form" class="form">
+      <label>Название<input name="name" required value="${escapeHtml(supplier.name)}" /></label>
+      <label>Телефон<input name="phone" value="${escapeHtml(supplier.phone || '')}" /></label>
+      <label>Контактное лицо<input name="contactPerson" value="${escapeHtml(supplier.contactPerson || '')}" /></label>
+      <label>Комментарий<textarea name="comment" rows="2">${escapeHtml(supplier.comment || '')}</textarea></label>
+      <div class="form-actions">
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary">Сохранить</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById('edit-supplier-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      await api.updateStockSupplier(supplier.id, {
+        name: fd.get('name'), phone: fd.get('phone'), contactPerson: fd.get('contactPerson'), comment: fd.get('comment'),
+      });
+      await loadRefs();
+      openRefsModal(rerender);
+    } catch (err) {
+      window.alert(err.message || 'Не удалось изменить поставщика');
+      submitBtn.disabled = false;
+    }
+  });
 }
