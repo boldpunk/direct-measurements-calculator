@@ -1,0 +1,18 @@
+[Unit]
+Description=MebelFlow API (Express)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=mebelflow
+Group=mebelflow
+WorkingDirectory=/opt/mebelflow/server
+EnvironmentFile=/etc/mebelflow/server.env
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

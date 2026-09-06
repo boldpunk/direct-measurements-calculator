@@ -1,6 +1,6 @@
 {
-  "name": "Direct Measurements Calculator",
-  "short_name": "Direct Measurements Calculator",
+  "name": "MebelFlow",
+  "short_name": "MebelFlow",
   "icons": [
     {
       "src": "/favicon/android-chrome-192x192.png",
@@ -13,7 +13,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "background_color": "#eef1f7",
   "display": "standalone"
 }
