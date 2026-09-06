@@ -122,6 +122,7 @@ export const api = {
   updateReworkStatus: (id, status) => request(`/api/rework/${id}/status`, { method: 'PATCH', body: { status } }),
 
   createPartner: (data) => request('/api/partners', { method: 'POST', body: data }),
+  updatePartner: (id, patch) => request(`/api/partners/${id}`, { method: 'PATCH', body: patch }),
   deletePartner: (id) => request(`/api/partners/${id}`, { method: 'DELETE' }),
 
   createEmployee: (data) => request('/api/employees', { method: 'POST', body: data }),

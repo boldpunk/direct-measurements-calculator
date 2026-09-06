@@ -18,4 +18,5 @@ export const DEFAULT_SETTINGS = {
   companyName: 'Sobirov Mebel',
   currency: '$',
   stageBufferDays: 3,
+  orderStatusColors: {},
 };

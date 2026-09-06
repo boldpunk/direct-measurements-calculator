@@ -23,6 +23,25 @@ router.post('/', requirePermission('outsource', 'create'), ah(async (req, res) =
   res.status(201).json(partner);
 }));
 
+router.patch('/:id', requirePermission('outsource', 'edit'), ah(async (req, res) => {
+  const body = req.body || {};
+  const before = await prisma.partner.findUnique({ where: { id: req.params.id } });
+  if (!before) return res.status(404).json({ message: 'Партнёр не найден' });
+  const partner = await prisma.partner.update({
+    where: { id: req.params.id },
+    data: {
+      name: body.name !== undefined ? body.name : before.name,
+      services: body.services !== undefined ? body.services : before.services,
+      contacts: body.contacts !== undefined ? body.contacts : before.contacts,
+      avgLeadDays: body.avgLeadDays !== undefined ? (Number(body.avgLeadDays) || 0) : before.avgLeadDays,
+      rating: body.rating !== undefined ? (Number(body.rating) || 0) : before.rating,
+      comment: body.comment !== undefined ? body.comment : before.comment,
+    },
+  });
+  await logAudit(req, { action: 'partner.update', entityType: 'partner', entityId: partner.id, oldValue: before, newValue: partner });
+  res.json(partner);
+}));
+
 router.delete('/:id', requirePermission('outsource', 'delete'), ah(async (req, res) => {
   const before = await prisma.partner.findUnique({ where: { id: req.params.id } });
   await prisma.partner.delete({ where: { id: req.params.id } }).catch(() => null);

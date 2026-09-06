@@ -61,8 +61,11 @@ const ORDER_STATUS_TONE = {
   'Завершён': 'success',
   'Отменён': 'danger',
 };
+export const BADGE_TONES = ['neutral', 'info', 'warning', 'success', 'danger'];
+
 export function getOrderStatusTone(status) {
-  return ORDER_STATUS_TONE[status] || 'neutral';
+  const override = _state.settings?.orderStatusColors?.[status];
+  return override || ORDER_STATUS_TONE[status] || 'neutral';
 }
 
 export const EMPLOYEE_ROLES = [
@@ -78,6 +81,7 @@ export const DEFAULT_SETTINGS = {
   companyName: 'Sobirov Mebel',
   currency: '$',
   stageBufferDays: 3,
+  orderStatusColors: {},
 };
 
 function uid(prefix) {
@@ -174,6 +178,12 @@ export function getSettings() {
 export function updateSettings(patch) {
   _state.settings = { ..._state.settings, ...patch };
   api.updateSettings(patch).catch((e) => logSyncError('настройки', e));
+}
+
+export function updateOrderStatusColor(status, tone) {
+  const orderStatusColors = { ...(_state.settings?.orderStatusColors || {}), [status]: tone };
+  _state.settings = { ..._state.settings, orderStatusColors };
+  api.updateSettings({ orderStatusColors }).catch((e) => logSyncError('цвет статуса', e));
 }
 
 // ---- Clients ----
@@ -486,6 +496,13 @@ export function createPartner(data) {
 export function deletePartner(partnerId) {
   _state.partners = _state.partners.filter((p) => p.id !== partnerId);
   api.deletePartner(partnerId).catch((e) => logSyncError('удаление партнёра', e));
+}
+
+export async function updatePartner(partnerId, patch) {
+  const updated = await api.updatePartner(partnerId, patch);
+  const i = _state.partners.findIndex((p) => p.id === partnerId);
+  if (i !== -1) _state.partners[i] = updated;
+  return updated;
 }
 
 // ---- Employees ----

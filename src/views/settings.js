@@ -1,6 +1,10 @@
-import { getState, getSettings, updateSettings, CURRENCIES } from '../store.js';
+import { getState, getSettings, updateSettings, updateOrderStatusColor, CURRENCIES, ORDER_STATUSES, BADGE_TONES, getOrderStatusTone } from '../store.js';
 import { escapeHtml } from '../format.js';
 import { can } from '../permissions.js';
+
+const TONE_LABELS = {
+  neutral: 'Серый', info: 'Синий', warning: 'Жёлтый', success: 'Зелёный', danger: 'Красный',
+};
 
 export function renderSettings() {
   const settings = getSettings();
@@ -37,6 +41,23 @@ export function renderSettings() {
       </div>
 
       <div class="panel">
+        <header class="panel__header"><h2>Цвета статусов заказа</h2></header>
+        <div class="panel__body">
+          <p class="form-hint">Выберите цвет бейджа для каждого статуса заказа.</p>
+          <div class="status-color-list">
+            ${ORDER_STATUSES.map((status) => `
+              <div class="status-color-row">
+                <span class="badge badge--tone-${getOrderStatusTone(status)}">${escapeHtml(status)}</span>
+                <select data-action="status-color" data-status="${escapeHtml(status)}" ${canEdit ? '' : 'disabled'}>
+                  ${BADGE_TONES.map((tone) => `<option value="${tone}" ${tone === getOrderStatusTone(status) ? 'selected' : ''}>${TONE_LABELS[tone]}</option>`).join('')}
+                </select>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
         <header class="panel__header"><h2>Данные</h2></header>
         <div class="panel__body">
           <div class="settings-stats">
@@ -67,4 +88,11 @@ export function attachSettingsHandlers(root, rerender) {
       rerender();
     });
   }
+
+  root.querySelectorAll('[data-action="status-color"]').forEach((select) => {
+    select.addEventListener('change', () => {
+      updateOrderStatusColor(select.getAttribute('data-status'), select.value);
+      rerender();
+    });
+  });
 }

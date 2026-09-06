@@ -1,4 +1,4 @@
-import { getState, createPartner, deletePartner, OUTSOURCE_SERVICES } from '../store.js';
+import { getState, createPartner, updatePartner, deletePartner, OUTSOURCE_SERVICES } from '../store.js';
 import { escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
@@ -21,7 +21,10 @@ export function renderOutsource() {
         <span><i class="fa-solid fa-clock"></i> ${p.avgLeadDays} дн.</span>
       </div>
       ${p.comment ? `<div class="partner-card__comment">${escapeHtml(p.comment)}</div>` : ''}
-      ${can('outsource', 'delete') ? `<button class="btn btn--sm btn--danger-ghost" data-action="delete-partner" data-id="${p.id}">Удалить</button>` : ''}
+      <div class="partner-card__actions">
+        ${can('outsource', 'edit') ? `<button class="btn btn--sm" data-action="edit-partner" data-id="${p.id}">Изменить</button>` : ''}
+        ${can('outsource', 'delete') ? `<button class="btn btn--sm btn--danger-ghost" data-action="delete-partner" data-id="${p.id}">Удалить</button>` : ''}
+      </div>
     </div>
   `).join('') || '<div class="empty-state">Партнёров нет</div>';
 
@@ -37,6 +40,13 @@ export function renderOutsource() {
 export function attachOutsourceHandlers(root, rerender) {
   const newBtn = root.querySelector('[data-action="new-partner"]');
   if (newBtn) newBtn.addEventListener('click', () => openNewPartnerModal(rerender));
+
+  root.querySelectorAll('[data-action="edit-partner"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const partner = getState().partners.find((p) => p.id === btn.getAttribute('data-id'));
+      if (partner) openEditPartnerModal(partner, rerender);
+    });
+  });
 
   root.querySelectorAll('[data-action="delete-partner"]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -79,5 +89,48 @@ function openNewPartnerModal(rerender) {
     });
     closeModal();
     rerender();
+  });
+}
+
+function openEditPartnerModal(partner, rerender) {
+  openModal('Изменить партнёра', `
+    <form id="edit-partner-form" class="form">
+      <label>Название<input name="name" required value="${escapeHtml(partner.name)}" /></label>
+      <label>Услуги
+        <div class="checkbox-row">
+          ${OUTSOURCE_SERVICES.map((s) => `<label class="checkbox-label"><input type="checkbox" name="services" value="${s}" ${partner.services.includes(s) ? 'checked' : ''} /> ${s}</label>`).join('')}
+        </div>
+      </label>
+      <label>Контакты<input name="contacts" value="${escapeHtml(partner.contacts || '')}" placeholder="+998 ..." /></label>
+      <label>Средний срок, дн.<input name="avgLeadDays" type="number" min="0" value="${partner.avgLeadDays}" /></label>
+      <label>Рейтинг (1-5)<input name="rating" type="number" min="1" max="5" value="${partner.rating}" /></label>
+      <label>Комментарии<textarea name="comment" rows="2">${escapeHtml(partner.comment || '')}</textarea></label>
+      <div class="form-actions">
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary">Сохранить</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById('edit-partner-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      await updatePartner(partner.id, {
+        name: fd.get('name'),
+        services: fd.getAll('services'),
+        contacts: fd.get('contacts'),
+        avgLeadDays: fd.get('avgLeadDays'),
+        rating: fd.get('rating'),
+        comment: fd.get('comment'),
+      });
+      closeModal();
+      rerender();
+    } catch (err) {
+      window.alert(err.message || 'Не удалось изменить партнёра');
+      submitBtn.disabled = false;
+    }
   });
 }
