@@ -4,6 +4,7 @@ import {
   PRODUCT_TYPES, ORDER_STATUSES, getOrderDeadlineInfo,
   getFinance, computeOrderFinance,
   addPayment, removePayment, addMaterial, removeMaterial,
+  addStockMaterial, updateStockMaterialQty,
   addOutsourceExpense, removeOutsourceExpense, addSalaryExpense, removeSalaryExpense,
   addOtherExpense, removeOtherExpense, UNITS, todayISO,
 } from '../store.js';
@@ -12,6 +13,7 @@ import { openModal, closeModal, selectOptions } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { renderMoneyField, attachMoneyFields } from '../money-field.js';
 import { can, sees, maskUnless, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
+import { api } from '../api.js';
 
 let selectedOrderId = null;
 let currentQuery = '';
@@ -266,11 +268,18 @@ function renderPaymentsSection(order, finance, fin) {
 
 function renderMaterialsSection(order, finance) {
   const canDelete = can('finance', 'deletePayment');
+  const canEdit = can('finance', 'editPayment');
   const seesPrices = sees('seesPurchasePrices');
   const rows = finance.materials.map((m) => `
     <div class="mat-row">
-      <span class="mat-row__name">${escapeHtml(m.name)}</span>
-      <span class="mat-row__calc">${m.qty} ${escapeHtml(m.unit)} × ${seesPrices ? money(m.unitPrice) : maskUnless('seesPurchasePrices', '')}</span>
+      <span class="mat-row__name">
+        ${escapeHtml(m.name)}
+        ${m.source === 'stock' ? '<span class="badge badge--muted">склад</span>' : ''}
+      </span>
+      <span class="mat-row__calc">
+        ${m.source === 'stock' && canEdit ? `<button type="button" class="mat-row__remove" data-edit-material-qty="${m.id}" data-order="${order.id}" title="Изменить количество"><i class="fa-solid fa-pen"></i></button>` : ''}
+        ${m.qty} ${escapeHtml(m.unit)} × ${seesPrices ? money(m.unitPrice) : maskUnless('seesPurchasePrices', '')}
+      </span>
       <span class="mat-row__sum">${maskUnless('seesPurchasePrices', money(m.qty * m.unitPrice))}</span>
       ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-material="${m.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
     </div>
@@ -282,7 +291,8 @@ function renderMaterialsSection(order, finance) {
     <div class="order-detail__section-title">Материалы</div>
     <div class="section-block">
       <div class="mat-rows">${rows}</div>
-      ${can('finance', 'editPayment') ? `
+      ${canEdit ? `
+        <button type="button" class="btn btn--sm" data-action="add-from-stock" data-order="${order.id}" style="margin-bottom:8px;"><i class="fa-solid fa-warehouse"></i> Добавить со склада</button>
         <form class="add-row-form add-row-form--material" data-order="${order.id}">
           <input type="text" name="name" placeholder="Материал" required />
           <input type="number" name="qty" placeholder="Кол-во" min="0" step="0.01" value="1" required />
@@ -470,6 +480,93 @@ export function attachOrderHandlers(root, rerender) {
 
   attachRowRemoveHandlers(root, rerender);
   attachAddFormHandlers(root, rerender);
+  attachStockPickerHandlers(root, rerender);
+}
+
+function attachStockPickerHandlers(root, rerender) {
+  const addFromStockBtn = root.querySelector('[data-action="add-from-stock"]');
+  if (addFromStockBtn) {
+    addFromStockBtn.addEventListener('click', () => openStockPickerModal(addFromStockBtn.getAttribute('data-order'), rerender));
+  }
+
+  root.querySelectorAll('[data-edit-material-qty]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const orderId = btn.getAttribute('data-order');
+      const materialId = btn.getAttribute('data-edit-material-qty');
+      const finance = getFinance(orderId);
+      const material = finance.materials.find((m) => m.id === materialId);
+      if (!material) return;
+      const input = window.prompt(`Новое количество (${material.unit}):`, material.qty);
+      if (input === null) return;
+      const qty = Number(input);
+      if (!qty || qty <= 0) { window.alert('Введите количество больше 0'); return; }
+      try {
+        await updateStockMaterialQty(orderId, materialId, qty);
+        rerender();
+      } catch (e) {
+        window.alert(e.message || 'Не удалось изменить количество');
+      }
+    });
+  });
+}
+
+async function openStockPickerModal(orderId, rerender) {
+  let stockItems = [];
+  try {
+    stockItems = await api.getStockItems({ status: 'active' });
+  } catch (e) {
+    window.alert('Не удалось загрузить склад');
+    return;
+  }
+  openModal('Добавить материал со склада', `
+    <form id="stock-pick-form" class="form">
+      <label>Товар
+        <select name="specId" id="stock-pick-select" required>
+          <option value="">— выберите товар —</option>
+          ${stockItems.map((it) => `<option value="${it.id}" data-unit="${escapeHtml(it.unit)}" data-price="${it.salePrice}" data-available="${it.available}">${escapeHtml(it.categoryName)} / ${escapeHtml(it.brandName)} / ${escapeHtml(it.productName)}${it.name ? ` — ${escapeHtml(it.name)}` : ''} (доступно: ${it.available} ${escapeHtml(it.unit)})</option>`).join('')}
+        </select>
+      </label>
+      <label>Количество<input type="number" name="qty" id="stock-pick-qty" min="0.01" step="0.01" value="1" required /></label>
+      <p class="form-hint" id="stock-pick-preview"></p>
+      <div class="form-actions">
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary">Добавить</button>
+      </div>
+    </form>
+  `);
+
+  const form = document.getElementById('stock-pick-form');
+  const select = document.getElementById('stock-pick-select');
+  const qtyInput = document.getElementById('stock-pick-qty');
+  const preview = document.getElementById('stock-pick-preview');
+
+  function updatePreview() {
+    const opt = select.selectedOptions[0];
+    if (!opt || !opt.value) { preview.textContent = ''; return; }
+    const price = Number(opt.dataset.price) || 0;
+    const qty = Number(qtyInput.value) || 0;
+    preview.textContent = `Цена: ${money(price)} × ${qty} = Сумма: ${money(price * qty)}`;
+  }
+  select.addEventListener('change', updatePreview);
+  qtyInput.addEventListener('input', updatePreview);
+  updatePreview();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const specId = select.value;
+    const qty = Number(qtyInput.value) || 0;
+    if (!specId) { window.alert('Выберите товар'); return; }
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      await addStockMaterial(orderId, { specId, qty });
+      closeModal();
+      rerender();
+    } catch (err) {
+      window.alert(err.message || 'Не удалось добавить материал');
+      submitBtn.disabled = false;
+    }
+  });
 }
 
 function attachRowRemoveHandlers(root, rerender) {

@@ -105,6 +105,7 @@ export const api = {
   addPayment: (orderId, data) => request(`/api/orders/${orderId}/payments`, { method: 'POST', body: data }),
   removePayment: (orderId, id) => request(`/api/orders/${orderId}/payments/${id}`, { method: 'DELETE' }),
   addMaterial: (orderId, data) => request(`/api/orders/${orderId}/materials`, { method: 'POST', body: data }),
+  updateMaterial: (orderId, id, patch) => request(`/api/orders/${orderId}/materials/${id}`, { method: 'PATCH', body: patch }),
   removeMaterial: (orderId, id) => request(`/api/orders/${orderId}/materials/${id}`, { method: 'DELETE' }),
   addOutsourceExpense: (orderId, data) => request(`/api/orders/${orderId}/outsourcing`, { method: 'POST', body: data }),
   removeOutsourceExpense: (orderId, id) => request(`/api/orders/${orderId}/outsourcing/${id}`, { method: 'DELETE' }),
@@ -136,4 +137,27 @@ export const api = {
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
     return request(`/api/audit-log${suffix}`);
   },
+
+  getStockCategories: () => request('/api/stock/categories'),
+  createStockCategory: (data) => request('/api/stock/categories', { method: 'POST', body: data }),
+  getStockBrands: () => request('/api/stock/brands'),
+  createStockBrand: (data) => request('/api/stock/brands', { method: 'POST', body: data }),
+  getStockSuppliers: () => request('/api/stock/suppliers'),
+  createStockSupplier: (data) => request('/api/stock/suppliers', { method: 'POST', body: data }),
+  updateStockSupplier: (id, patch) => request(`/api/stock/suppliers/${id}`, { method: 'PATCH', body: patch }),
+  deleteStockSupplier: (id) => request(`/api/stock/suppliers/${id}`, { method: 'DELETE' }),
+
+  getStockItems: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return request(`/api/stock/items${suffix}`);
+  },
+  getStockItem: (id) => request(`/api/stock/items/${id}`),
+  createStockItem: (data) => request('/api/stock/items', { method: 'POST', body: data }),
+  updateStockItem: (id, patch) => request(`/api/stock/items/${id}`, { method: 'PATCH', body: patch }),
+  deleteStockItem: (id) => request(`/api/stock/items/${id}`, { method: 'DELETE' }),
+  stockIncome: (id, data) => request(`/api/stock/items/${id}/income`, { method: 'POST', body: data }),
+  stockExpense: (id, data) => request(`/api/stock/items/${id}/expense`, { method: 'POST', body: data }),
+  stockAdjustment: (id, data) => request(`/api/stock/items/${id}/adjustment`, { method: 'POST', body: data }),
+  getStockDashboard: () => request('/api/stock/dashboard'),
 };

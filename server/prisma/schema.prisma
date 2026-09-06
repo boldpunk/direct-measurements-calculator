@@ -40,6 +40,7 @@ model Employee {
   assignedTasks   Task[]   @relation("TaskAssignee")
   reworkResponsible Rework[] @relation("ReworkResponsible")
   auditLogs         AuditLog[]
+  stockMovements    StockMovement[]
 }
 
 model AuditLog {
@@ -205,6 +206,127 @@ model Material {
   unit      String @default("шт.")
   unitPrice Float  @default(0)
 
+  // Set when this line was pulled from the Склад catalog rather than typed
+  // manually — drives the reservation lifecycle (see StockReservation).
+  specId String?
+  spec   ProductSpec? @relation(fields: [specId], references: [id], onDelete: SetNull)
+  source String       @default("manual") // 'manual' | 'stock'
+
+  reservation StockReservation?
+
+  @@index([orderId])
+}
+
+// ---- Склад (warehouse) ----
+
+model Category {
+  id        String @id
+  name      String @unique
+  createdAt Float  @default(0)
+
+  products Product[]
+}
+
+model Brand {
+  id        String @id
+  name      String @unique
+  createdAt Float  @default(0)
+
+  products Product[]
+}
+
+model Supplier {
+  id            String @id
+  name          String
+  phone         String @default("")
+  contactPerson String @default("")
+  comment       String @default("")
+
+  specs     ProductSpec[]
+  movements StockMovement[]
+}
+
+// "Наименование" — a product name under a category+brand (e.g. "Clip Top").
+// Stock itself is tracked one level down, per specification (ProductSpec),
+// since a hinge's "горбатая" and "прямая" variants are separate stock units.
+model Product {
+  id         String   @id
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  brandId    String
+  brand      Brand    @relation(fields: [brandId], references: [id])
+  name       String
+  createdAt  Float    @default(0)
+
+  specs ProductSpec[]
+
+  @@index([categoryId])
+  @@index([brandId])
+}
+
+// The actual stock-keeping unit: Category -> Brand -> Product -> Specification.
+// name may be empty ("—") for products with no meaningful variant.
+model ProductSpec {
+  id            String    @id
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name          String    @default("")
+  sku           String    @default("")
+  unit          String    @default("шт.")
+  qty           Float     @default(0)
+  reserved      Float     @default(0)
+  minStock      Float?
+  purchasePrice Float     @default(0)
+  salePrice     Float     @default(0)
+  supplierId    String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  location      String    @default("")
+  comment       String    @default("")
+  status        String    @default("active") // 'active' | 'archived'
+  createdAt     Float     @default(0)
+
+  movements    StockMovement[]
+  reservations StockReservation[]
+  materials    Material[]
+
+  @@index([productId])
+}
+
+model StockMovement {
+  id         String       @id
+  specId     String
+  spec       ProductSpec  @relation(fields: [specId], references: [id], onDelete: Cascade)
+  type       String       // income | expense | reserve | unreserve | adjustment | return
+  qty        Float
+  price      Float?
+  supplierId String?
+  supplier   Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  employeeId String?
+  employee   Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  orderId    String?
+  reason     String       @default("")
+  comment    String       @default("")
+  createdAt  Float
+
+  @@index([specId])
+  @@index([orderId])
+}
+
+// One row per active reservation, 1:1 with the order Material line that
+// created it. Deleted (not soft-deleted) once released or written off —
+// that release/write-off is itself recorded as a StockMovement, so history
+// survives independently of this table.
+model StockReservation {
+  id         String      @id
+  specId     String
+  spec       ProductSpec @relation(fields: [specId], references: [id], onDelete: Cascade)
+  orderId    String
+  materialId String      @unique
+  material   Material    @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  qty        Float
+  createdAt  Float
+
+  @@index([specId])
   @@index([orderId])
 }
 

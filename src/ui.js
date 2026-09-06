@@ -11,6 +11,7 @@ export const NAV_ITEMS = [
   { route: 'tasks', icon: 'fa-list-check', label: 'Задачи', guard: () => can('tasks', 'view') },
   { route: 'outsource', icon: 'fa-layer-group', label: 'Аутсорс', guard: () => can('outsource', 'view') },
   { route: 'finance', icon: 'fa-sack-dollar', label: 'Финансы', guard: () => can('finance', 'view') },
+  { route: 'stock', icon: 'fa-warehouse', label: 'Склад', guard: () => can('stock', 'view') },
   { route: 'employees', icon: 'fa-users', label: 'Сотрудники', guard: () => canAny('employees') },
   { route: 'audit-log', icon: 'fa-clock-rotate-left', label: 'Журнал действий', guard: () => can('settings', 'manageRoles') },
   { route: 'settings', icon: 'fa-gear', label: 'Настройки', guard: () => canAny('settings') },

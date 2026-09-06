@@ -11,6 +11,7 @@ import { renderRework, attachReworkHandlers } from './views/rework.js';
 import { renderOutsource, attachOutsourceHandlers } from './views/outsource.js';
 import { renderFinance, attachFinanceHandlers } from './views/finance.js';
 import { renderEmployees, attachEmployeesHandlers } from './views/employees.js';
+import { renderStock, attachStockHandlers } from './views/stock.js';
 import { renderSettings, attachSettingsHandlers } from './views/settings.js';
 import { renderTasks, attachTasksHandlers } from './views/tasks.js';
 import { renderAuditLog, attachAuditLogHandlers } from './views/auditLog.js';
@@ -28,6 +29,7 @@ const ROUTES = {
   tasks: { render: renderTasks, attach: attachTasksHandlers },
   outsource: { render: renderOutsource, attach: attachOutsourceHandlers },
   finance: { render: renderFinance, attach: attachFinanceHandlers },
+  stock: { render: renderStock, attach: attachStockHandlers },
   employees: { render: renderEmployees, attach: attachEmployeesHandlers },
   settings: { render: renderSettings, attach: attachSettingsHandlers },
   'audit-log': { render: renderAuditLog, attach: attachAuditLogHandlers },

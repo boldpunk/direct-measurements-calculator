@@ -156,12 +156,46 @@ async function addOtherExpense(orderId, data) {
   await prisma.otherExpense.create({ data: { id: uid('exp'), orderId, name: data.name, amount: Number(data.amount) || 0 } });
 }
 
+async function addCategory(name) {
+  return prisma.category.create({ data: { id: uid('cat'), name, createdAt: Date.now() } });
+}
+async function addBrand(name) {
+  return prisma.brand.create({ data: { id: uid('brd'), name, createdAt: Date.now() } });
+}
+async function addSupplier(data) {
+  return prisma.supplier.create({ data: { id: uid('sup'), ...data } });
+}
+async function addProduct(categoryId, brandId, name) {
+  return prisma.product.create({ data: { id: uid('prd'), categoryId, brandId, name, createdAt: Date.now() } });
+}
+// Creates the spec at qty 0, then runs an actual income movement to reach
+// startQty — every unit on the shelf traces back to a movement, seed data
+// included, matching how the real app is only ever allowed to change qty.
+async function addSpec(productId, data, startQty, supplierId) {
+  const spec = await prisma.productSpec.create({
+    data: {
+      id: uid('spc'), productId, name: data.name || '', sku: data.sku || '', unit: data.unit || 'шт.',
+      qty: 0, minStock: data.minStock ?? null, purchasePrice: data.purchasePrice || 0, salePrice: data.salePrice || 0,
+      supplierId: supplierId || null, location: data.location || '', comment: data.comment || '', createdAt: Date.now(),
+    },
+  });
+  if (startQty > 0) {
+    await prisma.productSpec.update({ where: { id: spec.id }, data: { qty: { increment: startQty } } });
+    await prisma.stockMovement.create({
+      data: { id: uid('mov'), specId: spec.id, type: 'income', qty: startQty, price: data.purchasePrice || 0, supplierId: supplierId || null, comment: 'Начальный остаток', createdAt: Date.now() },
+    });
+  }
+  return spec;
+}
+
 async function main() {
   console.log('Clearing existing data...');
   await prisma.$transaction([
     prisma.rework.deleteMany(),
     prisma.activity.deleteMany(),
     prisma.payment.deleteMany(),
+    prisma.stockReservation.deleteMany(),
+    prisma.stockMovement.deleteMany(),
     prisma.material.deleteMany(),
     prisma.outsourceExpense.deleteMany(),
     prisma.salaryExpense.deleteMany(),
@@ -173,6 +207,11 @@ async function main() {
     prisma.partner.deleteMany(),
     prisma.employee.deleteMany(),
     prisma.settings.deleteMany(),
+    prisma.productSpec.deleteMany(),
+    prisma.product.deleteMany(),
+    prisma.category.deleteMany(),
+    prisma.brand.deleteMany(),
+    prisma.supplier.deleteMany(),
   ]);
 
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
@@ -207,6 +246,35 @@ async function main() {
       { id: uid('ptn'), name: 'КрасПро', services: ['покраска'], contacts: '+998 71 300-20-20', avgLeadDays: 3, rating: 5, comment: 'Лучшее качество эмали в городе.' },
     ],
   });
+
+  console.log('Seeding Склад...');
+  const supBlum = await addSupplier({ name: 'Blum Uzbekistan', phone: '+998 71 200-30-30', contactPerson: 'Отабек', comment: 'Официальный дистрибьютор' });
+  const supBoyard = await addSupplier({ name: 'Boyard Distribution', phone: '+998 71 250-10-10', contactPerson: 'Сардор', comment: '' });
+
+  const catHinges = await addCategory('Петли');
+  const catSlides = await addCategory('Направляющие');
+  const catHandles = await addCategory('Ручки');
+  const catConsumables = await addCategory('Расходные материалы');
+  await Promise.all(['Подъемники', 'Профили', 'Крепёж', 'Аксессуары', 'Кухонные аксессуары', 'Выдвижные системы', 'Механизмы', 'Опоры', 'Ножки', 'Крепления', 'Прочее'].map(addCategory));
+
+  const brandBlum = await addBrand('Blum');
+  const brandBoyard = await addBrand('Boyard');
+  await Promise.all(['Higold', 'Hettich', 'Grass', 'Kesseböhmer'].map(addBrand));
+
+  const clipTop = await addProduct(catHinges.id, brandBlum.id, 'Clip Top');
+  await addSpec(clipTop.id, { name: 'горбатая', unit: 'шт.', minStock: 30, purchasePrice: 35000, salePrice: 45000, sku: 'BL-CLIP-001', location: 'Стеллаж A / Полка 2', comment: 'Петля с доводчиком' }, 250, supBlum.id);
+  await addSpec(clipTop.id, { name: 'полугорбатая', unit: 'шт.', minStock: 20, purchasePrice: 35000, salePrice: 45000, sku: 'BL-CLIP-002' }, 40, supBlum.id);
+  await addSpec(clipTop.id, { name: 'прямая', unit: 'шт.', minStock: 20, purchasePrice: 35000, salePrice: 45000, sku: 'BL-CLIP-003' }, 5, supBlum.id);
+
+  const tandembox = await addProduct(catSlides.id, brandBlum.id, 'Tandembox');
+  await addSpec(tandembox.id, { name: '450 мм', unit: 'компл.', minStock: 10, purchasePrice: 180000, salePrice: 230000, sku: 'BL-TB-450' }, 25, supBlum.id);
+  await addSpec(tandembox.id, { name: '500 мм', unit: 'компл.', minStock: 10, purchasePrice: 190000, salePrice: 245000, sku: 'BL-TB-500' }, 0, supBlum.id);
+
+  const handle = await addProduct(catHandles.id, brandBoyard.id, 'Ручка-скоба');
+  await addSpec(handle.id, { name: '160 мм, матовый чёрный', unit: 'шт.', minStock: 50, purchasePrice: 12000, salePrice: 18000, sku: 'BY-H-160BL' }, 300, supBoyard.id);
+
+  const glue = await addProduct(catConsumables.id, brandBoyard.id, 'Клей ПВА столярный');
+  await addSpec(glue.id, { name: '', unit: 'л', minStock: 5, purchasePrice: 25000, salePrice: 0, sku: 'CONS-GLUE-01', comment: 'Только для внутреннего производства' }, 12, supBoyard.id);
 
   const settings = await prisma.settings.create({ data: { id: 'default', ...DEFAULT_SETTINGS, orderSeq: 106 } });
   const currency = settings.currency;

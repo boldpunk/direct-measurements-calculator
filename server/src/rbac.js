@@ -1,9 +1,10 @@
 // RBAC schema: modules/actions that exist in MebelFlow today, financial
 // visibility flags, object-scope flags, and the 9 preset roles from the spec
-// mapped onto those modules. CRM / Конструкторский отдел / Склад / Закупки
-// don't exist as modules yet, so roles referencing them (Технолог, Кладовщик,
+// mapped onto those modules. CRM / Конструкторский отдел / Закупки don't
+// exist as standalone modules, so roles referencing them (Технолог,
 // Закупщик) are mapped onto the closest existing equivalent and documented
-// inline — see mirrored copy at src/rbac-schema.js on the frontend.
+// inline — see mirrored copy at src/rbac-schema.js on the frontend. Склад
+// (Кладовщик's home module) is a real module — see MODULES.stock below.
 
 export const MODULES = {
   orders: ['view', 'create', 'edit', 'close', 'cancel', 'delete', 'export'],
@@ -14,6 +15,7 @@ export const MODULES = {
   outsource: ['view', 'create', 'edit', 'delete'],
   finance: ['view', 'addPayment', 'editPayment', 'deletePayment', 'export'],
   clients: ['view', 'create', 'edit', 'delete'],
+  stock: ['view', 'create', 'edit', 'delete', 'income', 'expense', 'adjustment', 'export'],
   employees: ['create', 'edit', 'block', 'delete'],
   settings: ['edit', 'manageRoles'],
 };
@@ -86,6 +88,7 @@ export const PRESET_ROLES = {
     permissions: permSet({
       clients: { view: true, create: true, edit: true },
       orders: { view: true, create: true, edit: true },
+      stock: { view: true },
     }),
     financialFlags: emptyFinancialFlags(),
     scopeFlags: defaultScopeFlags(),
@@ -108,20 +111,21 @@ export const PRESET_ROLES = {
     financialFlags: emptyFinancialFlags(),
     scopeFlags: { ownRequestsOnly: false, ownOrdersOnly: false, ownDepartmentOnly: true, allCompanyData: false },
   },
-  // "Склад" doesn't exist yet -> mapped onto orders' Материалы sub-section (via finance) + purchase prices.
   'Кладовщик': {
     permissions: permSet({
+      stock: { view: true, create: true, edit: true, delete: true, income: true, expense: true, adjustment: true, export: true },
       orders: { view: true },
-      finance: { view: true },
     }),
-    financialFlags: { ...emptyFinancialFlags(), seesPurchasePrices: true },
+    financialFlags: { ...emptyFinancialFlags(), seesPurchasePrices: true, seesSupplierData: true },
     scopeFlags: defaultScopeFlags(),
   },
-  // "Закупки" doesn't exist yet -> mapped onto Аутсорс (closest thing to a supplier directory).
+  // "Закупки" doesn't exist as a standalone module -> mapped onto Аутсорс
+  // (closest thing to a supplier directory) plus Склад's income/supplier side.
   'Закупщик': {
     permissions: permSet({
       outsource: { view: true, create: true, edit: true, delete: true },
       orders: { view: true },
+      stock: { view: true, income: true, edit: true },
     }),
     financialFlags: { ...emptyFinancialFlags(), seesPurchasePrices: true, seesSupplierData: true },
     scopeFlags: defaultScopeFlags(),

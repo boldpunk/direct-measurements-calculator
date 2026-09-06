@@ -543,6 +543,26 @@ export function addMaterial(orderId, data) {
   if (order) pushActivity(order, `Добавлен материал: ${data.name}`);
   api.addMaterial(orderId, { ...data, id: record.id }).catch((e) => logSyncError('материал', e));
 }
+
+// Stock-sourced materials go through the awaited API (not the optimistic
+// pattern above) because the server can reject them (insufficient stock) and
+// computes the name/price snapshot itself — same reasoning as employees.js.
+export async function addStockMaterial(orderId, { specId, qty }) {
+  const record = await api.addMaterial(orderId, { specId, qty });
+  ensureFinance(orderId).materials.push(record);
+  const order = _state.orders.find((o) => o.id === orderId);
+  if (order) pushActivity(order, `Добавлен материал со склада: ${record.name}`);
+  return record;
+}
+
+export async function updateStockMaterialQty(orderId, materialId, qty) {
+  const record = await api.updateMaterial(orderId, materialId, { qty });
+  const f = ensureFinance(orderId);
+  const i = f.materials.findIndex((m) => m.id === materialId);
+  if (i >= 0) f.materials[i] = record;
+  return record;
+}
+
 export function removeMaterial(orderId, id) {
   const f = ensureFinance(orderId);
   f.materials = f.materials.filter((m) => m.id !== id);

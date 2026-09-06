@@ -154,6 +154,27 @@ router.patch('/:id/status', ah(async (req, res) => {
     if (existing.status === status) return existing;
     const updated = await tx.order.update({ where: { id: req.params.id }, data: { status } });
     await pushActivity(tx, existing.id, `Статус изменён: ${existing.status} → ${status}`);
+
+    // Close: reservations become an actual write-off (with the order link
+    // preserved). Cancel: reservations are released, stock is untouched —
+    // the goods never left the shelf.
+    if (status === 'Завершён' || status === 'Отменён') {
+      const reservations = await tx.stockReservation.findMany({ where: { orderId: existing.id } });
+      for (const r of reservations) {
+        if (status === 'Завершён') {
+          await tx.productSpec.update({ where: { id: r.specId }, data: { qty: { decrement: r.qty }, reserved: { decrement: r.qty } } });
+          await tx.stockMovement.create({
+            data: { id: uid('mov'), specId: r.specId, type: 'expense', qty: r.qty, orderId: existing.id, reason: 'заказ', comment: `Списание при завершении заказа №${existing.number}`, createdAt: Date.now() },
+          });
+        } else {
+          await tx.productSpec.update({ where: { id: r.specId }, data: { reserved: { decrement: r.qty } } });
+          await tx.stockMovement.create({
+            data: { id: uid('mov'), specId: r.specId, type: 'unreserve', qty: r.qty, orderId: existing.id, comment: `Заказ №${existing.number} отменён`, createdAt: Date.now() },
+          });
+        }
+        await tx.stockReservation.delete({ where: { id: r.id } });
+      }
+    }
     return updated;
   });
 
@@ -167,8 +188,20 @@ router.patch('/:id/status', ah(async (req, res) => {
 
 router.delete('/:id', requirePermission('orders', 'delete'), ah(async (req, res) => {
   const before = await prisma.order.findUnique({ where: { id: req.params.id } });
-  await prisma.order.delete({ where: { id: req.params.id } }).catch(() => null);
   if (before) {
+    // Release any active stock reservations first — Material/StockReservation
+    // rows cascade-delete with the order, but ProductSpec.reserved wouldn't
+    // unwind on its own and would leak forever.
+    await prisma.$transaction(async (tx) => {
+      const reservations = await tx.stockReservation.findMany({ where: { orderId: before.id } });
+      for (const r of reservations) {
+        await tx.productSpec.update({ where: { id: r.specId }, data: { reserved: { decrement: r.qty } } });
+        await tx.stockMovement.create({
+          data: { id: uid('mov'), specId: r.specId, type: 'unreserve', qty: r.qty, orderId: before.id, comment: `Заказ №${before.number} удалён`, createdAt: Date.now() },
+        });
+      }
+      await tx.order.delete({ where: { id: before.id } });
+    });
     await logAudit(req, {
       action: 'order.delete', entityType: 'order', entityId: before.id,
       oldValue: { number: before.number, clientName: before.clientName, amount: before.amount },
@@ -237,10 +270,127 @@ financeResource('payments', 'payment',
   (b, currency) => `Добавлена оплата: ${fmtMoney(b.amount, currency)}`,
   { createPerm: 'addPayment', deletePerm: 'deletePayment' });
 
-financeResource('materials', 'material',
-  (b) => ({ name: b.name, qty: Number(b.qty) || 0, unit: b.unit || 'шт.', unitPrice: Number(b.unitPrice) || 0 }),
-  (b) => `Добавлен материал: ${b.name}`,
-  { createPerm: 'editPayment', deletePerm: 'deletePayment' });
+// ---- Materials (plain rows, or pulled from Склад with a reservation) ----
+
+router.post('/:id/materials', requirePermission('finance', 'editPayment'), ah(async (req, res) => {
+  const body = req.body || {};
+  const orderId = req.params.id;
+
+  if (body.specId) {
+    const result = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({ where: { id: orderId } });
+      if (!order) return { error: 404 };
+      const spec = await tx.productSpec.findUnique({ where: { id: body.specId } });
+      if (!spec || spec.status !== 'active') return { error: 'Товар на складе не найден' };
+
+      const qty = Number(body.qty) || 0;
+      const available = spec.qty - spec.reserved;
+      if (qty > available && !req.employee?.permissions?.stock?.adjustment) {
+        return { shortage: { available, requested: qty, shortage: qty - available } };
+      }
+
+      const material = await tx.material.create({
+        data: {
+          id: uid('mat'), orderId, name: `${spec.name || ''}`.trim() || 'Товар со склада',
+          qty, unit: spec.unit, unitPrice: spec.salePrice, specId: spec.id, source: 'stock',
+        },
+      });
+      await tx.productSpec.update({ where: { id: spec.id }, data: { reserved: { increment: qty } } });
+      await tx.stockReservation.create({ data: { id: uid('rsv'), specId: spec.id, orderId, materialId: material.id, qty, createdAt: Date.now() } });
+      await tx.stockMovement.create({
+        data: { id: uid('mov'), specId: spec.id, type: 'reserve', qty, employeeId: req.employee.id, orderId, comment: `Резерв для заказа №${order.number}`, createdAt: Date.now() },
+      });
+      await pushActivity(tx, orderId, `Добавлен материал со склада: ${material.name} — ${qty} ${spec.unit}`);
+      return { material };
+    });
+
+    if (result.error === 404) return res.status(404).json({ error: 'Заказ не найден' });
+    if (result.error) return res.status(404).json({ error: result.error });
+    if (result.shortage) {
+      return res.status(409).json({
+        error: `Недостаточно товара на складе. Доступно: ${result.shortage.available} шт. Запрошено: ${result.shortage.requested} шт. Не хватает: ${result.shortage.shortage} шт.`,
+        ...result.shortage,
+      });
+    }
+    await logAudit(req, { action: 'materials.create', entityType: 'materials', entityId: result.material.id, newValue: result.material });
+    return res.status(201).json(result.material);
+  }
+
+  const record = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id: orderId } });
+    if (!order) return null;
+    const created = await tx.material.create({
+      data: { id: uid('mat'), orderId, name: body.name, qty: Number(body.qty) || 0, unit: body.unit || 'шт.', unitPrice: Number(body.unitPrice) || 0 },
+    });
+    await pushActivity(tx, orderId, `Добавлен материал: ${body.name}`);
+    return created;
+  });
+  if (!record) return res.status(404).json({ error: 'Заказ не найден' });
+  await logAudit(req, { action: 'materials.create', entityType: 'materials', entityId: record.id, newValue: record });
+  res.status(201).json(record);
+}));
+
+router.patch('/:id/materials/:itemId', requirePermission('finance', 'editPayment'), ah(async (req, res) => {
+  const body = req.body || {};
+  const before = await prisma.material.findUnique({ where: { id: req.params.itemId }, include: { reservation: true } });
+  if (!before || before.orderId !== req.params.id) return res.status(404).json({ error: 'Материал не найден' });
+
+  if (before.specId && body.qty !== undefined) {
+    const newQty = Number(body.qty) || 0;
+    const delta = newQty - before.qty;
+    const result = await prisma.$transaction(async (tx) => {
+      const spec = await tx.productSpec.findUnique({ where: { id: before.specId } });
+      const available = spec.qty - spec.reserved;
+      if (delta > 0 && delta > available && !req.employee?.permissions?.stock?.adjustment) {
+        return { shortage: { available, requested: delta, shortage: delta - available } };
+      }
+      await tx.productSpec.update({ where: { id: spec.id }, data: { reserved: { increment: delta } } });
+      if (before.reservation) await tx.stockReservation.update({ where: { id: before.reservation.id }, data: { qty: newQty } });
+      await tx.stockMovement.create({
+        data: {
+          id: uid('mov'), specId: spec.id, type: delta >= 0 ? 'reserve' : 'unreserve', qty: Math.abs(delta),
+          employeeId: req.employee.id, orderId: before.orderId, comment: 'Изменение количества в заказе', createdAt: Date.now(),
+        },
+      });
+      const material = await tx.material.update({ where: { id: before.id }, data: { qty: newQty } });
+      return { material };
+    });
+    if (result.shortage) {
+      return res.status(409).json({
+        error: `Недостаточно товара на складе. Доступно: ${result.shortage.available} шт. Запрошено: ${result.shortage.requested} шт. Не хватает: ${result.shortage.shortage} шт.`,
+        ...result.shortage,
+      });
+    }
+    await logAudit(req, { action: 'materials.update', entityType: 'materials', entityId: result.material.id, oldValue: { qty: before.qty }, newValue: { qty: result.material.qty } });
+    return res.json(result.material);
+  }
+
+  const data = {};
+  if (body.name !== undefined) data.name = body.name;
+  if (body.qty !== undefined) data.qty = Number(body.qty) || 0;
+  if (body.unit !== undefined) data.unit = body.unit;
+  if (body.unitPrice !== undefined) data.unitPrice = Number(body.unitPrice) || 0;
+  const material = await prisma.material.update({ where: { id: before.id }, data });
+  await logAudit(req, { action: 'materials.update', entityType: 'materials', entityId: material.id, oldValue: before, newValue: material });
+  res.json(material);
+}));
+
+router.delete('/:id/materials/:itemId', requirePermission('finance', 'deletePayment'), ah(async (req, res) => {
+  const before = await prisma.material.findUnique({ where: { id: req.params.itemId }, include: { reservation: true } });
+  if (!before) return res.status(204).end();
+
+  await prisma.$transaction(async (tx) => {
+    if (before.reservation) {
+      await tx.productSpec.update({ where: { id: before.specId }, data: { reserved: { decrement: before.reservation.qty } } });
+      await tx.stockMovement.create({
+        data: { id: uid('mov'), specId: before.specId, type: 'unreserve', qty: before.reservation.qty, employeeId: req.employee.id, orderId: before.orderId, comment: 'Материал удалён из заказа', createdAt: Date.now() },
+      });
+    }
+    await tx.material.delete({ where: { id: before.id } });
+  });
+  await logAudit(req, { action: 'materials.delete', entityType: 'materials', entityId: before.id, oldValue: before });
+  res.status(204).end();
+}));
 
 financeResource('outsourcing', 'outsourceExpense',
   (b) => ({ name: b.name, amount: Number(b.amount) || 0 }),
