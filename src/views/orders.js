@@ -218,6 +218,7 @@ function renderOrderDetail(orderId) {
 
     ${renderPaymentsSection(order, finance, fin)}
     ${renderMaterialsSection(order, finance)}
+    ${renderStockSection(order, finance)}
     ${renderExpenseSection('outsourcing', 'Аутсорс', 'Название (напр. Покраска)', finance.outsourcing, order.id)}
     ${renderExpenseSection('salary', 'Зарплаты', 'Сотрудник / работа', finance.salaries, order.id)}
     ${renderExpenseSection('expense', 'Прочие расходы', 'Название расхода', finance.otherExpenses, order.id)}
@@ -266,16 +267,10 @@ function renderPaymentsSection(order, finance, fin) {
   `;
 }
 
-function renderMaterialsSection(order, finance) {
-  const canDelete = can('finance', 'deletePayment');
-  const canEdit = can('finance', 'editPayment');
-  const seesPrices = sees('seesPurchasePrices');
-  const rows = finance.materials.map((m) => `
+function materialRow(order, m, { canDelete, canEdit, seesPrices }) {
+  return `
     <div class="mat-row">
-      <span class="mat-row__name">
-        ${escapeHtml(m.name)}
-        ${m.source === 'stock' ? '<span class="badge badge--muted">склад</span>' : ''}
-      </span>
+      <span class="mat-row__name">${escapeHtml(m.name)}</span>
       <span class="mat-row__calc">
         ${m.source === 'stock' && canEdit ? `<button type="button" class="mat-row__remove" data-edit-material-qty="${m.id}" data-order="${order.id}" title="Изменить количество"><i class="fa-solid fa-pen"></i></button>` : ''}
         ${m.qty} ${escapeHtml(m.unit)} × ${seesPrices ? money(m.unitPrice) : maskUnless('seesPurchasePrices', '')}
@@ -283,16 +278,25 @@ function renderMaterialsSection(order, finance) {
       <span class="mat-row__sum">${maskUnless('seesPurchasePrices', money(m.qty * m.unitPrice))}</span>
       ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-material="${m.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
     </div>
-  `).join('') || '<div class="empty-state empty-state--sm">Материалы пока не добавлены</div>';
+  `;
+}
 
-  const materialsTotal = finance.materials.reduce((s, m) => s + m.qty * m.unitPrice, 0);
+function renderMaterialsSection(order, finance) {
+  const canDelete = can('finance', 'deletePayment');
+  const canEdit = can('finance', 'editPayment');
+  const seesPrices = sees('seesPurchasePrices');
+  const manualMaterials = finance.materials.filter((m) => m.source !== 'stock');
+
+  const rows = manualMaterials.map((m) => materialRow(order, m, { canDelete, canEdit, seesPrices })).join('')
+    || '<div class="empty-state empty-state--sm">Материалы пока не добавлены</div>';
+
+  const materialsTotal = manualMaterials.reduce((s, m) => s + m.qty * m.unitPrice, 0);
 
   return `
     <div class="order-detail__section-title">Материалы</div>
     <div class="section-block">
       <div class="mat-rows">${rows}</div>
       ${canEdit ? `
-        <button type="button" class="btn btn--sm" data-action="add-from-stock" data-order="${order.id}" style="margin-bottom:8px;"><i class="fa-solid fa-warehouse"></i> Добавить со склада</button>
         <form class="add-row-form add-row-form--material" data-order="${order.id}">
           <input type="text" name="name" placeholder="Материал" required />
           <input type="number" name="qty" placeholder="Кол-во" min="0" step="0.01" value="1" required />
@@ -302,6 +306,27 @@ function renderMaterialsSection(order, finance) {
         </form>
       ` : ''}
       <div class="section-totals"><span>Материалы: <b>${maskUnless('seesPurchasePrices', money(materialsTotal))}</b></span></div>
+    </div>
+  `;
+}
+
+function renderStockSection(order, finance) {
+  const canDelete = can('finance', 'deletePayment');
+  const canEdit = can('finance', 'editPayment');
+  const seesPrices = sees('seesPurchasePrices');
+  const stockMaterials = finance.materials.filter((m) => m.source === 'stock');
+
+  const rows = stockMaterials.map((m) => materialRow(order, m, { canDelete, canEdit, seesPrices })).join('')
+    || '<div class="empty-state empty-state--sm">Со склада пока ничего не добавлено</div>';
+
+  const stockTotal = stockMaterials.reduce((s, m) => s + m.qty * m.unitPrice, 0);
+
+  return `
+    <div class="order-detail__section-title">Склад</div>
+    <div class="section-block">
+      <div class="mat-rows">${rows}</div>
+      ${canEdit ? `<button type="button" class="btn btn--sm" data-action="add-from-stock" data-order="${order.id}"><i class="fa-solid fa-warehouse"></i> Добавить со склада</button>` : ''}
+      <div class="section-totals"><span>Склад: <b>${maskUnless('seesPurchasePrices', money(stockTotal))}</b></span></div>
     </div>
   `;
 }
@@ -515,7 +540,7 @@ async function openStockPickerModal(orderId, rerender) {
   try {
     stockItems = await api.getStockItems({ status: 'active' });
   } catch (e) {
-    window.alert('Не удалось загрузить склад');
+    window.alert(e.message || 'Не удалось загрузить склад');
     return;
   }
   openModal('Добавить материал со склада', `
