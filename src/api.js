@@ -164,4 +164,8 @@ export const api = {
   stockExpense: (id, data) => request(`/api/stock/items/${id}/expense`, { method: 'POST', body: data }),
   stockAdjustment: (id, data) => request(`/api/stock/items/${id}/adjustment`, { method: 'POST', body: data }),
   getStockDashboard: () => request('/api/stock/dashboard'),
+
+  getSuppliersSummary: () => request('/api/stock/suppliers-summary'),
+  getSupplierPayments: (id) => request(`/api/stock/suppliers/${id}/payments`),
+  addSupplierPayment: (id, data) => request(`/api/stock/suppliers/${id}/payments`, { method: 'POST', body: data }),
 };

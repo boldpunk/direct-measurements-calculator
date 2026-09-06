@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
-import { ah, uid } from '../util.js';
+import { ah, uid, todayISO } from '../util.js';
 import { requirePermission } from '../middleware/auth.js';
 import { logAudit } from '../audit.js';
 
@@ -52,6 +52,50 @@ refResource('categories', 'category', (b) => ({ name: b.name }), { uniqueByName:
 refResource('brands', 'brand', (b) => ({ name: b.name }), { uniqueByName: true });
 refResource('suppliers', 'supplier', (b) => ({
   name: b.name, phone: b.phone || '', contactPerson: b.contactPerson || '', comment: b.comment || '',
+}));
+
+// ---- Supplier balances (owed = cost of income movements, minus payments made) ----
+
+router.get('/suppliers-summary', requirePermission('stock', 'view'), ah(async (req, res) => {
+  const [suppliers, incomes, payments] = await Promise.all([
+    prisma.supplier.findMany({ orderBy: { name: 'asc' } }),
+    prisma.stockMovement.findMany({ where: { type: 'income', supplierId: { not: null } } }),
+    prisma.supplierPayment.findMany(),
+  ]);
+  const costBySupplier = {};
+  incomes.forEach((m) => { costBySupplier[m.supplierId] = (costBySupplier[m.supplierId] || 0) + m.qty * (m.price || 0); });
+  const paidBySupplier = {};
+  payments.forEach((p) => { paidBySupplier[p.supplierId] = (paidBySupplier[p.supplierId] || 0) + p.amount; });
+
+  res.json(suppliers.map((s) => {
+    const totalCost = costBySupplier[s.id] || 0;
+    const totalPaid = paidBySupplier[s.id] || 0;
+    return { ...s, totalCost, totalPaid, balance: totalCost - totalPaid };
+  }));
+}));
+
+router.get('/suppliers/:id/payments', requirePermission('stock', 'view'), ah(async (req, res) => {
+  const payments = await prisma.supplierPayment.findMany({
+    where: { supplierId: req.params.id }, orderBy: { createdAt: 'desc' },
+  });
+  res.json(payments);
+}));
+
+router.post('/suppliers/:id/payments', requirePermission('stock', 'income'), ah(async (req, res) => {
+  const body = req.body || {};
+  const supplier = await prisma.supplier.findUnique({ where: { id: req.params.id } });
+  if (!supplier) return res.status(404).json({ error: 'Поставщик не найден' });
+  const amount = Number(body.amount);
+  if (!amount || amount <= 0) return res.status(400).json({ error: 'Укажите сумму больше 0' });
+
+  const payment = await prisma.supplierPayment.create({
+    data: {
+      id: uid('spay'), supplierId: supplier.id, date: body.date || todayISO(),
+      amount, comment: body.comment || '', employeeId: req.employee.id, createdAt: Date.now(),
+    },
+  });
+  await logAudit(req, { action: 'stock.supplier_payment.create', entityType: 'supplier_payment', entityId: payment.id, newValue: payment });
+  res.status(201).json(payment);
 }));
 
 // ---- Items (ProductSpec, the actual stock-keeping unit) ----

@@ -245,6 +245,20 @@ model Supplier {
 
   specs     ProductSpec[]
   movements StockMovement[]
+  payments  SupplierPayment[]
+}
+
+model SupplierPayment {
+  id         String   @id
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  date       String
+  amount     Float    @default(0)
+  comment    String   @default("")
+  employeeId String?
+  createdAt  Float
+
+  @@index([supplierId])
 }
 
 // "Наименование" — a product name under a category+brand (e.g. "Clip Top").

@@ -2,6 +2,7 @@ import { api } from '../api.js';
 import { money, escapeHtml } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
+import { openSupplierPaymentModal } from './fittings.js';
 
 const UNITS = ['шт.', 'компл.', 'м', 'м²', 'л', 'кг', 'упаковка'];
 const EXPENSE_REASONS = ['производство', 'сборка', 'заказ', 'брак', 'потеря', 'другое'];
@@ -191,7 +192,10 @@ function renderItemDetail() {
 // ---- Data loading ----
 
 async function loadRefs() {
-  const [cats, brs, sups] = await Promise.all([api.getStockCategories(), api.getStockBrands(), api.getStockSuppliers()]);
+  // getSuppliersSummary() returns the same fields as getStockSuppliers() plus
+  // totalCost/totalPaid/balance, so this one call covers both plain <select>
+  // population and the balance display in "Справочники склада".
+  const [cats, brs, sups] = await Promise.all([api.getStockCategories(), api.getStockBrands(), api.getSuppliersSummary()]);
   categories = cats;
   brands = brs;
   suppliers = sups;
@@ -447,9 +451,14 @@ function openAdjustmentModal(rerender) {
 // ---- Categories / brands / suppliers management ----
 
 function refRow(item) {
+  const isSupplier = item.balance !== undefined;
   return `
     <div class="mat-row">
-      <span class="mat-row__name">${escapeHtml(item.name)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ''}</span>
+      <span class="mat-row__name">
+        ${escapeHtml(item.name)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ''}
+        ${isSupplier ? ` · Долг: ${maskUnless('seesSupplierData', money(item.balance))}` : ''}
+      </span>
+      ${isSupplier && can('stock', 'income') ? `<button type="button" class="btn btn--sm" data-ref-pay-supplier="${item.id}">Оплатить</button>` : ''}
       <button type="button" class="mat-row__remove" data-ref-rename="${item.id}" title="Переименовать"><i class="fa-solid fa-pen"></i></button>
       <button type="button" class="mat-row__remove" data-ref-delete="${item.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>
     </div>
@@ -567,6 +576,16 @@ function openRefsModal(rerender) {
         } catch (err) {
           window.alert(err.message || `Не удалось удалить ${noun}`);
         }
+      });
+    });
+  }
+
+  const suppliersContainer = document.getElementById('refs-suppliers');
+  if (suppliersContainer) {
+    suppliersContainer.querySelectorAll('[data-ref-pay-supplier]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const supplier = suppliers.find((s) => s.id === btn.getAttribute('data-ref-pay-supplier'));
+        openSupplierPaymentModal(supplier, async () => { await loadRefs(); openRefsModal(rerender); });
       });
     });
   }

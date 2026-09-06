@@ -14,12 +14,16 @@ import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { renderMoneyField, attachMoneyFields } from '../money-field.js';
 import { can, sees, maskUnless, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
 import { api } from '../api.js';
+import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
 
 let selectedOrderId = null;
 let currentQuery = '';
 let currentFilter = 'all';
 let currentStatusFilter = '';
 let currentSort = 'deadline';
+let currentPeriod = '';
+let currentPeriodFrom = '';
+let currentPeriodTo = '';
 
 export function selectOrder(orderId) {
   selectedOrderId = orderId;
@@ -65,6 +69,10 @@ function getFilteredOrders(state) {
   let list = state.orders.filter((o) => matchesQuery(o, currentQuery) && matchesFilter(o, currentFilter));
   if (isOwnScopeOnly('orders')) list = list.filter((o) => o.managerId === currentEmployeeId());
   if (currentStatusFilter) list = list.filter((o) => o.status === currentStatusFilter);
+  if (currentPeriod) {
+    const range = getPeriodRange(currentPeriod, currentPeriodFrom, currentPeriodTo);
+    list = list.filter((o) => inPeriodRange(o.createdAt, range));
+  }
 
   const withFin = list.map((o) => ({ o, fin: computeOrderFinance(o.id) }));
   switch (currentSort) {
@@ -104,6 +112,7 @@ export function renderOrders() {
       <select id="orders-sort">
         ${SORTS.map((s) => `<option value="${s.key}" ${s.key === currentSort ? 'selected' : ''}>${s.label}</option>`).join('')}
       </select>
+      ${renderPeriodFilter('orders', { periodKey: currentPeriod, customFrom: currentPeriodFrom, customTo: currentPeriodTo })}
     </div>
     <div class="orders-filters">
       ${FILTERS.map((f) => `<button type="button" class="chip ${f.key === currentFilter ? 'is-active' : ''}" data-filter="${f.key}">${f.label}</button>`).join('')}
@@ -460,6 +469,9 @@ export function attachOrderHandlers(root, rerender) {
   if (statusFilterSel) statusFilterSel.addEventListener('change', () => { currentStatusFilter = statusFilterSel.value; rerender(); });
   const sortSel = root.querySelector('#orders-sort');
   if (sortSel) sortSel.addEventListener('change', () => { currentSort = sortSel.value; rerender(); });
+  attachPeriodFilter(root, 'orders', (periodKey, from, to) => {
+    currentPeriod = periodKey; currentPeriodFrom = from; currentPeriodTo = to; rerender();
+  });
   root.querySelectorAll('[data-filter]').forEach((btn) => {
     btn.addEventListener('click', () => { currentFilter = btn.getAttribute('data-filter'); rerender(); });
   });

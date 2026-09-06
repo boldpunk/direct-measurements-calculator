@@ -3,12 +3,20 @@ import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '..
 import { kpiCard } from '../ui.js';
 import { maskUnless } from '../permissions.js';
 import { selectOrder } from './orders.js';
+import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
+import { renderFittingsSection, attachFittingsHandlers } from './fittings.js';
+
+let currentPeriod = '';
+let currentPeriodFrom = '';
+let currentPeriodTo = '';
 
 export function renderFinance() {
   const state = getState();
   const monthlyProfit = computeMonthlyProfit();
+  const range = getPeriodRange(currentPeriod, currentPeriodFrom, currentPeriodTo);
+  const periodOrders = currentPeriod ? state.orders.filter((o) => inPeriodRange(o.createdAt, range)) : state.orders;
 
-  const totals = state.orders.reduce((acc, o) => {
+  const totals = periodOrders.reduce((acc, o) => {
     const fin = computeOrderFinance(o.id);
     acc.revenue += o.amount;
     acc.cost += fin.costPrice;
@@ -26,7 +34,7 @@ export function renderFinance() {
     kpiCard('fa-calendar-check', monthlyProfit >= 0 ? 'success' : 'danger', 'Прибыль за месяц', maskUnless('seesProfit', money(monthlyProfit))),
   ];
 
-  const rows = [...state.orders].reverse().map((o) => {
+  const rows = [...periodOrders].reverse().map((o) => {
     const fin = computeOrderFinance(o.id);
     const deadlineInfo = getOrderDeadlineInfo(o);
     return `
@@ -50,6 +58,9 @@ export function renderFinance() {
       <h1>Финансы</h1>
       <span class="row-item__sub">Детальное редактирование оплат и расходов — на странице заказа</span>
     </div>
+    <div class="orders-toolbar">
+      ${renderPeriodFilter('finance', { periodKey: currentPeriod, customFrom: currentPeriodFrom, customTo: currentPeriodTo })}
+    </div>
     <div class="kpi-row">${kpis.join('')}</div>
     <div class="panel">
       <div class="panel__body" style="padding:0; overflow-x:auto">
@@ -64,6 +75,7 @@ export function renderFinance() {
         </table>
       </div>
     </div>
+    ${renderFittingsSection(periodOrders)}
   `;
 }
 
@@ -74,4 +86,8 @@ export function attachFinanceHandlers(root, rerender) {
       window.location.hash = '#/orders';
     });
   });
+  attachPeriodFilter(root, 'finance', (periodKey, from, to) => {
+    currentPeriod = periodKey; currentPeriodFrom = from; currentPeriodTo = to; rerender();
+  });
+  attachFittingsHandlers(root, rerender);
 }
