@@ -163,7 +163,7 @@ async function addBrand(name) {
   return prisma.brand.create({ data: { id: uid('brd'), name, createdAt: Date.now() } });
 }
 async function addSupplier(data) {
-  return prisma.supplier.create({ data: { id: uid('sup'), ...data } });
+  return prisma.supplier.create({ data: { id: uid('sup'), createdAt: Date.now(), ...data } });
 }
 async function addProduct(categoryId, brandId, name) {
   return prisma.product.create({ data: { id: uid('prd'), categoryId, brandId, name, createdAt: Date.now() } });

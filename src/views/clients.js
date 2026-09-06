@@ -105,7 +105,7 @@ function renderClientDetail(clientId) {
       <div><span>Долг</span><b class="${stats.debt > 0 ? 'text-neg' : 'text-pos'}">${stats.debt > 0 ? money(stats.debt) : 'Нет'}</b></div>
     </div>
     <div class="order-detail__section-title">История заказов</div>
-    <div class="section-block"><div class="row-list">${orderRows}</div></div>
+    <div class="section-block section-block--last"><div class="row-list">${orderRows}</div></div>
   `;
 }
 

@@ -241,6 +241,7 @@ model Supplier {
   phone         String @default("")
   contactPerson String @default("")
   comment       String @default("")
+  createdAt     Float  @default(0)
 
   specs     ProductSpec[]
   movements StockMovement[]

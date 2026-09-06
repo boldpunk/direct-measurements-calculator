@@ -140,8 +140,12 @@ export const api = {
 
   getStockCategories: () => request('/api/stock/categories'),
   createStockCategory: (data) => request('/api/stock/categories', { method: 'POST', body: data }),
+  updateStockCategory: (id, patch) => request(`/api/stock/categories/${id}`, { method: 'PATCH', body: patch }),
+  deleteStockCategory: (id) => request(`/api/stock/categories/${id}`, { method: 'DELETE' }),
   getStockBrands: () => request('/api/stock/brands'),
   createStockBrand: (data) => request('/api/stock/brands', { method: 'POST', body: data }),
+  updateStockBrand: (id, patch) => request(`/api/stock/brands/${id}`, { method: 'PATCH', body: patch }),
+  deleteStockBrand: (id) => request(`/api/stock/brands/${id}`, { method: 'DELETE' }),
   getStockSuppliers: () => request('/api/stock/suppliers'),
   createStockSupplier: (data) => request('/api/stock/suppliers', { method: 'POST', body: data }),
   updateStockSupplier: (id, patch) => request(`/api/stock/suppliers/${id}`, { method: 'PATCH', body: patch }),

@@ -179,7 +179,7 @@ function renderItemDetail() {
     </div>
 
     <div class="order-detail__section-title">История движений</div>
-    <div class="section-block" style="overflow-x:auto">
+    <div class="section-block section-block--last" style="overflow-x:auto">
       <table class="data-table">
         <thead><tr><th>Дата</th><th>Тип</th><th>Кол-во</th><th>Цена</th><th>Пользователь</th><th>Заказ</th></tr></thead>
         <tbody>${movementRows}</tbody>
@@ -446,11 +446,21 @@ function openAdjustmentModal(rerender) {
 
 // ---- Categories / brands / suppliers management ----
 
+function refRow(item) {
+  return `
+    <div class="mat-row">
+      <span class="mat-row__name">${escapeHtml(item.name)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ''}</span>
+      <button type="button" class="mat-row__remove" data-ref-rename="${item.id}" title="Переименовать"><i class="fa-solid fa-pen"></i></button>
+      <button type="button" class="mat-row__remove" data-ref-delete="${item.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  `;
+}
+
 function openRefsModal(rerender) {
   openModal('Справочники склада', `
     <div class="order-detail__section-title">Категории</div>
     <div class="section-block">
-      <div class="mat-rows" id="refs-categories">${categories.map((c) => `<div class="mat-row"><span class="mat-row__name">${escapeHtml(c.name)}</span></div>`).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
+      <div class="mat-rows" id="refs-categories">${categories.map((c) => refRow(c)).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
       <form class="add-row-form" id="add-category-form">
         <input type="text" name="name" placeholder="Новая категория" required />
         <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
@@ -458,7 +468,7 @@ function openRefsModal(rerender) {
     </div>
     <div class="order-detail__section-title">Бренды</div>
     <div class="section-block">
-      <div class="mat-rows" id="refs-brands">${brands.map((b) => `<div class="mat-row"><span class="mat-row__name">${escapeHtml(b.name)}</span></div>`).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
+      <div class="mat-rows" id="refs-brands">${brands.map((b) => refRow(b)).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
       <form class="add-row-form" id="add-brand-form">
         <input type="text" name="name" placeholder="Новый бренд" required />
         <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
@@ -466,12 +476,7 @@ function openRefsModal(rerender) {
     </div>
     <div class="order-detail__section-title">Поставщики</div>
     <div class="section-block">
-      <div class="mat-rows" id="refs-suppliers">${suppliers.map((s) => `
-        <div class="mat-row">
-          <span class="mat-row__name">${escapeHtml(s.name)}${s.phone ? ` · ${escapeHtml(s.phone)}` : ''}</span>
-          <button type="button" class="mat-row__remove" data-delete-supplier="${s.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-      `).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
+      <div class="mat-rows" id="refs-suppliers">${suppliers.map((s) => refRow(s)).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
       <form class="add-row-form" id="add-supplier-form">
         <input type="text" name="name" placeholder="Название" required />
         <input type="text" name="phone" placeholder="Телефон" />
@@ -529,18 +534,40 @@ function openRefsModal(rerender) {
     }
   });
 
-  modalBody.querySelectorAll('[data-delete-supplier]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      if (!window.confirm('Удалить поставщика?')) return;
-      try {
-        await api.deleteStockSupplier(btn.getAttribute('data-delete-supplier'));
-        await loadRefs();
-        openRefsModal(rerender);
-      } catch (err) {
-        window.alert(err.message || 'Не удалось удалить поставщика');
-      }
+  const refActions = [
+    { rows: 'refs-categories', items: categories, update: api.updateStockCategory, del: api.deleteStockCategory, noun: 'категорию' },
+    { rows: 'refs-brands', items: brands, update: api.updateStockBrand, del: api.deleteStockBrand, noun: 'бренд' },
+    { rows: 'refs-suppliers', items: suppliers, update: api.updateStockSupplier, del: api.deleteStockSupplier, noun: 'поставщика' },
+  ];
+  for (const { rows, items, update, del, noun } of refActions) {
+    const container = document.getElementById(rows);
+    if (!container) continue;
+    container.querySelectorAll('[data-ref-rename]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-ref-rename');
+        const item = items.find((it) => it.id === id);
+        const newName = window.prompt('Новое название:', item?.name || '');
+        if (!newName || newName === item?.name) return;
+        try {
+          await update(id, { name: newName });
+          await loadRefs();
+          openRefsModal(rerender);
+        } catch (err) {
+          window.alert(err.message || `Не удалось переименовать ${noun}`);
+        }
+      });
     });
-  });
-
-  modalBody.addEventListener('click', () => rerender(), { once: true, capture: true });
+    container.querySelectorAll('[data-ref-delete]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!window.confirm(`Удалить ${noun}?`)) return;
+        try {
+          await del(btn.getAttribute('data-ref-delete'));
+          await loadRefs();
+          openRefsModal(rerender);
+        } catch (err) {
+          window.alert(err.message || `Не удалось удалить ${noun}`);
+        }
+      });
+    });
+  }
 }

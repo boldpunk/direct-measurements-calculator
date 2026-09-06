@@ -34,8 +34,16 @@ function refResource(field, model, buildData, { uniqueByName = false } = {}) {
 
   router.delete(`/${field}/:id`, requirePermission('stock', 'delete'), ah(async (req, res) => {
     const before = await prisma[model].findUnique({ where: { id: req.params.id } });
-    await prisma[model].delete({ where: { id: req.params.id } }).catch(() => null);
-    if (before) await logAudit(req, { action: `stock.${field}.delete`, entityType: field, entityId: before.id, oldValue: before });
+    if (!before) return res.status(204).end();
+    try {
+      await prisma[model].delete({ where: { id: req.params.id } });
+    } catch (e) {
+      if (e.code === 'P2003') {
+        return res.status(409).json({ error: 'Нельзя удалить — используется в товарах на складе' });
+      }
+      throw e;
+    }
+    await logAudit(req, { action: `stock.${field}.delete`, entityType: field, entityId: before.id, oldValue: before });
     res.status(204).end();
   }));
 }
