@@ -230,6 +230,20 @@ router.patch('/items/:id', requirePermission('stock', 'edit'), ah(async (req, re
   if (body.comment !== undefined) data.comment = body.comment;
   if (body.status !== undefined) data.status = body.status;
 
+  // Category/brand/product name are editable too — find-or-create at each
+  // level (same as combined creation) and re-point the spec if any changed.
+  const categoryName = body.categoryName !== undefined ? body.categoryName : before.product.category.name;
+  const brandName = body.brandName !== undefined ? body.brandName : before.product.brand.name;
+  const productName = body.productName !== undefined ? body.productName : before.product.name;
+  if (categoryName !== before.product.category.name || brandName !== before.product.brand.name || productName !== before.product.name) {
+    const category = await findOrCreate('category', { name: categoryName }, { name: categoryName });
+    const brand = await findOrCreate('brand', { name: brandName }, { name: brandName });
+    const product = await findOrCreate('product',
+      { categoryId: category.id, brandId: brand.id, name: productName },
+      { categoryId: category.id, brandId: brand.id, name: productName });
+    data.productId = product.id;
+  }
+
   const updated = await prisma.productSpec.update({ where: { id: req.params.id }, data, include: itemInclude });
   await logAudit(req, {
     action: 'stock.item.update', entityType: 'stock_item', entityId: updated.id,

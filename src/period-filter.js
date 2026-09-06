@@ -63,7 +63,7 @@ export function renderPeriodFilter(idPrefix, { periodKey, customFrom, customTo }
     <select id="${idPrefix}-period-select">
       ${PERIOD_PRESETS.map((p) => `<option value="${p.key}" ${p.key === periodKey ? 'selected' : ''}>${p.label}</option>`).join('')}
     </select>
-    <span id="${idPrefix}-period-custom" ${periodKey === 'custom' ? '' : 'hidden'} style="display:inline-flex; gap:6px;">
+    <span id="${idPrefix}-period-custom" class="period-filter-custom" ${periodKey === 'custom' ? '' : 'hidden'}>
       <input type="date" id="${idPrefix}-period-from" value="${customFrom || ''}" />
       <input type="date" id="${idPrefix}-period-to" value="${customTo || ''}" />
     </span>

@@ -59,8 +59,10 @@ export function renderFittingsSection(periodOrders) {
   if (!can('stock', 'view')) return '';
   if (loading) {
     return `
-      <div class="order-detail__section-title">Фурнитура</div>
-      <div class="panel"><div class="section-block section-block--last"><div class="empty-state empty-state--sm">Загрузка...</div></div></div>
+      <div class="panel">
+        <div class="order-detail__section-title" style="margin-top:18px;">Фурнитура</div>
+        <div class="section-block section-block--last"><div class="empty-state empty-state--sm">Загрузка...</div></div>
+      </div>
     `;
   }
 
@@ -92,8 +94,8 @@ export function renderFittingsSection(periodOrders) {
   `).join('') || '<div class="empty-state empty-state--sm">Поставщиков нет</div>';
 
   return `
-    <div class="order-detail__section-title">Фурнитура</div>
     <div class="panel">
+      <div class="order-detail__section-title" style="margin-top:18px;">Фурнитура</div>
       <div class="section-block">
         <div class="section-totals"><span>Продано фурнитуры: <b>${maskUnless('seesFinanceAnalytics', money(report.totalRevenue))}</b> (${report.totalQty} шт.)</span></div>
       </div>

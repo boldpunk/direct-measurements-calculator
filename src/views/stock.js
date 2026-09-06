@@ -301,11 +301,11 @@ export function attachStockHandlers(root, rerender) {
 function openItemModal(item, rerender) {
   openModal(item ? 'Изменить товар' : 'Новый товар', `
     <form id="stock-item-form" class="form">
-      <label>Категория<input name="categoryName" list="stock-categories-list" required placeholder="напр. Петли" value="${item ? escapeHtml(item.categoryName) : ''}" ${item ? 'readonly' : ''} /></label>
+      <label>Категория<input name="categoryName" list="stock-categories-list" required placeholder="напр. Петли" value="${item ? escapeHtml(item.categoryName) : ''}" /></label>
       <datalist id="stock-categories-list">${categories.map((c) => `<option value="${escapeHtml(c.name)}">`).join('')}</datalist>
-      <label>Бренд<input name="brandName" list="stock-brands-list" required placeholder="напр. Blum" value="${item ? escapeHtml(item.brandName) : ''}" ${item ? 'readonly' : ''} /></label>
+      <label>Бренд<input name="brandName" list="stock-brands-list" required placeholder="напр. Blum" value="${item ? escapeHtml(item.brandName) : ''}" /></label>
       <datalist id="stock-brands-list">${brands.map((b) => `<option value="${escapeHtml(b.name)}">`).join('')}</datalist>
-      <label>Наименование<input name="productName" required placeholder="напр. Clip Top" value="${item ? escapeHtml(item.productName) : ''}" ${item ? 'readonly' : ''} /></label>
+      <label>Наименование<input name="productName" required placeholder="напр. Clip Top" value="${item ? escapeHtml(item.productName) : ''}" /></label>
       <label>Спецификация <span class="form-hint">(например: горбатая, 500 мм)</span><input name="name" placeholder="напр. горбатая" value="${item ? escapeHtml(item.name) : ''}" /></label>
       <label>Единица измерения
         <select name="unit">${UNITS.map((u) => `<option ${item?.unit === u ? 'selected' : ''}>${u}</option>`).join('')}</select>

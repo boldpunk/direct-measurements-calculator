@@ -530,6 +530,13 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .orders-toolbar__search i { color: var(--text-muted); }
 .orders-toolbar select { border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; background: var(--panel); color: var(--text); font-size: 13.5px; }
 
+/* Period filter's custom date-range inputs — display must only be set on the
+   :not([hidden]) rule, never unconditionally, or it wins over [hidden] at
+   equal specificity and the range stays visible regardless of the attribute
+   (same bug class as the phone-field dropdown above). */
+.period-filter-custom:not([hidden]) { display: inline-flex; gap: 6px; }
+.period-filter-custom input[type="date"] { border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; background: var(--panel); color: var(--text); font-size: 13.5px; }
+
 .orders-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .chip { border: 1px solid var(--border); background: var(--panel); border-radius: 999px; padding: 6px 14px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
 .chip:hover { background: var(--bg); }
