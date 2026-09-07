@@ -13,6 +13,7 @@ import employeesRoutes from './routes/employees.js';
 import settingsRoutes from './routes/settings.js';
 import auditLogRoutes from './routes/auditLog.js';
 import stockRoutes from './routes/stock.js';
+import migrationRoutes from './routes/migration.js';
 import { requireAuth } from './middleware/auth.js';
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map((s) => s.trim()).filter(Boolean);
@@ -43,6 +44,7 @@ app.use('/api/employees', requireAuth, employeesRoutes);
 app.use('/api/settings', requireAuth, settingsRoutes);
 app.use('/api/audit-log', requireAuth, auditLogRoutes);
 app.use('/api/stock', requireAuth, stockRoutes);
+app.use('/api/migration', migrationRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);
