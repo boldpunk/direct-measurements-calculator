@@ -1,5 +1,6 @@
 import { escapeHtml } from './format.js';
 import { can, canAny } from './permissions.js';
+import { getSettings } from './store.js';
 
 export const NAV_ITEMS = [
   { route: 'dashboard', icon: 'fa-house', label: 'Главная', guard: () => true },
@@ -28,17 +29,31 @@ export function visibleNavItems(items) {
   return items.filter((item) => item.guard());
 }
 
+function logoMarkup() {
+  const logoUrl = getSettings()?.logoUrl;
+  return logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="MebelFlow" class="logo__img" />`
+    : `<span class="logo__icon"><i class="fa-solid fa-cubes-stacked"></i></span><span class="logo__text">MebelFlow</span>`;
+}
+
+// The shell (topbar/sidebar) is only rendered once per session — call this
+// after a logo change so the header updates without needing a full reload.
+export function refreshLogo() {
+  const el = document.querySelector('.topbar .logo');
+  if (el) el.innerHTML = logoMarkup();
+}
+
 export function renderShell(currentRoute) {
   const navItems = visibleNavItems(NAV_ITEMS);
   const bottomItems = visibleNavItems(BOTTOM_NAV_ITEMS);
+  const logoMark = logoMarkup();
   return `
     <header class="topbar">
       <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Открыть меню" aria-haspopup="true">
         <i class="fa-solid fa-bars"></i>
       </button>
       <a href="#/dashboard" class="logo">
-        <span class="logo__icon"><i class="fa-solid fa-cubes-stacked"></i></span>
-        <span class="logo__text">MebelFlow</span>
+        ${logoMark}
       </a>
       <div class="topbar__search">
         <i class="fa-solid fa-magnifying-glass"></i>

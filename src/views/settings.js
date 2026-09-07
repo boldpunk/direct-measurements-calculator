@@ -1,6 +1,7 @@
 import { getState, getSettings, updateSettings, updateOrderStatusColor, CURRENCIES, ORDER_STATUSES, BADGE_TONES, getOrderStatusTone } from '../store.js';
 import { escapeHtml } from '../format.js';
 import { can } from '../permissions.js';
+import { refreshLogo } from '../ui.js';
 
 const TONE_LABELS = {
   neutral: 'Серый', info: 'Синий', warning: 'Жёлтый', success: 'Зелёный', danger: 'Красный',
@@ -37,6 +38,23 @@ export function renderSettings() {
               </div>
             ` : ''}
           </form>
+
+          <div class="logo-settings">
+            <label>Логотип (в шапке сайта)</label>
+            <div class="logo-settings__row">
+              ${settings.logoUrl
+                ? `<img src="${escapeHtml(settings.logoUrl)}" alt="Логотип" class="logo-settings__preview" />`
+                : '<div class="logo-settings__preview logo-settings__preview--empty"><i class="fa-solid fa-image"></i></div>'}
+              ${canEdit ? `
+                <div class="logo-settings__actions">
+                  <label class="btn btn--sm" for="logo-upload">Загрузить</label>
+                  <input type="file" id="logo-upload" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden />
+                  ${settings.logoUrl ? '<button type="button" class="btn btn--sm btn--danger-ghost" id="logo-remove">Удалить</button>' : ''}
+                </div>
+              ` : ''}
+            </div>
+            <p class="form-hint">PNG, JPG, SVG или WebP, до 1 МБ.</p>
+          </div>
         </div>
       </div>
 
@@ -95,4 +113,33 @@ export function attachSettingsHandlers(root, rerender) {
       rerender();
     });
   });
+
+  const logoInput = root.querySelector('#logo-upload');
+  if (logoInput) {
+    logoInput.addEventListener('change', () => {
+      const file = logoInput.files?.[0];
+      if (!file) return;
+      if (file.size > 1024 * 1024) {
+        window.alert('Файл слишком большой — максимум 1 МБ.');
+        logoInput.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        updateSettings({ logoUrl: reader.result });
+        refreshLogo();
+        rerender();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const logoRemove = root.querySelector('#logo-remove');
+  if (logoRemove) {
+    logoRemove.addEventListener('click', () => {
+      updateSettings({ logoUrl: null });
+      refreshLogo();
+      rerender();
+    });
+  }
 }

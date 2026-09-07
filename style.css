@@ -91,6 +91,16 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
   font-size: 16px;
 }
 .logo__text { font-weight: 700; font-size: 19px; color: var(--text); }
+.logo__img { height: 34px; width: auto; max-width: 160px; object-fit: contain; }
+
+.logo-settings { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+.logo-settings__row { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.logo-settings__preview { height: 48px; width: auto; max-width: 160px; object-fit: contain; border-radius: 8px; }
+.logo-settings__preview--empty {
+  width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  background: var(--bg); border-radius: 8px; color: var(--text-muted); font-size: 18px;
+}
+.logo-settings__actions { display: flex; gap: 8px; align-items: center; }
 
 .topbar__search {
   position: relative;

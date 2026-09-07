@@ -82,6 +82,7 @@ export const DEFAULT_SETTINGS = {
   currency: '$',
   stageBufferDays: 3,
   orderStatusColors: {},
+  logoUrl: null,
 };
 
 function uid(prefix) {

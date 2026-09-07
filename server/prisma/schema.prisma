@@ -9,12 +9,13 @@ datasource db {
 
 // Singleton row (id always "default") holding company settings + order numbering.
 model Settings {
-  id                String @id @default("default")
-  companyName       String @default("Sobirov Mebel")
-  currency          String @default("$")
-  stageBufferDays   Int    @default(3)
-  orderSeq          Int    @default(100)
-  orderStatusColors Json   @default("{}")
+  id                String  @id @default("default")
+  companyName       String  @default("Sobirov Mebel")
+  currency          String  @default("$")
+  stageBufferDays   Int     @default(3)
+  orderSeq          Int     @default(100)
+  orderStatusColors Json    @default("{}")
+  logoUrl           String?
 }
 
 model Employee {

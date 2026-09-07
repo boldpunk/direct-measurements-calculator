@@ -22,6 +22,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     }
     data.orderStatusColors = clean;
   }
+  if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl || null;
 
   const before = await prisma.settings.findUnique({ where: { id: 'default' } });
   const settings = await prisma.settings.upsert({
@@ -37,6 +38,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   res.json({
     companyName: settings.companyName, currency: settings.currency,
     stageBufferDays: settings.stageBufferDays, orderStatusColors: settings.orderStatusColors,
+    logoUrl: settings.logoUrl,
   });
 }));
 
