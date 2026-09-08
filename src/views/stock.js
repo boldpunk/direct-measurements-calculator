@@ -101,7 +101,7 @@ export function renderStock() {
       <button type="button" class="chip ${filters.outOfStock ? 'is-active' : ''}" data-toggle="outOfStock">Нет в наличии</button>
     </div>
     <div class="orders-layout">
-      <div class="panel orders-table-panel">
+      <div class="panel stock-table-panel">
         <div class="panel__body" style="padding:0; overflow-x:auto">
           <table class="data-table">
             <thead><tr><th>Категория</th><th>Бренд</th><th>Наименование</th><th>Спецификация</th><th>Остаток</th><th>Ед.</th><th>Цена</th><th>Стоимость</th><th>Статус</th></tr></thead>
