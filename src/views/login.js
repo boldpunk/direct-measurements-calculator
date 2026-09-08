@@ -6,8 +6,7 @@ export function renderLogin() {
     <div class="login-screen">
       <form class="login-card" id="login-form">
         <div class="login-card__logo">
-          <span class="logo__icon"><i class="fa-solid fa-cubes-stacked"></i></span>
-          <span class="logo__text">MebelFlow</span>
+          <img src="/logo/logo-stacked-light.png" alt="MebelFlow" class="login-card__logo-img" />
         </div>
         <p class="login-card__subtitle">Войдите, чтобы открыть систему управления производством</p>
         <div class="form">

@@ -31,9 +31,8 @@ export function visibleNavItems(items) {
 
 function logoMarkup() {
   const logoUrl = getSettings()?.logoUrl;
-  return logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="MebelFlow" class="logo__img" />`
-    : `<span class="logo__icon"><i class="fa-solid fa-cubes-stacked"></i></span><span class="logo__text">MebelFlow</span>`;
+  const src = logoUrl || '/logo/logo-horizontal-light.png';
+  return `<img src="${escapeHtml(src)}" alt="MebelFlow" class="logo__img" />`;
 }
 
 // The shell (topbar/sidebar) is only rendered once per session — call this
