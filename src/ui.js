@@ -2,6 +2,37 @@ import { escapeHtml } from './format.js';
 import { can, canAny } from './permissions.js';
 import { getSettings } from './store.js';
 
+let defaultFaviconHTML = null;
+
+// Swaps the browser-tab favicon at runtime. Pass a data URL (or any image
+// URL) to override it, or null/undefined to restore the site's default
+// icon set. Safe to call before login (favicon has no auth dependency).
+export function applyFavicon(customUrl) {
+  if (defaultFaviconHTML === null) {
+    defaultFaviconHTML = [...document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]')]
+      .map((el) => el.outerHTML).join('');
+  }
+  const existingOverride = document.getElementById('dynamic-favicon');
+  if (customUrl) {
+    document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach((el) => {
+      if (el.id !== 'dynamic-favicon') el.remove();
+    });
+    let link = existingOverride;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = 'dynamic-favicon';
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.href = customUrl;
+  } else {
+    if (existingOverride) existingOverride.remove();
+    if (!document.querySelector('link[rel~="icon"]')) {
+      document.head.insertAdjacentHTML('beforeend', defaultFaviconHTML);
+    }
+  }
+}
+
 export const NAV_ITEMS = [
   { route: 'dashboard', icon: 'fa-house', label: 'Главная', guard: () => true },
   { route: 'orders', icon: 'fa-box-open', label: 'Заказы', guard: () => can('orders', 'view') },

@@ -16,6 +16,7 @@ model Settings {
   orderSeq          Int     @default(100)
   orderStatusColors Json    @default("{}")
   logoUrl           String?
+  faviconUrl        String?
 }
 
 model Employee {

@@ -71,7 +71,7 @@ router.get('/', ah(async (req, res) => {
   }));
 
   const settings = settingsRow
-    ? { companyName: settingsRow.companyName, currency: settingsRow.currency, stageBufferDays: settingsRow.stageBufferDays, orderStatusColors: settingsRow.orderStatusColors, logoUrl: settingsRow.logoUrl }
+    ? { companyName: settingsRow.companyName, currency: settingsRow.currency, stageBufferDays: settingsRow.stageBufferDays, orderStatusColors: settingsRow.orderStatusColors, logoUrl: settingsRow.logoUrl, faviconUrl: settingsRow.faviconUrl }
     : { ...DEFAULT_SETTINGS };
 
   res.json({

@@ -83,6 +83,7 @@ export const DEFAULT_SETTINGS = {
   stageBufferDays: 3,
   orderStatusColors: {},
   logoUrl: null,
+  faviconUrl: null,
 };
 
 function uid(prefix) {
@@ -179,6 +180,17 @@ export function getSettings() {
 export function updateSettings(patch) {
   _state.settings = { ..._state.settings, ...patch };
   api.updateSettings(patch).catch((e) => logSyncError('настройки', e));
+}
+
+// Cached separately from _state.settings — populated before login (see
+// api.getBranding()) so the login screen and favicon can reflect custom
+// branding even though /api/state itself requires auth.
+let _publicBranding = {};
+export function setPublicBranding(branding) {
+  _publicBranding = branding || {};
+}
+export function getPublicBranding() {
+  return _publicBranding;
 }
 
 export function updateOrderStatusColor(status, tone) {

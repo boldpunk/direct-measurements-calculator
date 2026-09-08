@@ -96,6 +96,7 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
 .logo-settings { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
 .logo-settings__row { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 .logo-settings__preview { height: 48px; width: auto; max-width: 160px; object-fit: contain; border-radius: 8px; }
+.logo-settings__preview--favicon { width: 48px; max-width: 48px; }
 .logo-settings__preview--empty {
   width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
   background: var(--bg); border-radius: 8px; color: var(--text-muted); font-size: 18px;

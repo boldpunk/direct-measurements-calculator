@@ -1,5 +1,5 @@
 import 'flag-icons/css/flag-icons.min.css';
-import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, NAV_ITEMS } from './ui.js';
+import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, applyFavicon, NAV_ITEMS } from './ui.js';
 import { initSearch } from './search.js';
 import { initNotifications } from './notifications.js';
 import { renderDashboard, attachDashboardHandlers } from './views/dashboard.js';
@@ -17,7 +17,7 @@ import { renderTasks, attachTasksHandlers } from './views/tasks.js';
 import { renderAuditLog, attachAuditLogHandlers } from './views/auditLog.js';
 import { renderLogin, attachLoginHandlers } from './views/login.js';
 import { api, getToken } from './api.js';
-import { initStore, isHydrated, resetStore } from './store.js';
+import { initStore, isHydrated, resetStore, setPublicBranding } from './store.js';
 
 const ROUTES = {
   dashboard: { render: renderDashboard, attach: attachDashboardHandlers },
@@ -36,6 +36,23 @@ const ROUTES = {
 };
 
 let shellMounted = false;
+
+// Fetched once, unauthenticated, so the login screen and browser-tab
+// favicon can reflect a custom uploaded logo/favicon before anyone signs
+// in. Fired immediately on load rather than awaited, so it never delays
+// the login screen appearing — it just patches things in place if it
+// resolves after the login screen already rendered.
+(async () => {
+  try {
+    const branding = await api.getBranding();
+    setPublicBranding(branding);
+    applyFavicon(branding.faviconUrl);
+    const loginLogo = document.getElementById('login-logo-img');
+    if (loginLogo && branding.logoUrl) loginLogo.src = branding.logoUrl;
+  } catch (e) {
+    console.error('Failed to load public branding', e);
+  }
+})();
 
 // ---- Idle auto-logout (30 min) ----
 const IDLE_LIMIT_MS = 30 * 60 * 1000;

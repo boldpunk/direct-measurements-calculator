@@ -20,4 +20,5 @@ export const DEFAULT_SETTINGS = {
   stageBufferDays: 3,
   orderStatusColors: {},
   logoUrl: null,
+  faviconUrl: null,
 };

@@ -1,7 +1,7 @@
 import { getState, getSettings, updateSettings, updateOrderStatusColor, CURRENCIES, ORDER_STATUSES, BADGE_TONES, getOrderStatusTone } from '../store.js';
 import { escapeHtml } from '../format.js';
 import { can } from '../permissions.js';
-import { refreshLogo } from '../ui.js';
+import { refreshLogo, applyFavicon } from '../ui.js';
 
 const TONE_LABELS = {
   neutral: 'Серый', info: 'Синий', warning: 'Жёлтый', success: 'Зелёный', danger: 'Красный',
@@ -54,6 +54,23 @@ export function renderSettings() {
               ` : ''}
             </div>
             <p class="form-hint">PNG, JPG, SVG или WebP, до 1 МБ.</p>
+          </div>
+
+          <div class="logo-settings">
+            <label>Favicon (иконка вкладки браузера)</label>
+            <div class="logo-settings__row">
+              ${settings.faviconUrl
+                ? `<img src="${escapeHtml(settings.faviconUrl)}" alt="Favicon" class="logo-settings__preview logo-settings__preview--favicon" />`
+                : '<div class="logo-settings__preview logo-settings__preview--empty"><i class="fa-solid fa-star"></i></div>'}
+              ${canEdit ? `
+                <div class="logo-settings__actions">
+                  <label class="btn btn--sm" for="favicon-upload">Загрузить</label>
+                  <input type="file" id="favicon-upload" accept="image/png,image/x-icon,image/svg+xml" hidden />
+                  ${settings.faviconUrl ? '<button type="button" class="btn btn--sm btn--danger-ghost" id="favicon-remove">Удалить</button>' : ''}
+                </div>
+              ` : ''}
+            </div>
+            <p class="form-hint">PNG, ICO или SVG, до 1 МБ. Квадратное изображение выглядит лучше всего.</p>
           </div>
         </div>
       </div>
@@ -139,6 +156,35 @@ export function attachSettingsHandlers(root, rerender) {
     logoRemove.addEventListener('click', () => {
       updateSettings({ logoUrl: null });
       refreshLogo();
+      rerender();
+    });
+  }
+
+  const faviconInput = root.querySelector('#favicon-upload');
+  if (faviconInput) {
+    faviconInput.addEventListener('change', () => {
+      const file = faviconInput.files?.[0];
+      if (!file) return;
+      if (file.size > 1024 * 1024) {
+        window.alert('Файл слишком большой — максимум 1 МБ.');
+        faviconInput.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        updateSettings({ faviconUrl: reader.result });
+        applyFavicon(reader.result);
+        rerender();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const faviconRemove = root.querySelector('#favicon-remove');
+  if (faviconRemove) {
+    faviconRemove.addEventListener('click', () => {
+      updateSettings({ faviconUrl: null });
+      applyFavicon(null);
       rerender();
     });
   }

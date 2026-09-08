@@ -132,6 +132,7 @@ export const api = {
   getRolePresets: () => request('/api/employees/roles'),
 
   updateSettings: (patch) => request('/api/settings', { method: 'PATCH', body: patch }),
+  getBranding: () => request('/api/branding'),
 
   getAuditLog: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''));

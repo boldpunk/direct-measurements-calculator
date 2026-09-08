@@ -1,12 +1,14 @@
 import { api } from '../api.js';
 import { escapeHtml } from '../format.js';
+import { getPublicBranding } from '../store.js';
 
 export function renderLogin() {
+  const logoUrl = getPublicBranding()?.logoUrl || '/logo/logo-stacked-light.png';
   return `
     <div class="login-screen">
       <form class="login-card" id="login-form">
         <div class="login-card__logo">
-          <img src="/logo/logo-stacked-light.png" alt="MebelFlow" class="login-card__logo-img" />
+          <img src="${escapeHtml(logoUrl)}" alt="MebelFlow" class="login-card__logo-img" id="login-logo-img" />
         </div>
         <p class="login-card__subtitle">Войдите, чтобы открыть систему управления производством</p>
         <div class="form">
