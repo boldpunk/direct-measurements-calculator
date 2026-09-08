@@ -110,8 +110,27 @@ function renderApp() {
 
   const viewRoot = document.getElementById('view-root');
   const view = ROUTES[route];
+
+  // Re-rendering replaces the whole subtree, which would otherwise steal
+  // focus (and reset the cursor) out of whatever input the user is typing
+  // into — most noticeably on every keystroke in a live-filtered search box.
+  const active = document.activeElement;
+  const focusInfo = active && viewRoot.contains(active) && active.id
+    ? { id: active.id, selectionStart: active.selectionStart, selectionEnd: active.selectionEnd }
+    : null;
+
   viewRoot.innerHTML = view.render();
   if (view.attach) view.attach(viewRoot, renderApp);
+
+  if (focusInfo) {
+    const el = document.getElementById(focusInfo.id);
+    if (el) {
+      el.focus();
+      if (focusInfo.selectionStart != null && typeof el.setSelectionRange === 'function') {
+        try { el.setSelectionRange(focusInfo.selectionStart, focusInfo.selectionEnd); } catch { /* not a text-selectable input type */ }
+      }
+    }
+  }
 }
 
 function renderLoginScreen({ idle = false } = {}) {
