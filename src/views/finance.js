@@ -5,6 +5,7 @@ import { maskUnless } from '../permissions.js';
 import { selectOrder } from './orders.js';
 import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
 import { renderFittingsSection, attachFittingsHandlers } from './fittings.js';
+import { exportFinanceWorkbook } from '../export.js';
 
 let currentPeriod = '';
 let currentPeriodFrom = '';
@@ -60,6 +61,7 @@ export function renderFinance() {
     </div>
     <div class="orders-toolbar">
       ${renderPeriodFilter('finance', { periodKey: currentPeriod, customFrom: currentPeriodFrom, customTo: currentPeriodTo })}
+      <button type="button" class="btn btn--primary" id="finance-export-btn"><i class="fa-solid fa-file-export"></i> Экспорт в Excel</button>
     </div>
     <div class="kpi-row">${kpis.join('')}</div>
     <div class="panel">
@@ -80,6 +82,23 @@ export function renderFinance() {
 }
 
 export function attachFinanceHandlers(root, rerender) {
+  const exportBtn = root.querySelector('#finance-export-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', async () => {
+      const original = exportBtn.innerHTML;
+      exportBtn.disabled = true;
+      exportBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Экспорт...';
+      try {
+        await exportFinanceWorkbook();
+      } catch (e) {
+        console.error('Export failed', e);
+        alert('Не удалось создать файл экспорта. Попробуйте ещё раз.');
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = original;
+      }
+    });
+  }
   root.querySelectorAll('[data-order-row]').forEach((row) => {
     row.addEventListener('click', () => {
       selectOrder(row.getAttribute('data-order-row'));

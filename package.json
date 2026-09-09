@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "flag-icons": "^7.5.0",
-    "libphonenumber-js": "^1.13.12"
+    "libphonenumber-js": "^1.13.12",
+    "xlsx": "^0.18.5"
   }
 }
