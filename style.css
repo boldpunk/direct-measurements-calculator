@@ -971,7 +971,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   gap: 10px;
   font-size: 18px;
 }
-.login-card__logo-img { height: 84px; width: auto; }
+.login-card__logo-img { max-width: 100%; max-height: 64px; width: auto; height: auto; object-fit: contain; }
 
 .login-card__subtitle {
   text-align: center;
