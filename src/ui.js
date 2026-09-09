@@ -3,31 +3,40 @@ import { can, canAny } from './permissions.js';
 import { getSettings } from './store.js';
 
 let defaultFaviconHTML = null;
+const OVERRIDE_IDS = ['dynamic-favicon', 'dynamic-apple-touch-icon'];
 
-// Swaps the browser-tab favicon at runtime. Pass a data URL (or any image
-// URL) to override it, or null/undefined to restore the site's default
-// icon set. Safe to call before login (favicon has no auth dependency).
+// Swaps the browser-tab favicon (and the iOS "Add to Home Screen" icon,
+// which Safari reads from a separate apple-touch-icon link, not the regular
+// favicon one) at runtime. Pass a data URL to override both, or null to
+// restore the site's default icon set. Safe to call before login.
 export function applyFavicon(customUrl) {
   if (defaultFaviconHTML === null) {
     defaultFaviconHTML = [...document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]')]
       .map((el) => el.outerHTML).join('');
   }
-  const existingOverride = document.getElementById('dynamic-favicon');
   if (customUrl) {
     document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach((el) => {
-      if (el.id !== 'dynamic-favicon') el.remove();
+      if (!OVERRIDE_IDS.includes(el.id)) el.remove();
     });
-    let link = existingOverride;
-    if (!link) {
-      link = document.createElement('link');
-      link.id = 'dynamic-favicon';
-      link.rel = 'icon';
-      document.head.appendChild(link);
+    let icon = document.getElementById('dynamic-favicon');
+    if (!icon) {
+      icon = document.createElement('link');
+      icon.id = 'dynamic-favicon';
+      icon.rel = 'icon';
+      document.head.appendChild(icon);
     }
-    link.href = customUrl;
+    icon.href = customUrl;
+    let touchIcon = document.getElementById('dynamic-apple-touch-icon');
+    if (!touchIcon) {
+      touchIcon = document.createElement('link');
+      touchIcon.id = 'dynamic-apple-touch-icon';
+      touchIcon.rel = 'apple-touch-icon';
+      document.head.appendChild(touchIcon);
+    }
+    touchIcon.href = customUrl;
   } else {
-    if (existingOverride) existingOverride.remove();
-    if (!document.querySelector('link[rel~="icon"]')) {
+    OVERRIDE_IDS.forEach((id) => document.getElementById(id)?.remove());
+    if (!document.querySelector('link[rel~="icon"], link[rel="apple-touch-icon"]')) {
       document.head.insertAdjacentHTML('beforeend', defaultFaviconHTML);
     }
   }
