@@ -4,14 +4,15 @@
 # after that. Needs sudo (to restart the systemd service and reload Nginx).
 #
 # For a second company instance on the same server (see
-# provision-second-instance.sh), override APP_DIR/ENV_FILE/SERVICE_NAME, e.g.:
-#   APP_DIR=/opt/mebelflow-sobirov ENV_FILE=/etc/mebelflow/server-sobirov.env \
-#     SERVICE_NAME=mebelflow-api-sobirov sudo -E bash deploy/deploy.sh
+# provision-second-instance.sh), pass its app dir / env file / service name
+# either as env vars or as three positional args (the latter needs no
+# underscored identifiers typed, handy when pasting into a flaky console):
+#   sudo bash deploy/deploy.sh /opt/mebelflow-sobirov /etc/mebelflow/server-sobirov.env mebelflow-api-sobirov
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/mebelflow}"
-ENV_FILE="${ENV_FILE:-/etc/mebelflow/server.env}"
-SERVICE_NAME="${SERVICE_NAME:-mebelflow-api}"
+APP_DIR="${1:-${APP_DIR:-/opt/mebelflow}}"
+ENV_FILE="${2:-${ENV_FILE:-/etc/mebelflow/server.env}}"
+SERVICE_NAME="${3:-${SERVICE_NAME:-mebelflow-api}}"
 REPO_URL="${REPO_URL:-https://github.com/boldpunk/direct-measurements-calculator.git}"
 BRANCH="${BRANCH:-main}"
 

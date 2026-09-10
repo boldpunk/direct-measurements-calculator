@@ -105,8 +105,7 @@ uses 4000). It prints the exact follow-up commands, which mirror steps 4–6
 above but scoped to the new instance:
 
 ```
-APP_DIR=/opt/mebelflow-sobirov ENV_FILE=/etc/mebelflow/server-sobirov.env \
-  SERVICE_NAME=mebelflow-api-sobirov sudo -E bash /opt/mebelflow-sobirov/deploy/deploy.sh
+sudo bash /opt/mebelflow/deploy/deploy.sh /opt/mebelflow-sobirov /etc/mebelflow/server-sobirov.env mebelflow-api-sobirov
 
 sudo certbot --nginx -d sobirov.mebelflow.uz
 

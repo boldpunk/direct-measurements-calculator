@@ -134,10 +134,10 @@ cat <<MSG
 
 Next steps:
   1. Point ${DOMAIN} at this server's IP (A record with your DNS provider).
-  2. Build + start it (env vars tell deploy.sh which instance to target):
-       APP_DIR=${APP_DIR} ENV_FILE=${ENV_FILE} SERVICE_NAME=${SERVICE_NAME} \\
-         sudo -E bash ${APP_DIR}/deploy/deploy.sh
-     (first run will git-clone into ${APP_DIR} automatically)
+  2. Build + start it — run the EXISTING instance's deploy.sh (it clones
+     the repo into any APP_DIR that doesn't have one yet, so this works even
+     though ${APP_DIR} is still empty):
+       sudo bash /opt/mebelflow/deploy/deploy.sh ${APP_DIR} ${ENV_FILE} ${SERVICE_NAME}
   3. Once DNS resolves, get HTTPS:
        certbot --nginx -d ${DOMAIN}
   4. Seed just an admin login (no demo data):
