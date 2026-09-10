@@ -88,6 +88,39 @@ Copy them off the server periodically (e.g. `scp` to your laptop, or sync to
 object storage) — a backup that only lives on the same disk as the database
 doesn't protect against the server itself failing.
 
+## Adding a second company on the same server
+
+Each company gets its own app directory, database, systemd service and
+Nginx site (its own subdomain) — full data isolation, sharing only the
+server's Node/Postgres/Nginx install. To add one (e.g. "sobirov" →
+`sobirov.mebelflow.uz`):
+
+```
+INSTANCE=sobirov DOMAIN=sobirov.mebelflow.uz PORT=4001 \
+  sudo -E bash deploy/provision-second-instance.sh
+```
+
+Pick a `PORT` that isn't already used by another instance (the first one
+uses 4000). It prints the exact follow-up commands, which mirror steps 4–6
+above but scoped to the new instance:
+
+```
+APP_DIR=/opt/mebelflow-sobirov ENV_FILE=/etc/mebelflow/server-sobirov.env \
+  SERVICE_NAME=mebelflow-api-sobirov sudo -E bash /opt/mebelflow-sobirov/deploy/deploy.sh
+
+sudo certbot --nginx -d sobirov.mebelflow.uz
+
+cd /opt/mebelflow-sobirov/server
+set -a; source /etc/mebelflow/server-sobirov.env; set +a
+COMPANY_NAME="Sobirov Mebel" ADMIN_NAME="..." ADMIN_EMAIL="..." ADMIN_PASSWORD="..." \
+  npm run seed:fresh
+```
+
+`seed:fresh` (unlike `seed.js`) only creates the Settings row and one admin
+login — no demo employees/orders, since this is a real company's database
+from day one. Every future update to *this* instance re-uses the same
+`APP_DIR`/`ENV_FILE`/`SERVICE_NAME` env vars with `deploy.sh`.
+
 ## Day-to-day operations
 
 - **Logs**: `sudo journalctl -u mebelflow-api -f`
