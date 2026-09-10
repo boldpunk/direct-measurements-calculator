@@ -112,8 +112,7 @@ sudo certbot --nginx -d sobirov.mebelflow.uz
 
 cd /opt/mebelflow-sobirov/server
 set -a; source /etc/mebelflow/server-sobirov.env; set +a
-COMPANY_NAME="Sobirov Mebel" ADMIN_NAME="..." ADMIN_EMAIL="..." ADMIN_PASSWORD="..." \
-  npm run seed:fresh
+node prisma/seed-fresh.js "Sobirov Mebel" "<admin name>" "<admin email>" "<admin password>"
 ```
 
 `seed:fresh` (unlike `seed.js`) only creates the Settings row and one admin

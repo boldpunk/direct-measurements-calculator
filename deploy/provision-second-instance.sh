@@ -143,6 +143,5 @@ Next steps:
   4. Seed just an admin login (no demo data):
        cd ${APP_DIR}/server
        set -a; source ${ENV_FILE}; set +a
-       COMPANY_NAME="Sobirov Mebel" ADMIN_NAME="..." \\
-         ADMIN_EMAIL="..." ADMIN_PASSWORD="..." npm run seed:fresh
+       node prisma/seed-fresh.js "<company name>" "<admin name>" "<admin email>" "<admin password>"
 MSG

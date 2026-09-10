@@ -3,9 +3,10 @@
 // (instead of seed.js, which fills the database with sample data for demos)
 // when standing up a new MebelFlow instance for an actual business.
 //
-// Configure via env vars, e.g.:
-//   COMPANY_NAME="Sobirov Mebel" ADMIN_NAME="Собиров" ADMIN_EMAIL="admin@sobirovmebel.uz" \
-//   ADMIN_PASSWORD="change-me" node prisma/seed-fresh.js
+// Takes 4 positional arguments (quoted, so no env-var identifiers to type):
+//   node prisma/seed-fresh.js "Sobirov Mebel" "Собиров" "admin@sobirovmebel.uz" "change-me"
+// or the equivalent env vars (COMPANY_NAME/ADMIN_NAME/ADMIN_EMAIL/ADMIN_PASSWORD)
+// if you're scripting this instead of typing it by hand.
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
@@ -15,12 +16,13 @@ import { PRESET_ROLES } from '../src/rbac.js';
 const prisma = new PrismaClient();
 
 async function main() {
-  const companyName = process.env.COMPANY_NAME;
-  const adminName = process.env.ADMIN_NAME;
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const [argCompany, argName, argEmail, argPassword] = process.argv.slice(2);
+  const companyName = argCompany || process.env.COMPANY_NAME;
+  const adminName = argName || process.env.ADMIN_NAME;
+  const adminEmail = argEmail || process.env.ADMIN_EMAIL;
+  const adminPassword = argPassword || process.env.ADMIN_PASSWORD;
   if (!companyName || !adminName || !adminEmail || !adminPassword) {
-    console.error('Set COMPANY_NAME, ADMIN_NAME, ADMIN_EMAIL and ADMIN_PASSWORD env vars.');
+    console.error('Usage: node prisma/seed-fresh.js "<company name>" "<admin name>" "<admin email>" "<admin password>"');
     process.exit(1);
   }
 
