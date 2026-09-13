@@ -2,29 +2,53 @@
 // the database — no HTTP/auth/JSON round-trip needed, so it's safe to run
 // from a console that mangles curl one-liners full of quotes/braces/@.
 //
-// Usage: node prisma/set-feature-flags.js <on|off>
+// Usage: node prisma/set-feature-flags.js <flag>=on|off [<flag>=on|off ...]
+// Flags: productType, weight, stages, expenses, manufacturing
+// Only the flags you name are changed — everything else is left as-is.
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const mode = process.argv[2];
 
-if (!['on', 'off'].includes(mode)) {
-  console.error('Usage: node prisma/set-feature-flags.js <on|off>');
-  process.exit(1);
+const FIELD_MAP = {
+  productType: 'enableProductType',
+  weight: 'enableWeight',
+  stages: 'enableStages',
+  expenses: 'enableExpenses',
+  manufacturing: 'enableManufacturingDates',
+};
+
+function usage() {
+  console.error('Usage: node prisma/set-feature-flags.js <flag>=on|off [<flag>=on|off ...]');
+  console.error(`Flags: ${Object.keys(FIELD_MAP).join(', ')}`);
 }
 
-const enabled = mode === 'on';
+const data = {};
+for (const arg of process.argv.slice(2)) {
+  const [key, value] = arg.split('=');
+  const field = FIELD_MAP[key];
+  if (!field || (value !== 'on' && value !== 'off')) {
+    console.error(`Bad argument: ${arg}`);
+    usage();
+    process.exit(1);
+  }
+  data[field] = value === 'on';
+}
+
+if (!Object.keys(data).length) {
+  usage();
+  process.exit(1);
+}
 
 async function main() {
   const settings = await prisma.settings.upsert({
     where: { id: 'default' },
-    create: { id: 'default', enableProductType: enabled, enableWeight: enabled, enableStages: enabled },
-    update: { enableProductType: enabled, enableWeight: enabled, enableStages: enabled },
+    create: { id: 'default', ...data },
+    update: data,
   });
-  console.log(`Feature toggles set to "${mode}":`);
-  console.log(`  enableProductType = ${settings.enableProductType}`);
-  console.log(`  enableWeight      = ${settings.enableWeight}`);
-  console.log(`  enableStages      = ${settings.enableStages}`);
+  console.log('Feature toggles now:');
+  for (const field of Object.values(FIELD_MAP)) {
+    console.log(`  ${field} = ${settings[field]}`);
+  }
 }
 
 main()

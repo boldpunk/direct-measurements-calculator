@@ -7,7 +7,7 @@ import {
   addStockMaterial, updateStockMaterialQty,
   addOrderService, updateOrderServiceQty, removeOrderService,
   addOutsourceExpense, removeOutsourceExpense, addSalaryExpense, removeSalaryExpense,
-  addOtherExpense, removeOtherExpense, UNITS, todayISO, getSettings,
+  addOtherExpense, removeOtherExpense, addManufacturingEntry, removeManufacturingEntry, UNITS, todayISO, getSettings,
 } from '../store.js';
 import { money, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
@@ -241,9 +241,12 @@ function renderOrderDetail(orderId) {
     ${renderMaterialsSection(order, finance)}
     ${renderServicesSection(order, finance)}
     ${renderItemsSummary(fin)}
-    ${renderExpenseSection('outsourcing', 'Аутсорс', 'Название (напр. Покраска)', finance.outsourcing, order.id)}
-    ${renderExpenseSection('salary', 'Зарплаты', 'Сотрудник / работа', finance.salaries, order.id)}
-    ${renderExpenseSection('expense', 'Прочие расходы', 'Название расхода', finance.otherExpenses, order.id)}
+    ${getSettings().enableExpenses !== false ? `
+      ${renderExpenseSection('outsourcing', 'Аутсорс', 'Название (напр. Покраска)', finance.outsourcing, order.id)}
+      ${renderExpenseSection('salary', 'Зарплаты', 'Сотрудник / работа', finance.salaries, order.id)}
+      ${renderExpenseSection('expense', 'Прочие расходы', 'Название расхода', finance.otherExpenses, order.id)}
+    ` : ''}
+    ${getSettings().enableManufacturingDates ? renderManufacturingSection(order, finance) : ''}
     ${renderFinanceSummary(order, fin)}
 
     ${getSettings().enableStages !== false ? `
@@ -427,6 +430,37 @@ function renderExpenseSection(kind, title, placeholder, items, orderId) {
   `;
 }
 
+// "Дата изготовления" — a lightweight, manually-entered {service, date} list
+// for instances that don't use the full production-stage pipeline (see
+// Settings.enableManufacturingDates). No running total: dates aren't summed.
+function renderManufacturingSection(order, finance) {
+  const canDelete = can('finance', 'deletePayment');
+  const canEdit = can('finance', 'editPayment');
+  const items = finance.manufacturing || [];
+
+  const rows = items.map((it) => `
+    <div class="mat-row">
+      <span class="mat-row__name">${escapeHtml(it.name)}</span>
+      <span class="mat-row__sum">${shortDate(it.date)}</span>
+      ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-manufacturing="${it.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
+    </div>
+  `).join('') || '<div class="empty-state empty-state--sm">Пока не добавлено</div>';
+
+  return `
+    <div class="order-detail__section-title">Дата изготовления</div>
+    <div class="section-block">
+      <div class="mat-rows">${rows}</div>
+      ${canEdit ? `
+        <form class="add-row-form add-row-form--manufacturing" data-order="${order.id}">
+          <input type="text" name="name" placeholder="Услуга" required />
+          <input type="date" name="date" required value="${todayISO()}" />
+          <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
+        </form>
+      ` : ''}
+    </div>
+  `;
+}
+
 function renderFinanceSummary(order, fin) {
   const profitTone = fin.profit > 0 ? (fin.margin < 15 ? 'orange' : 'pos') : 'neg';
   const canEdit = can('finance', 'editPayment');
@@ -440,9 +474,11 @@ function renderFinanceSummary(order, fin) {
       <div class="finance-summary__divider"></div>
       <div class="finance-summary__row"><span>Материалы</span><b>${maskUnless('seesPurchasePrices', money(fin.materialsTotal))}</b></div>
       <div class="finance-summary__row"><span>Услуги</span><b>${maskUnless('seesPurchasePrices', money(fin.servicesTotal))}</b></div>
-      <div class="finance-summary__row"><span>Аутсорс</span><b>${money(fin.outsourcingTotal)}</b></div>
-      <div class="finance-summary__row"><span>Зарплаты</span><b>${maskUnless('seesSalaries', money(fin.salaryTotal))}</b></div>
-      <div class="finance-summary__row"><span>Прочие расходы</span><b>${money(fin.otherExpensesTotal)}</b></div>
+      ${getSettings().enableExpenses !== false ? `
+        <div class="finance-summary__row"><span>Аутсорс</span><b>${money(fin.outsourcingTotal)}</b></div>
+        <div class="finance-summary__row"><span>Зарплаты</span><b>${maskUnless('seesSalaries', money(fin.salaryTotal))}</b></div>
+        <div class="finance-summary__row"><span>Прочие расходы</span><b>${money(fin.otherExpensesTotal)}</b></div>
+      ` : ''}
       <div class="finance-summary__row finance-summary__row--strong">
         <span>Итого</span>
         <span class="finance-summary__row-actions">
@@ -811,6 +847,10 @@ function attachRowRemoveHandlers(root, rerender) {
     removeOtherExpense(btn.getAttribute('data-order'), btn.getAttribute('data-remove-expense'));
     rerender();
   }));
+  root.querySelectorAll('[data-remove-manufacturing]').forEach((btn) => btn.addEventListener('click', () => {
+    removeManufacturingEntry(btn.getAttribute('data-order'), btn.getAttribute('data-remove-manufacturing'));
+    rerender();
+  }));
 }
 
 function attachAddFormHandlers(root, rerender) {
@@ -851,6 +891,14 @@ function attachAddFormHandlers(root, rerender) {
     e.preventDefault();
     const fd = new FormData(expForm);
     addOtherExpense(expForm.getAttribute('data-order'), { name: fd.get('name'), amount: fd.get('amount') });
+    rerender();
+  });
+
+  const mfgForm = root.querySelector('.add-row-form--manufacturing');
+  if (mfgForm) mfgForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(mfgForm);
+    addManufacturingEntry(mfgForm.getAttribute('data-order'), { name: fd.get('name'), date: fd.get('date') });
     rerender();
   });
 }

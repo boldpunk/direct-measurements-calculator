@@ -101,7 +101,7 @@ function drawGridTable(doc, { cols, rows, emptyLabel }) {
 
 // Builds the full order PDF and pipes it into `res` (an Express response
 // with Content-Type already set to application/pdf by the caller).
-export function renderOrderPdf(res, { order, materials, services, stages, client, manager, settings }) {
+export function renderOrderPdf(res, { order, materials, services, stages, manufacturing, client, manager, settings }) {
   const currency = settings?.currency || '$';
   const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
   doc.registerFont('regular', FONT_REGULAR);
@@ -170,6 +170,20 @@ export function renderOrderPdf(res, { order, materials, services, stages, client
     ];
     const stageRows = stages.map((st, idx) => [String(idx + 1), st.name, st.deadline ? fmtDate(st.deadline) : '—']);
     drawGridTable(doc, { cols: stageCols, rows: stageRows, emptyLabel: '' });
+    doc.moveDown(0.5);
+  }
+
+  if (manufacturing && manufacturing.length) {
+    doc.font('bold').fontSize(12).text('ДАТА ИЗГОТОВЛЕНИЯ');
+    doc.moveDown(0.3);
+    const mfgUsableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const mfgCols = [
+      { key: 'n', label: '№', slot: 24 },
+      { key: 'name', label: 'Услуга', slot: mfgUsableWidth - 24 - 120 },
+      { key: 'date', label: 'Дата', slot: 120, align: 'right' },
+    ];
+    const mfgRows = manufacturing.map((m, idx) => [String(idx + 1), m.name, m.date ? fmtDate(m.date) : '—']);
+    drawGridTable(doc, { cols: mfgCols, rows: mfgRows, emptyLabel: '' });
     doc.moveDown(0.5);
   }
 

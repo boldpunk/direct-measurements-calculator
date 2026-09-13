@@ -27,6 +27,8 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   if (body.enableProductType !== undefined) data.enableProductType = !!body.enableProductType;
   if (body.enableWeight !== undefined) data.enableWeight = !!body.enableWeight;
   if (body.enableStages !== undefined) data.enableStages = !!body.enableStages;
+  if (body.enableExpenses !== undefined) data.enableExpenses = !!body.enableExpenses;
+  if (body.enableManufacturingDates !== undefined) data.enableManufacturingDates = !!body.enableManufacturingDates;
 
   const before = await prisma.settings.findUnique({ where: { id: 'default' } });
   const settings = await prisma.settings.upsert({
@@ -44,6 +46,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     stageBufferDays: settings.stageBufferDays, orderStatusColors: settings.orderStatusColors,
     logoUrl: settings.logoUrl, faviconUrl: settings.faviconUrl,
     enableProductType: settings.enableProductType, enableWeight: settings.enableWeight, enableStages: settings.enableStages,
+    enableExpenses: settings.enableExpenses, enableManufacturingDates: settings.enableManufacturingDates,
   });
 }));
 

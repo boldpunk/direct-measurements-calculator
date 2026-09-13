@@ -24,4 +24,6 @@ export const DEFAULT_SETTINGS = {
   enableProductType: true,
   enableWeight: true,
   enableStages: true,
+  enableExpenses: true,
+  enableManufacturingDates: false,
 };

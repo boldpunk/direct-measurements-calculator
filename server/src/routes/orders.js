@@ -11,16 +11,21 @@ const router = Router();
 router.get('/:id/pdf', requirePermission('orders', 'view'), ah(async (req, res) => {
   const order = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!order) return res.status(404).json({ error: 'Заказ не найден' });
-  const [materials, services, stages, manager, settings] = await Promise.all([
+  const [materials, services, stages, manufacturing, manager, settings] = await Promise.all([
     prisma.material.findMany({ where: { orderId: order.id } }),
     prisma.orderService.findMany({ where: { orderId: order.id } }),
     prisma.stage.findMany({ where: { orderId: order.id, skipped: false }, orderBy: { position: 'asc' } }),
+    prisma.manufacturingEntry.findMany({ where: { orderId: order.id }, orderBy: { createdAt: 'asc' } }),
     order.managerId ? prisma.employee.findUnique({ where: { id: order.managerId } }) : Promise.resolve(null),
     prisma.settings.findUnique({ where: { id: 'default' } }),
   ]);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="order-${order.number}.pdf"`);
-  renderOrderPdf(res, { order, materials, services, stages: settings?.enableStages === false ? [] : stages, manager, settings });
+  renderOrderPdf(res, {
+    order, materials, services, manager, settings,
+    stages: settings?.enableStages === false ? [] : stages,
+    manufacturing: settings?.enableManufacturingDates ? manufacturing : [],
+  });
 }));
 
 async function pushActivity(tx, orderId, text) {
@@ -478,6 +483,11 @@ financeResource('salaries', 'salaryExpense',
 financeResource('other-expenses', 'otherExpense',
   (b) => ({ name: b.name, amount: Number(b.amount) || 0 }),
   null,
+  { createPerm: 'editPayment', deletePerm: 'deletePayment' });
+
+financeResource('manufacturing', 'manufacturingEntry',
+  (b) => ({ name: b.name, date: b.date || todayISO(), createdAt: Date.now() }),
+  (b) => `Добавлена дата изготовления: ${b.name}`,
   { createPerm: 'editPayment', deletePerm: 'deletePayment' });
 
 export default router;

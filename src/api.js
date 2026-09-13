@@ -131,6 +131,8 @@ export const api = {
   removeSalaryExpense: (orderId, id) => request(`/api/orders/${orderId}/salaries/${id}`, { method: 'DELETE' }),
   addOtherExpense: (orderId, data) => request(`/api/orders/${orderId}/other-expenses`, { method: 'POST', body: data }),
   removeOtherExpense: (orderId, id) => request(`/api/orders/${orderId}/other-expenses/${id}`, { method: 'DELETE' }),
+  addManufacturingEntry: (orderId, data) => request(`/api/orders/${orderId}/manufacturing`, { method: 'POST', body: data }),
+  removeManufacturingEntry: (orderId, id) => request(`/api/orders/${orderId}/manufacturing/${id}`, { method: 'DELETE' }),
 
   createTask: (data) => request('/api/tasks', { method: 'POST', body: data }),
   updateTask: (id, patch) => request(`/api/tasks/${id}`, { method: 'PATCH', body: patch }),

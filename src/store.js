@@ -542,9 +542,10 @@ export function getEmployeeActiveTasks(employeeId) {
 
 function ensureFinance(orderId) {
   if (!_state.finance[orderId]) {
-    _state.finance[orderId] = { payments: [], materials: [], services: [], outsourcing: [], salaries: [], otherExpenses: [] };
+    _state.finance[orderId] = { payments: [], materials: [], services: [], outsourcing: [], salaries: [], otherExpenses: [], manufacturing: [] };
   }
   if (!_state.finance[orderId].services) _state.finance[orderId].services = [];
+  if (!_state.finance[orderId].manufacturing) _state.finance[orderId].manufacturing = [];
   return _state.finance[orderId];
 }
 
@@ -661,6 +662,18 @@ export function removeOtherExpense(orderId, id) {
   const f = ensureFinance(orderId);
   f.otherExpenses = f.otherExpenses.filter((e) => e.id !== id);
   api.removeOtherExpense(orderId, id).catch((e) => logSyncError('удаление расхода', e));
+}
+
+export function addManufacturingEntry(orderId, data) {
+  const f = ensureFinance(orderId);
+  const record = { id: uid('mfg'), name: data.name, date: data.date || todayISO() };
+  f.manufacturing.push(record);
+  api.addManufacturingEntry(orderId, { ...data, id: record.id }).catch((e) => logSyncError('дата изготовления', e));
+}
+export function removeManufacturingEntry(orderId, id) {
+  const f = ensureFinance(orderId);
+  f.manufacturing = f.manufacturing.filter((m) => m.id !== id);
+  api.removeManufacturingEntry(orderId, id).catch((e) => logSyncError('удаление даты изготовления', e));
 }
 
 export function computeOrderFinance(orderId) {

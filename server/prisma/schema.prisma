@@ -24,6 +24,8 @@ model Settings {
   enableProductType Boolean @default(true)
   enableWeight      Boolean @default(true)
   enableStages      Boolean @default(true)
+  enableExpenses    Boolean @default(true)
+  enableManufacturingDates Boolean @default(false)
 }
 
 model Employee {
@@ -122,6 +124,7 @@ model Order {
   outsourcing    OutsourceExpense[]
   salaries       SalaryExpense[]
   otherExpenses  OtherExpense[]
+  manufacturingEntries ManufacturingEntry[]
 }
 
 model Activity {
@@ -421,6 +424,20 @@ model OtherExpense {
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
   name    String
   amount  Float  @default(0)
+
+  @@index([orderId])
+}
+
+// "Дата изготовления" — a simple manually-entered list of {service, date}
+// used by instances that track manufacturing dates per service instead of
+// the full production-stage pipeline (see Settings.enableManufacturingDates).
+model ManufacturingEntry {
+  id        String @id
+  orderId   String
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name      String
+  date      String
+  createdAt Float  @default(0)
 
   @@index([orderId])
 }

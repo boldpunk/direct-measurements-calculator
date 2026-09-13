@@ -15,7 +15,7 @@ const fullEmployee = (e) => ({
 // Returns the full app state in the same shape src/store.js keeps in memory,
 // so the frontend can hydrate its local cache in one round trip.
 router.get('/', ah(async (req, res) => {
-  const [orders, activity, stages, tasks, rework, partners, employees, clients, payments, materials, orderServices, outsourcing, salaries, otherExpenses, settingsRow] =
+  const [orders, activity, stages, tasks, rework, partners, employees, clients, payments, materials, orderServices, outsourcing, salaries, otherExpenses, manufacturingEntries, settingsRow] =
     await Promise.all([
       prisma.order.findMany(),
       prisma.activity.findMany({ orderBy: { timestamp: 'desc' } }),
@@ -31,6 +31,7 @@ router.get('/', ah(async (req, res) => {
       prisma.outsourceExpense.findMany(),
       prisma.salaryExpense.findMany(),
       prisma.otherExpense.findMany(),
+      prisma.manufacturingEntry.findMany(),
       prisma.settings.findUnique({ where: { id: 'default' } }),
     ]);
 
@@ -42,7 +43,7 @@ router.get('/', ah(async (req, res) => {
 
   const financeByOrder = {};
   const ensure = (orderId) => {
-    if (!financeByOrder[orderId]) financeByOrder[orderId] = { payments: [], materials: [], services: [], outsourcing: [], salaries: [], otherExpenses: [] };
+    if (!financeByOrder[orderId]) financeByOrder[orderId] = { payments: [], materials: [], services: [], outsourcing: [], salaries: [], otherExpenses: [], manufacturing: [] };
     return financeByOrder[orderId];
   };
   payments.forEach((p) => ensure(p.orderId).payments.push(p));
@@ -51,6 +52,7 @@ router.get('/', ah(async (req, res) => {
   outsourcing.forEach((o) => ensure(o.orderId).outsourcing.push(o));
   salaries.forEach((s) => ensure(s.orderId).salaries.push(s));
   otherExpenses.forEach((e) => ensure(e.orderId).otherExpenses.push(e));
+  manufacturingEntries.forEach((m) => ensure(m.orderId).manufacturing.push(m));
 
   const shapedOrders = orders.map((o) => ({
     ...o,
@@ -77,6 +79,7 @@ router.get('/', ah(async (req, res) => {
       companyName: settingsRow.companyName, currency: settingsRow.currency, stageBufferDays: settingsRow.stageBufferDays,
       orderStatusColors: settingsRow.orderStatusColors, logoUrl: settingsRow.logoUrl, faviconUrl: settingsRow.faviconUrl,
       enableProductType: settingsRow.enableProductType, enableWeight: settingsRow.enableWeight, enableStages: settingsRow.enableStages,
+      enableExpenses: settingsRow.enableExpenses, enableManufacturingDates: settingsRow.enableManufacturingDates,
     }
     : { ...DEFAULT_SETTINGS };
 
