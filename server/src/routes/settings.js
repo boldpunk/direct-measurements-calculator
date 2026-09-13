@@ -24,6 +24,9 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   }
   if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl || null;
   if (body.faviconUrl !== undefined) data.faviconUrl = body.faviconUrl || null;
+  if (body.enableProductType !== undefined) data.enableProductType = !!body.enableProductType;
+  if (body.enableWeight !== undefined) data.enableWeight = !!body.enableWeight;
+  if (body.enableStages !== undefined) data.enableStages = !!body.enableStages;
 
   const before = await prisma.settings.findUnique({ where: { id: 'default' } });
   const settings = await prisma.settings.upsert({
@@ -40,6 +43,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     companyName: settings.companyName, currency: settings.currency,
     stageBufferDays: settings.stageBufferDays, orderStatusColors: settings.orderStatusColors,
     logoUrl: settings.logoUrl, faviconUrl: settings.faviconUrl,
+    enableProductType: settings.enableProductType, enableWeight: settings.enableWeight, enableStages: settings.enableStages,
   });
 }));
 

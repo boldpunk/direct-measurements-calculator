@@ -17,6 +17,13 @@ model Settings {
   orderStatusColors Json    @default("{}")
   logoUrl           String?
   faviconUrl        String?
+
+  // Per-instance feature toggles — every instance shares the same codebase,
+  // but a company can turn off features it doesn't use (e.g. sps.mebelflow.uz
+  // doesn't track product categories, item weight, or a production schedule).
+  enableProductType Boolean @default(true)
+  enableWeight      Boolean @default(true)
+  enableStages      Boolean @default(true)
 }
 
 model Employee {

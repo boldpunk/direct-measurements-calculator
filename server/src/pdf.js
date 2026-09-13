@@ -113,7 +113,7 @@ export function renderOrderPdf(res, { order, materials, services, stages, client
   doc.fillColor('#000000');
   doc.moveDown(0.5);
   doc.font('regular').fontSize(10);
-  doc.text(`№ заказа: ${order.productType} #${order.number}`);
+  doc.text(`№ заказа: ${order.productType ? `${order.productType} ` : ''}#${order.number}`);
   doc.text(`Дата: ${fmtDate(order.createdAt)}`);
   doc.moveDown(0.8);
 

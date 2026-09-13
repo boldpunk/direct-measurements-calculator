@@ -7,7 +7,7 @@ import {
   addStockMaterial, updateStockMaterialQty,
   addOrderService, updateOrderServiceQty, removeOrderService,
   addOutsourceExpense, removeOutsourceExpense, addSalaryExpense, removeSalaryExpense,
-  addOtherExpense, removeOtherExpense, UNITS, todayISO,
+  addOtherExpense, removeOtherExpense, UNITS, todayISO, getSettings,
 } from '../store.js';
 import { money, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
@@ -28,6 +28,16 @@ let currentPeriodTo = '';
 
 export function selectOrder(orderId) {
   selectedOrderId = orderId;
+}
+
+// Per-instance: some companies (e.g. sps.mebelflow.uz) don't track a product
+// category at all, in which case order.productType is just an empty string
+// (see server orders.js) and every "<type> #<number>" label collapses to
+// plain "#<number>" instead of showing an awkward leading space.
+function orderLabel(order) {
+  return getSettings().enableProductType === false || !order.productType
+    ? `#${order.number}`
+    : `${order.productType} #${order.number}`;
 }
 
 const FILTERS = [
@@ -124,7 +134,7 @@ export function renderOrders() {
         <div class="panel__body" style="padding:0; overflow-x:auto">
           <table class="data-table">
             <thead>
-              <tr><th>№</th><th>Клиент</th><th>Тип</th><th>Сумма</th><th>Получено</th><th>Остаток</th><th>Срок</th><th>Статус</th><th>Прибыль</th></tr>
+              <tr><th>№</th><th>Клиент</th>${getSettings().enableProductType !== false ? '<th>Тип</th>' : ''}<th>Сумма</th><th>Получено</th><th>Остаток</th><th>Срок</th><th>Статус</th><th>Прибыль</th></tr>
             </thead>
             <tbody>${tableRows}</tbody>
           </table>
@@ -145,7 +155,7 @@ function orderRow(o, fin) {
     <tr class="${o.id === selectedOrderId ? 'is-selected' : ''}" data-order-row="${o.id}">
       <td>#${o.number}</td>
       <td>${escapeHtml(o.clientName)}</td>
-      <td>${escapeHtml(o.productType)}</td>
+      ${getSettings().enableProductType !== false ? `<td>${escapeHtml(o.productType)}</td>` : ''}
       <td>${money(o.amount)}</td>
       <td>${money(fin.receivedAmount)}</td>
       <td class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : 'Оплачено'}</td>
@@ -161,7 +171,7 @@ function orderListCard(o, fin) {
   return `
     <div class="order-list-card ${o.id === selectedOrderId ? 'is-selected' : ''}" data-order-row="${o.id}">
       <div class="order-list-card__top">
-        <b>${escapeHtml(o.productType)} #${o.number}</b>
+        <b>${escapeHtml(orderLabel(o))}</b>
         <span class="${orderStatusBadgeClass(o.status)}">${o.status}</span>
       </div>
       <div class="row-item__sub">${escapeHtml(o.clientName)}</div>
@@ -208,7 +218,7 @@ function renderOrderDetail(orderId) {
   return `
     <div class="order-detail__header">
       <div>
-        <h2>${escapeHtml(order.productType)} #${order.number}</h2>
+        <h2>${escapeHtml(orderLabel(order))}</h2>
         <div class="row-item__sub">${escapeHtml(order.clientName)} · ${order.clientPhone ? `<a class="tel-link" href="tel:${escapeHtml(order.clientPhone.replace(/[^+\d]/g, ''))}">${escapeHtml(formatPhone(order.clientPhone))}</a>` : '—'}</div>
         ${order.address ? `<div class="row-item__sub"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(order.address)}</div>` : ''}
       </div>
@@ -236,8 +246,10 @@ function renderOrderDetail(orderId) {
     ${renderExpenseSection('expense', 'Прочие расходы', 'Название расхода', finance.otherExpenses, order.id)}
     ${renderFinanceSummary(order, fin)}
 
-    <div class="order-detail__section-title">Этапы производства</div>
-    <div class="stage-pipeline">${renderStagePipeline(orderId, state)}</div>
+    ${getSettings().enableStages !== false ? `
+      <div class="order-detail__section-title">Этапы производства</div>
+      <div class="stage-pipeline">${renderStagePipeline(orderId, state)}</div>
+    ` : ''}
 
     ${renderActivity(order)}
   `;
@@ -317,7 +329,7 @@ function renderMaterialsSection(order, finance) {
           <input type="number" name="qty" placeholder="Кол-во" min="0.01" step="0.01" value="1" required />
           <select name="unit">${UNITS.map((u) => `<option>${u}</option>`).join('')}</select>
           <input type="number" name="unitPrice" placeholder="Цена/ед." min="0" step="0.01" required />
-          <input type="number" name="weight" placeholder="Вес, кг" min="0" step="0.01" />
+          ${getSettings().enableWeight !== false ? '<input type="number" name="weight" placeholder="Вес, кг" min="0" step="0.01" />' : ''}
           <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
         </form>
       ` : ''}
@@ -554,7 +566,7 @@ export function attachOrderHandlers(root, rerender) {
       const state = getState();
       const order = state.orders.find((o) => o.id === deleteBtn.getAttribute('data-id'));
       if (!order) return;
-      if (window.confirm(`Удалить заказ ${order.productType} #${order.number}? Все связанные этапы, задачи, переделки и финансы будут удалены.`)) {
+      if (window.confirm(`Удалить заказ ${orderLabel(order)}? Все связанные этапы, задачи, переделки и финансы будут удалены.`)) {
         deleteOrder(order.id);
         selectedOrderId = null;
         rerender();
@@ -640,7 +652,7 @@ async function openStockPickerModal(orderId, rerender) {
         </select>
       </label>
       <label>Количество<input type="number" name="qty" id="stock-pick-qty" min="0.01" step="0.01" value="1" required /></label>
-      <label>Вес, кг <span class="form-hint">(необязательно)</span><input type="number" name="weight" id="stock-pick-weight" min="0" step="0.01" /></label>
+      ${getSettings().enableWeight !== false ? '<label>Вес, кг <span class="form-hint">(необязательно)</span><input type="number" name="weight" id="stock-pick-weight" min="0" step="0.01" /></label>' : ''}
       <p class="form-hint" id="stock-pick-preview"></p>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
@@ -669,7 +681,8 @@ async function openStockPickerModal(orderId, rerender) {
     e.preventDefault();
     const specId = select.value;
     const qty = Number(qtyInput.value) || 0;
-    const weight = Number(document.getElementById('stock-pick-weight').value) || 0;
+    const weightEl = document.getElementById('stock-pick-weight');
+    const weight = weightEl ? Number(weightEl.value) || 0 : 0;
     if (!specId) { window.alert('Выберите товар'); return; }
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
@@ -728,7 +741,7 @@ async function openServicePickerModal(orderId, rerender) {
         </select>
       </label>
       <label>Количество<input type="number" name="qty" id="service-pick-qty" min="0.01" step="0.01" value="1" required /></label>
-      <label>Вес, кг <span class="form-hint">(необязательно)</span><input type="number" name="weight" id="service-pick-weight" min="0" step="0.01" /></label>
+      ${getSettings().enableWeight !== false ? '<label>Вес, кг <span class="form-hint">(необязательно)</span><input type="number" name="weight" id="service-pick-weight" min="0" step="0.01" /></label>' : ''}
       <p class="form-hint" id="service-pick-preview"></p>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
@@ -757,7 +770,8 @@ async function openServicePickerModal(orderId, rerender) {
     e.preventDefault();
     const serviceId = select.value;
     const qty = Number(qtyInput.value) || 0;
-    const weight = Number(document.getElementById('service-pick-weight').value) || 0;
+    const weightEl = document.getElementById('service-pick-weight');
+    const weight = weightEl ? Number(weightEl.value) || 0 : 0;
     if (!serviceId) { window.alert('Выберите услугу'); return; }
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
@@ -849,11 +863,13 @@ function orderFormFields(order) {
     <label>Клиент<input name="clientName" required placeholder="Имя клиента" value="${order ? escapeHtml(order.clientName) : ''}" /></label>
     ${renderPhoneField({ name: 'clientPhone', value: order ? order.clientPhone : '' })}
     <label>Адрес<input name="address" placeholder="Город, улица, дом" value="${order ? escapeHtml(order.address || '') : ''}" /></label>
-    <label>Тип изделия
-      <select name="productType">
-        ${PRODUCT_TYPES.map((t) => `<option ${order?.productType === t ? 'selected' : ''}>${t}</option>`).join('')}
-      </select>
-    </label>
+    ${getSettings().enableProductType !== false ? `
+      <label>Тип изделия
+        <select name="productType">
+          ${PRODUCT_TYPES.map((t) => `<option ${order?.productType === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </label>
+    ` : ''}
     <label>Ответственный
       <select name="managerId">${selectOptions(state.employees, 'id', 'name', order?.managerId)}</select>
     </label>
@@ -861,7 +877,7 @@ function orderFormFields(order) {
     ${order ? '' : '<p class="form-hint">Можно оставить пустым и заполнить позже — после добавления материалов и услуг появится кнопка «Подставить в сумму договора».</p>'}
     <label>Срок выполнения<input name="deadline" type="date" required value="${order ? order.deadline : ''}" /></label>
     <label>Комментарий<textarea name="notes" rows="2" placeholder="Детали заказа">${order ? escapeHtml(order.notes || '') : ''}</textarea></label>
-    ${order ? '' : '<label class="checkbox-label"><input type="checkbox" name="needsCarpentry" checked /> Требует этап «Столярка»</label>'}
+    ${!order && getSettings().enableStages !== false ? '<label class="checkbox-label"><input type="checkbox" name="needsCarpentry" checked /> Требует этап «Столярка»</label>' : ''}
   `;
 }
 

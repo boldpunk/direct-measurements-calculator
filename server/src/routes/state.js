@@ -73,7 +73,11 @@ router.get('/', ah(async (req, res) => {
   }));
 
   const settings = settingsRow
-    ? { companyName: settingsRow.companyName, currency: settingsRow.currency, stageBufferDays: settingsRow.stageBufferDays, orderStatusColors: settingsRow.orderStatusColors, logoUrl: settingsRow.logoUrl, faviconUrl: settingsRow.faviconUrl }
+    ? {
+      companyName: settingsRow.companyName, currency: settingsRow.currency, stageBufferDays: settingsRow.stageBufferDays,
+      orderStatusColors: settingsRow.orderStatusColors, logoUrl: settingsRow.logoUrl, faviconUrl: settingsRow.faviconUrl,
+      enableProductType: settingsRow.enableProductType, enableWeight: settingsRow.enableWeight, enableStages: settingsRow.enableStages,
+    }
     : { ...DEFAULT_SETTINGS };
 
   res.json({

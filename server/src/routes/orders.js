@@ -20,7 +20,7 @@ router.get('/:id/pdf', requirePermission('orders', 'view'), ah(async (req, res) 
   ]);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="order-${order.number}.pdf"`);
-  renderOrderPdf(res, { order, materials, services, stages, manager, settings });
+  renderOrderPdf(res, { order, materials, services, stages: settings?.enableStages === false ? [] : stages, manager, settings });
 }));
 
 async function pushActivity(tx, orderId, text) {
@@ -76,7 +76,7 @@ router.post('/', requirePermission('orders', 'create'), ah(async (req, res) => {
         clientName: body.clientName || client.name || '',
         clientPhone: body.clientPhone || client.phone || '',
         address: body.address || client.address || '',
-        productType: body.productType,
+        productType: body.productType || '',
         managerId: body.managerId || null,
         amount: Number(body.amount) || 0,
         startDate: body.startDate || todayISO(),
@@ -88,23 +88,25 @@ router.post('/', requirePermission('orders', 'create'), ah(async (req, res) => {
       },
     });
 
-    await tx.stage.createMany({
-      data: STAGE_DEFS.map((def, i) => {
-        const skip = def.key === 'carpentry' && !created.needsCarpentry;
-        return {
-          id: uid('stg'),
-          orderId: created.id,
-          defKey: def.key,
-          name: def.name,
-          type: def.type,
-          service: def.service || null,
-          position: i,
-          deadline: addDays(created.startDate, (i + 1) * settings.stageBufferDays),
-          status: skip ? 'готово' : (i === 0 ? 'в работе' : 'ожидает'),
-          skipped: skip,
-        };
-      }),
-    });
+    if (settings.enableStages) {
+      await tx.stage.createMany({
+        data: STAGE_DEFS.map((def, i) => {
+          const skip = def.key === 'carpentry' && !created.needsCarpentry;
+          return {
+            id: uid('stg'),
+            orderId: created.id,
+            defKey: def.key,
+            name: def.name,
+            type: def.type,
+            service: def.service || null,
+            position: i,
+            deadline: addDays(created.startDate, (i + 1) * settings.stageBufferDays),
+            status: skip ? 'готово' : (i === 0 ? 'в работе' : 'ожидает'),
+            skipped: skip,
+          };
+        }),
+      });
+    }
 
     await pushActivity(tx, created.id, 'Заказ создан');
     return created;

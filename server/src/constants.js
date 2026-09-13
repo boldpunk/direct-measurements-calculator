@@ -21,4 +21,7 @@ export const DEFAULT_SETTINGS = {
   orderStatusColors: {},
   logoUrl: null,
   faviconUrl: null,
+  enableProductType: true,
+  enableWeight: true,
+  enableStages: true,
 };

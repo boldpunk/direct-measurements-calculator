@@ -254,7 +254,7 @@ export function createOrder(data) {
     clientName: data.clientName || client?.name || '',
     clientPhone: data.clientPhone || client?.phone || '',
     address: data.address || client?.address || '',
-    productType: data.productType,
+    productType: data.productType || '',
     managerId: data.managerId || null,
     amount: Number(data.amount) || 0,
     startDate: data.startDate || todayISO(),
