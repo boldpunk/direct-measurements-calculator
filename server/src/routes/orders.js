@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ah, uid, todayISO, addDays } from '../util.js';
-import { STAGE_DEFS, DEFAULT_SETTINGS } from '../constants.js';
+import { STAGE_DEFS, DEFAULT_SETTINGS, CUSTOM_ORDER_STATUSES } from '../constants.js';
 import { requirePermission } from '../middleware/auth.js';
 import { logAudit } from '../audit.js';
 import { renderOrderPdf } from '../pdf.js';
@@ -86,7 +86,7 @@ router.post('/', requirePermission('orders', 'create'), ah(async (req, res) => {
         amount: Number(body.amount) || 0,
         startDate: body.startDate || todayISO(),
         deadline: body.deadline || addDays(todayISO(), 14),
-        status: body.status || 'Новый',
+        status: body.status || (settings.enableCustomOrderStatuses ? CUSTOM_ORDER_STATUSES[0] : 'Новый'),
         needsCarpentry: body.needsCarpentry !== false,
         notes: body.notes || '',
         createdAt: Date.now(),

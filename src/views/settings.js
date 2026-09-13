@@ -1,4 +1,4 @@
-import { getState, getSettings, updateSettings, updateOrderStatusColor, CURRENCIES, ORDER_STATUSES, BADGE_TONES, getOrderStatusTone } from '../store.js';
+import { getState, getSettings, updateSettings, updateOrderStatusColor, CURRENCIES, getOrderStatuses, BADGE_TONES, getOrderStatusTone } from '../store.js';
 import { escapeHtml } from '../format.js';
 import { can } from '../permissions.js';
 import { refreshLogo, applyFavicon } from '../ui.js';
@@ -80,7 +80,7 @@ export function renderSettings() {
         <div class="panel__body">
           <p class="form-hint">Выберите цвет бейджа для каждого статуса заказа.</p>
           <div class="status-color-list">
-            ${ORDER_STATUSES.map((status) => `
+            ${getOrderStatuses().map((status) => `
               <div class="status-color-row">
                 <span class="badge badge--tone-${getOrderStatusTone(status)}">${escapeHtml(status)}</span>
                 <select data-action="status-color" data-status="${escapeHtml(status)}" ${canEdit ? '' : 'disabled'}>

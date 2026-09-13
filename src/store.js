@@ -61,11 +61,48 @@ const ORDER_STATUS_TONE = {
   'Завершён': 'success',
   'Отменён': 'danger',
 };
+
+// Used instead of the default workflow when Settings.enableCustomOrderStatuses
+// is on (sps.mebelflow.uz only) — a fixed materials-cutting-service pipeline
+// instead of the sale/measure/design/install flow the other instances use.
+export const CUSTOM_ORDER_STATUSES = [
+  'Закупка материалов', 'Распил', 'Кромка', 'Присадка', 'Ровер', 'Овальная кромка', 'Готово',
+];
+export const CUSTOM_CLOSED_STATUSES = ['Готово'];
+export const CUSTOM_KANBAN_COLUMNS = [
+  { status: 'Закупка материалов', label: 'Закупка материалов' },
+  { status: 'Распил', label: 'Распил' },
+  { status: 'Кромка', label: 'Кромка' },
+  { status: 'Присадка', label: 'Присадка' },
+  { status: 'Ровер', label: 'Ровер' },
+  { status: 'Овальная кромка', label: 'Овальная кромка' },
+];
+const CUSTOM_ORDER_STATUS_TONE = {
+  'Закупка материалов': 'warning',
+  'Распил': 'warning',
+  'Кромка': 'warning',
+  'Присадка': 'warning',
+  'Ровер': 'warning',
+  'Овальная кромка': 'warning',
+  'Готово': 'success',
+};
 export const BADGE_TONES = ['neutral', 'info', 'warning', 'success', 'danger'];
+
+export function getOrderStatuses() {
+  return getSettings()?.enableCustomOrderStatuses ? CUSTOM_ORDER_STATUSES : ORDER_STATUSES;
+}
+export function getClosedStatuses() {
+  return getSettings()?.enableCustomOrderStatuses ? CUSTOM_CLOSED_STATUSES : CLOSED_STATUSES;
+}
+export function getKanbanColumns() {
+  return getSettings()?.enableCustomOrderStatuses ? CUSTOM_KANBAN_COLUMNS : KANBAN_COLUMNS;
+}
 
 export function getOrderStatusTone(status) {
   const override = _state.settings?.orderStatusColors?.[status];
-  return override || ORDER_STATUS_TONE[status] || 'neutral';
+  if (override) return override;
+  const tones = getSettings()?.enableCustomOrderStatuses ? CUSTOM_ORDER_STATUS_TONE : ORDER_STATUS_TONE;
+  return tones[status] || 'neutral';
 }
 
 export const EMPLOYEE_ROLES = [
@@ -111,7 +148,7 @@ function ruDays(n) {
 }
 
 export function getOrderDeadlineInfo(order) {
-  if (CLOSED_STATUSES.includes(order.status)) {
+  if (getClosedStatuses().includes(order.status)) {
     return { text: order.status, tone: 'muted' };
   }
   const diffDays = Math.round((new Date(order.deadline) - new Date(todayISO())) / 86400000);
@@ -259,7 +296,7 @@ export function createOrder(data) {
     amount: Number(data.amount) || 0,
     startDate: data.startDate || todayISO(),
     deadline: data.deadline || addDays(todayISO(), 14),
-    status: data.status || 'Новый',
+    status: data.status || getOrderStatuses()[0],
     needsCarpentry: data.needsCarpentry !== false,
     notes: data.notes || '',
     activity: [],
@@ -371,7 +408,7 @@ export function isOverdue(deadline, status) {
 }
 
 export function isOrderActive(order) {
-  return !CLOSED_STATUSES.includes(order.status);
+  return !getClosedStatuses().includes(order.status);
 }
 
 export function isOrderOverdue(order) {
@@ -729,7 +766,7 @@ export function getUpcomingDeadlines(days = 7) {
 
 export function getOrdersByStatusCounts() {
   const counts = {};
-  ORDER_STATUSES.forEach((st) => { counts[st] = 0; });
+  getOrderStatuses().forEach((st) => { counts[st] = 0; });
   _state.orders.forEach((o) => { counts[o.status] = (counts[o.status] || 0) + 1; });
   return counts;
 }

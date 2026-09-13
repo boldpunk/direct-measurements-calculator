@@ -1,7 +1,7 @@
 import {
   getState, createOrder, updateOrder, updateOrderStatus, deleteOrder,
   getOrderStages, completeStage, setStageAssignment, isOverdue, STAGE_DEFS,
-  PRODUCT_TYPES, ORDER_STATUSES, getOrderDeadlineInfo,
+  PRODUCT_TYPES, getOrderStatuses, getOrderDeadlineInfo,
   getFinance, computeOrderFinance,
   addPayment, removePayment, addMaterial, removeMaterial,
   addStockMaterial, updateStockMaterialQty,
@@ -118,7 +118,7 @@ export function renderOrders() {
       </div>
       <select id="orders-status-filter">
         <option value="">Все статусы</option>
-        ${ORDER_STATUSES.map((s) => `<option value="${s}" ${s === currentStatusFilter ? 'selected' : ''}>${s}</option>`).join('')}
+        ${getOrderStatuses().map((s) => `<option value="${s}" ${s === currentStatusFilter ? 'selected' : ''}>${s}</option>`).join('')}
       </select>
       <select id="orders-sort">
         ${SORTS.map((s) => `<option value="${s.key}" ${s.key === currentSort ? 'selected' : ''}>${s.label}</option>`).join('')}
@@ -191,7 +191,7 @@ function renderStatusControl(order) {
   if (!can('orders', 'edit')) {
     return `<span class="${orderStatusBadgeClass(order.status)}">${order.status}</span>`;
   }
-  const options = ORDER_STATUSES.filter((s) => {
+  const options = getOrderStatuses().filter((s) => {
     if (s === 'Завершён') return can('orders', 'close') || s === order.status;
     if (s === 'Отменён') return can('orders', 'cancel') || s === order.status;
     return true;

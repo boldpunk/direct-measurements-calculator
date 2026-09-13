@@ -30,4 +30,12 @@ export const DEFAULT_SETTINGS = {
   enablePurchaseSaleSplit: false,
   enablePdfExtras: false,
   enablePurchaseList: false,
+  enableCustomOrderStatuses: false,
 };
+
+// Used instead of the default Новый/Замер/.../Завершён/Отменён workflow when
+// enableCustomOrderStatuses is on — sps.mebelflow.uz doesn't sell/measure/design,
+// it only runs materials through a fixed cutting-service pipeline.
+export const CUSTOM_ORDER_STATUSES = [
+  'Закупка материалов', 'Распил', 'Кромка', 'Присадка', 'Ровер', 'Овальная кромка', 'Готово',
+];

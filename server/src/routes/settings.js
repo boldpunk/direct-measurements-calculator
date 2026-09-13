@@ -33,6 +33,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   if (body.enablePurchaseSaleSplit !== undefined) data.enablePurchaseSaleSplit = !!body.enablePurchaseSaleSplit;
   if (body.enablePdfExtras !== undefined) data.enablePdfExtras = !!body.enablePdfExtras;
   if (body.enablePurchaseList !== undefined) data.enablePurchaseList = !!body.enablePurchaseList;
+  if (body.enableCustomOrderStatuses !== undefined) data.enableCustomOrderStatuses = !!body.enableCustomOrderStatuses;
 
   const before = await prisma.settings.findUnique({ where: { id: 'default' } });
   const settings = await prisma.settings.upsert({
@@ -53,6 +54,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     enableExpenses: settings.enableExpenses, enableManufacturingDates: settings.enableManufacturingDates,
     enableServicesFinanceReport: settings.enableServicesFinanceReport, enablePurchaseSaleSplit: settings.enablePurchaseSaleSplit,
     enablePdfExtras: settings.enablePdfExtras, enablePurchaseList: settings.enablePurchaseList,
+    enableCustomOrderStatuses: settings.enableCustomOrderStatuses,
   });
 }));
 

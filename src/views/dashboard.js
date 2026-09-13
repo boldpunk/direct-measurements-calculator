@@ -1,7 +1,7 @@
 import {
   getState, getOverdueOrders, getInProgressOrders, getUnpaidOrders, getUpcomingDeadlines,
   getOrdersByStatusCounts, computeOrderFinance, computeMonthlyProfit, getOrderDeadlineInfo,
-  ORDER_STATUSES, todayISO,
+  getOrderStatuses, getClosedStatuses, todayISO,
 } from '../store.js';
 import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { kpiCard, card } from '../ui.js';
@@ -41,8 +41,9 @@ export function renderDashboard() {
   const statusCounts = ownOnly
     ? state.orders.filter(mine).reduce((acc, o) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {})
     : getOrdersByStatusCounts();
-  const statusRows = ORDER_STATUSES
-    .filter((s) => s !== 'Завершён' && s !== 'Отменён' && statusCounts[s] > 0)
+  const closedStatuses = getClosedStatuses();
+  const statusRows = getOrderStatuses()
+    .filter((s) => !closedStatuses.includes(s) && statusCounts[s] > 0)
     .map((s) => `
       <div class="status-count-row">
         <span class="${orderStatusBadgeClass(s)}">${s}</span>

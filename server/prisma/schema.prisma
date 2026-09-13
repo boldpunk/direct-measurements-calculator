@@ -30,6 +30,7 @@ model Settings {
   enablePurchaseSaleSplit     Boolean @default(false)
   enablePdfExtras             Boolean @default(false)
   enablePurchaseList          Boolean @default(false)
+  enableCustomOrderStatuses   Boolean @default(false)
 }
 
 model Employee {

@@ -3,23 +3,26 @@ import { prisma } from '../prisma.js';
 import { ah } from '../util.js';
 import { requirePermission } from '../middleware/auth.js';
 import { renderPurchaseListPdf } from '../pdf.js';
+import { CUSTOM_ORDER_STATUSES } from '../constants.js';
 
 const router = Router();
 
 // Orders past these statuses no longer need anything purchased for them —
-// mirrors CLOSED_STATUSES in src/store.js.
+// mirrors CLOSED_STATUSES/CUSTOM_CLOSED_STATUSES in src/store.js.
 const CLOSED_STATUSES = ['Завершён', 'Отменён'];
+const CUSTOM_CLOSED_STATUSES = [CUSTOM_ORDER_STATUSES[CUSTOM_ORDER_STATUSES.length - 1]];
 
 // "Заявки на закупку" — a daily shopping list: every manually-entered
 // material (source: 'manual', i.e. not already pulled from Склад stock) on
 // an active order, aggregated by supplier + name + unit and totaled.
 router.get('/purchase-list/pdf', requirePermission('finance', 'view'), ah(async (req, res) => {
-  const orders = await prisma.order.findMany({ where: { status: { notIn: CLOSED_STATUSES } } });
+  const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
+  const closedStatuses = settings?.enableCustomOrderStatuses ? CUSTOM_CLOSED_STATUSES : CLOSED_STATUSES;
+  const orders = await prisma.order.findMany({ where: { status: { notIn: closedStatuses } } });
   const orderIds = orders.map((o) => o.id);
   const materials = orderIds.length
     ? await prisma.material.findMany({ where: { orderId: { in: orderIds }, source: 'manual' } })
     : [];
-  const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
 
   const grouped = new Map();
   for (const m of materials) {

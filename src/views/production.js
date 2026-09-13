@@ -1,4 +1,4 @@
-import { getState, updateOrderStatus, getOrderDeadlineInfo, KANBAN_COLUMNS, ORDER_STATUSES } from '../store.js';
+import { getState, updateOrderStatus, getOrderDeadlineInfo, getKanbanColumns, getOrderStatuses } from '../store.js';
 import { escapeHtml, deadlineBadgeClass } from '../format.js';
 import { can } from '../permissions.js';
 import { selectOrder } from './orders.js';
@@ -6,7 +6,7 @@ import { selectOrder } from './orders.js';
 export function renderProduction() {
   const state = getState();
 
-  const cols = KANBAN_COLUMNS.map((col) => {
+  const cols = getKanbanColumns().map((col) => {
     const orders = state.orders.filter((o) => o.status === col.status);
     return `
       <div class="prod-col" data-status="${escapeHtml(col.status)}">
@@ -40,7 +40,7 @@ function renderCard(o, state) {
         <span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span>
       </div>
       <select class="prod-card__status-select" data-order-status="${o.id}" title="Изменить статус" ${canMove ? '' : 'disabled'}>
-        ${ORDER_STATUSES.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
+        ${getOrderStatuses().map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
       </select>
     </div>
   `;
