@@ -230,7 +230,7 @@ function renderOrderDetail(orderId) {
     ${renderPaymentsSection(order, finance, fin)}
     ${renderMaterialsSection(order, finance)}
     ${renderServicesSection(order, finance)}
-    ${renderItemsSummary(order, fin)}
+    ${renderItemsSummary(fin)}
     ${renderExpenseSection('outsourcing', 'Аутсорс', 'Название (напр. Покраска)', finance.outsourcing, order.id)}
     ${renderExpenseSection('salary', 'Зарплаты', 'Сотрудник / работа', finance.salaries, order.id)}
     ${renderExpenseSection('expense', 'Прочие расходы', 'Название расхода', finance.otherExpenses, order.id)}
@@ -360,12 +360,13 @@ function renderServicesSection(order, finance) {
   `;
 }
 
-// The literal "Материалы: — / Услуги: — / Итого: —" summary the new flow
-// calls for — separate from the fuller ФИНАНСЫ panel below (profit/margin/
-// cost breakdown), this is just the running total while building the order,
-// with a one-click way to carry it into "Сумма договора" if it matches.
-function renderItemsSummary(order, fin) {
-  const canEdit = can('finance', 'editPayment');
+// The literal "Материалы: — / Услуги: — / Итого позиций: —" summary the new
+// flow calls for — just the running materials+services total while building
+// the order. No "apply to contract amount" button here: that total leaves
+// out outsourcing/salaries/other expenses, so applying it would be
+// misleading — that action lives on the fuller ФИНАНСЫ panel's Итого row
+// instead, which accounts for every cost.
+function renderItemsSummary(fin) {
   const itemsTotal = fin.materialsTotal + fin.servicesTotal;
   const fmt = (v) => (v ? maskUnless('seesPurchasePrices', money(v)) : '—');
   return `
@@ -373,7 +374,6 @@ function renderItemsSummary(order, fin) {
       <span>Материалы: <b>${fmt(fin.materialsTotal)}</b></span>
       <span>Услуги: <b>${fmt(fin.servicesTotal)}</b></span>
       <span>Итого позиций: <b>${fmt(itemsTotal)}</b></span>
-      ${canEdit && itemsTotal > 0 && itemsTotal !== order.amount ? `<div class="order-items-summary__apply"><button type="button" class="btn btn--sm" data-action="apply-items-total" data-order="${order.id}" data-total="${itemsTotal}">Подставить в сумму договора</button></div>` : ''}
     </div>
   `;
 }

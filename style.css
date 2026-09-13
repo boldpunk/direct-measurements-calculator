@@ -580,8 +580,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   padding-top: 8px; border-top: 1px dashed var(--border);
 }
 .section-totals b { color: var(--text); font-size: 13.5px; }
-.order-items-summary { align-items: center; }
-.order-items-summary__apply { flex-basis: 100%; margin-top: 2px; }
+.order-items-summary { align-items: center; justify-content: center; }
 
 .pay-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .pay-row { display: flex; align-items: center; gap: 10px; background: var(--panel); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; }
