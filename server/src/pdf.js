@@ -207,3 +207,32 @@ export function renderOrderPdf(res, { order, materials, services, stages, manufa
 
   doc.end();
 }
+
+// "Заявки на закупку" — a daily shopping list of manually-entered materials
+// across every active order, aggregated by supplier + name + unit.
+export function renderPurchaseListPdf(res, { rows, settings }) {
+  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+  doc.registerFont('regular', FONT_REGULAR);
+  doc.registerFont('bold', FONT_BOLD);
+  doc.pipe(res);
+
+  doc.font('bold').fontSize(20).text((settings?.companyName || 'MEBELFLOW').toUpperCase());
+  doc.font('bold').fontSize(13).fillColor('#444444').text('ЗАЯВКИ НА ЗАКУПКУ');
+  doc.fillColor('#000000');
+  doc.moveDown(0.5);
+  doc.font('regular').fontSize(10).text(`Дата: ${fmtDate(Date.now())}`);
+  doc.moveDown(0.8);
+
+  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const cols = [
+    { key: 'n', label: '№', slot: 24 },
+    { key: 'supplier', label: 'Поставщик', slot: 150 },
+    { key: 'name', label: 'Наименование', slot: usableWidth - 24 - 150 - 60 - 60 },
+    { key: 'qty', label: 'Кол-во', slot: 60, align: 'right' },
+    { key: 'unit', label: 'Ед.', slot: 60 },
+  ];
+  const tableRows = rows.map((r, idx) => [String(idx + 1), r.supplier, r.name, String(r.qty), r.unit]);
+  drawGridTable(doc, { cols, rows: tableRows, emptyLabel: 'Нет материалов, ожидающих закупки' });
+
+  doc.end();
+}

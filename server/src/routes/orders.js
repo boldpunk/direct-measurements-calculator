@@ -346,7 +346,7 @@ router.post('/:id/materials', requirePermission('finance', 'editPayment'), ah(as
     const created = await tx.material.create({
       data: {
         id: uid('mat'), orderId, name: body.name, qty: Number(body.qty) || 0, unit: body.unit || 'шт.',
-        unitPrice: Number(body.unitPrice) || 0, weight: Number(body.weight) || 0,
+        unitPrice: Number(body.unitPrice) || 0, weight: Number(body.weight) || 0, supplier: body.supplier || '',
       },
     });
     await pushActivity(tx, orderId, `Добавлен материал: ${body.name}`);

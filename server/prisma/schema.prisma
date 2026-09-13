@@ -29,6 +29,7 @@ model Settings {
   enableServicesFinanceReport Boolean @default(false)
   enablePurchaseSaleSplit     Boolean @default(false)
   enablePdfExtras             Boolean @default(false)
+  enablePurchaseList          Boolean @default(false)
 }
 
 model Employee {
@@ -224,6 +225,10 @@ model Material {
   unitPrice Float  @default(0)
   sku       String @default("")
   weight    Float  @default(0)
+  // Free-text supplier for a manually-entered line (source: 'manual') — used
+  // to group the daily purchase-list export. Stock-sourced lines already have
+  // a real Supplier via ProductSpec, so this is left blank for those.
+  supplier  String @default("")
 
   // Set when this line was pulled from the Склад catalog rather than typed
   // manually — drives the reservation lifecycle (see StockReservation).

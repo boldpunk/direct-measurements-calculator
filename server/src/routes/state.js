@@ -81,7 +81,7 @@ router.get('/', ah(async (req, res) => {
       enableProductType: settingsRow.enableProductType, enableWeight: settingsRow.enableWeight, enableStages: settingsRow.enableStages,
       enableExpenses: settingsRow.enableExpenses, enableManufacturingDates: settingsRow.enableManufacturingDates,
       enableServicesFinanceReport: settingsRow.enableServicesFinanceReport, enablePurchaseSaleSplit: settingsRow.enablePurchaseSaleSplit,
-      enablePdfExtras: settingsRow.enablePdfExtras,
+      enablePdfExtras: settingsRow.enablePdfExtras, enablePurchaseList: settingsRow.enablePurchaseList,
     }
     : { ...DEFAULT_SETTINGS };
 

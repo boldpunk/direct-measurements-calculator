@@ -333,6 +333,7 @@ function renderMaterialsSection(order, finance) {
           <select name="unit">${UNITS.map((u) => `<option>${u}</option>`).join('')}</select>
           <input type="number" name="unitPrice" placeholder="Цена/ед." min="0" step="0.01" required />
           ${getSettings().enableWeight !== false ? '<input type="number" name="weight" placeholder="Вес, кг" min="0" step="0.01" />' : ''}
+          ${getSettings().enablePurchaseList ? '<input type="text" name="supplier" placeholder="Поставщик" />' : ''}
           <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
         </form>
       ` : ''}
@@ -866,7 +867,7 @@ function attachAddFormHandlers(root, rerender) {
   if (matForm) matForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(matForm);
-    addMaterial(matForm.getAttribute('data-order'), { name: fd.get('name'), qty: fd.get('qty'), unit: fd.get('unit'), unitPrice: fd.get('unitPrice'), weight: fd.get('weight') || 0 });
+    addMaterial(matForm.getAttribute('data-order'), { name: fd.get('name'), qty: fd.get('qty'), unit: fd.get('unit'), unitPrice: fd.get('unitPrice'), weight: fd.get('weight') || 0, supplier: fd.get('supplier') || '' });
     rerender();
   });
 

@@ -29,4 +29,5 @@ export const DEFAULT_SETTINGS = {
   enableServicesFinanceReport: false,
   enablePurchaseSaleSplit: false,
   enablePdfExtras: false,
+  enablePurchaseList: false,
 };

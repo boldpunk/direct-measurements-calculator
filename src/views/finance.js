@@ -1,4 +1,4 @@
-import { getState, computeOrderFinance, computeMonthlyProfit, getOrderDeadlineInfo } from '../store.js';
+import { getState, computeOrderFinance, computeMonthlyProfit, getOrderDeadlineInfo, getSettings } from '../store.js';
 import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { kpiCard } from '../ui.js';
 import { maskUnless } from '../permissions.js';
@@ -7,6 +7,7 @@ import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange }
 import { renderFittingsSection, attachFittingsHandlers } from './fittings.js';
 import { renderServicesReportSection, attachServicesReportHandlers } from './services-report.js';
 import { exportFinanceWorkbook } from '../export.js';
+import { api } from '../api.js';
 
 let currentPeriod = '';
 let currentPeriodFrom = '';
@@ -63,6 +64,7 @@ export function renderFinance() {
     <div class="orders-toolbar">
       ${renderPeriodFilter('finance', { periodKey: currentPeriod, customFrom: currentPeriodFrom, customTo: currentPeriodTo })}
       <button type="button" class="btn btn--primary" id="finance-export-btn"><i class="fa-solid fa-file-export"></i> Экспорт в Excel</button>
+      ${getSettings().enablePurchaseList ? `<button type="button" class="btn" id="purchase-list-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Заявки на закупку</button>` : ''}
     </div>
     <div class="kpi-row">${kpis.join('')}</div>
     <div class="panel">
@@ -98,6 +100,25 @@ export function attachFinanceHandlers(root, rerender) {
       } finally {
         exportBtn.disabled = false;
         exportBtn.innerHTML = original;
+      }
+    });
+  }
+  const purchaseListBtn = root.querySelector('#purchase-list-pdf-btn');
+  if (purchaseListBtn) {
+    purchaseListBtn.addEventListener('click', async () => {
+      const original = purchaseListBtn.innerHTML;
+      purchaseListBtn.disabled = true;
+      purchaseListBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      try {
+        const blob = await api.getPurchaseListPdfBlob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (e) {
+        window.alert(e.message || 'Не удалось сформировать PDF');
+      } finally {
+        purchaseListBtn.disabled = false;
+        purchaseListBtn.innerHTML = original;
       }
     });
   }

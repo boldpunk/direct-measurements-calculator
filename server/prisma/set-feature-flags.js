@@ -4,7 +4,7 @@
 //
 // Usage: node prisma/set-feature-flags.js <flag>=on|off [<flag>=on|off ...]
 // Flags: productType, weight, stages, expenses, manufacturing,
-//        servicesReport, purchaseSaleSplit, pdfExtras
+//        servicesReport, purchaseSaleSplit, pdfExtras, purchaseList
 // Only the flags you name are changed — everything else is left as-is.
 import { PrismaClient } from '@prisma/client';
 
@@ -19,6 +19,7 @@ const FIELD_MAP = {
   servicesReport: 'enableServicesFinanceReport',
   purchaseSaleSplit: 'enablePurchaseSaleSplit',
   pdfExtras: 'enablePdfExtras',
+  purchaseList: 'enablePurchaseList',
 };
 
 function usage() {

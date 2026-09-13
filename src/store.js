@@ -569,7 +569,7 @@ export function removePayment(orderId, id) {
 
 export function addMaterial(orderId, data) {
   const f = ensureFinance(orderId);
-  const record = { id: uid('mat'), name: data.name, qty: Number(data.qty) || 0, unit: data.unit || 'шт.', unitPrice: Number(data.unitPrice) || 0, weight: Number(data.weight) || 0 };
+  const record = { id: uid('mat'), name: data.name, qty: Number(data.qty) || 0, unit: data.unit || 'шт.', unitPrice: Number(data.unitPrice) || 0, weight: Number(data.weight) || 0, supplier: data.supplier || '' };
   f.materials.push(record);
   const order = _state.orders.find((o) => o.id === orderId);
   if (order) pushActivity(order, `Добавлен материал: ${data.name}`);

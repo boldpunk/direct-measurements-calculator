@@ -105,6 +105,18 @@ export const api = {
     return res.blob();
   },
 
+  async getPurchaseListPdfBlob() {
+    const headers = {};
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/api/reports/purchase-list/pdf`, { headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new ApiError((data && data.error) || `Ошибка сервера (${res.status})`, res.status);
+    }
+    return res.blob();
+  },
+
   createClient: (data) => request('/api/clients', { method: 'POST', body: data }),
   updateClient: (id, patch) => request(`/api/clients/${id}`, { method: 'PATCH', body: patch }),
   deleteClient: (id) => request(`/api/clients/${id}`, { method: 'DELETE' }),
