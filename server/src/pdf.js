@@ -113,8 +113,10 @@ export function renderOrderPdf(res, { order, materials, services, stages, manufa
   doc.fillColor('#000000');
   doc.moveDown(0.5);
   doc.font('regular').fontSize(10);
-  doc.text(`№ заказа: ${order.productType ? `${order.productType} ` : ''}#${order.number}`);
-  doc.text(`Дата: ${fmtDate(order.createdAt)}`);
+  doc.text('№ заказа: ', { continued: true });
+  if (order.productType) doc.text(`${order.productType} `, { continued: true });
+  doc.font('bold').fontSize(12).text(`#${order.number}`);
+  doc.font('regular').fontSize(10).text(`Дата оформления заказа: ${fmtDate(order.createdAt)}`);
   doc.moveDown(0.8);
 
   const clientLines = [];
@@ -193,7 +195,10 @@ export function renderOrderPdf(res, { order, materials, services, stages, manufa
   doc.moveDown(1.5);
   doc.text('Подпись клиента: _______________________');
   doc.moveDown(1.2);
-  doc.text('Ответственный: _______________________');
+  const managerLine = manager?.name
+    ? `Ответственный: ${manager.name}${manager.phone ? ` · ${manager.phone}` : ''}`
+    : 'Ответственный: _______________________';
+  doc.text(managerLine);
 
   doc.end();
 }

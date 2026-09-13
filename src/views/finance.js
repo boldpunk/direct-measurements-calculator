@@ -5,6 +5,7 @@ import { maskUnless } from '../permissions.js';
 import { selectOrder } from './orders.js';
 import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
 import { renderFittingsSection, attachFittingsHandlers } from './fittings.js';
+import { renderServicesReportSection, attachServicesReportHandlers } from './services-report.js';
 import { exportFinanceWorkbook } from '../export.js';
 
 let currentPeriod = '';
@@ -77,6 +78,7 @@ export function renderFinance() {
         </table>
       </div>
     </div>
+    ${renderServicesReportSection(periodOrders)}
     ${renderFittingsSection(periodOrders)}
   `;
 }
@@ -109,4 +111,5 @@ export function attachFinanceHandlers(root, rerender) {
     currentPeriod = periodKey; currentPeriodFrom = from; currentPeriodTo = to; rerender();
   });
   attachFittingsHandlers(root, rerender);
+  attachServicesReportHandlers(root, rerender);
 }
