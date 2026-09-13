@@ -373,7 +373,7 @@ function renderItemsSummary(order, fin) {
       <span>Материалы: <b>${fmt(fin.materialsTotal)}</b></span>
       <span>Услуги: <b>${fmt(fin.servicesTotal)}</b></span>
       <span>Итого позиций: <b>${fmt(itemsTotal)}</b></span>
-      ${canEdit && itemsTotal > 0 && itemsTotal !== order.amount ? `<button type="button" class="btn btn--sm" data-action="apply-items-total" data-order="${order.id}" data-total="${itemsTotal}">Подставить в сумму договора</button>` : ''}
+      ${canEdit && itemsTotal > 0 && itemsTotal !== order.amount ? `<div class="order-items-summary__apply"><button type="button" class="btn btn--sm" data-action="apply-items-total" data-order="${order.id}" data-total="${itemsTotal}">Подставить в сумму договора</button></div>` : ''}
     </div>
   `;
 }
@@ -417,6 +417,8 @@ function renderExpenseSection(kind, title, placeholder, items, orderId) {
 
 function renderFinanceSummary(order, fin) {
   const profitTone = fin.profit > 0 ? (fin.margin < 15 ? 'orange' : 'pos') : 'neg';
+  const canEdit = can('finance', 'editPayment');
+  const showApply = canEdit && fin.costPrice > 0 && fin.costPrice !== order.amount;
   return `
     <div class="finance-summary">
       <div class="finance-summary__title">ФИНАНСЫ</div>
@@ -429,7 +431,13 @@ function renderFinanceSummary(order, fin) {
       <div class="finance-summary__row"><span>Аутсорс</span><b>${money(fin.outsourcingTotal)}</b></div>
       <div class="finance-summary__row"><span>Зарплаты</span><b>${maskUnless('seesSalaries', money(fin.salaryTotal))}</b></div>
       <div class="finance-summary__row"><span>Прочие расходы</span><b>${money(fin.otherExpensesTotal)}</b></div>
-      <div class="finance-summary__row finance-summary__row--strong"><span>Себестоимость</span><b>${maskUnless('seesCostPrice', money(fin.costPrice))}</b></div>
+      <div class="finance-summary__row finance-summary__row--strong">
+        <span>Итого</span>
+        <span class="finance-summary__row-actions">
+          <b>${maskUnless('seesCostPrice', money(fin.costPrice))}</b>
+          ${showApply ? `<button type="button" class="btn btn--sm" data-action="apply-items-total" data-order="${order.id}" data-total="${fin.costPrice}">Подставить в сумму договора</button>` : ''}
+        </span>
+      </div>
       <div class="finance-summary__divider"></div>
       <div class="finance-summary__row finance-summary__row--big finance-summary__row--${profitTone}"><span>Прибыль</span><b>${maskUnless('seesProfit', money(fin.profit))}</b></div>
       <div class="finance-summary__row finance-summary__row--${profitTone}"><span>Маржа</span><b>${maskUnless('seesMargin', `${fin.margin.toFixed(1)}%`)}</b></div>
@@ -580,13 +588,12 @@ export function attachOrderHandlers(root, rerender) {
     });
   }
 
-  const applyTotalBtn = root.querySelector('[data-action="apply-items-total"]');
-  if (applyTotalBtn) {
+  root.querySelectorAll('[data-action="apply-items-total"]').forEach((applyTotalBtn) => {
     applyTotalBtn.addEventListener('click', () => {
       updateOrder(applyTotalBtn.getAttribute('data-order'), { amount: Number(applyTotalBtn.getAttribute('data-total')) });
       rerender();
     });
-  }
+  });
 }
 
 function attachStockPickerHandlers(root, rerender) {
