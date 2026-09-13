@@ -26,4 +26,7 @@ export const DEFAULT_SETTINGS = {
   enableStages: true,
   enableExpenses: true,
   enableManufacturingDates: false,
+  enableServicesFinanceReport: false,
+  enablePurchaseSaleSplit: false,
+  enablePdfExtras: false,
 };

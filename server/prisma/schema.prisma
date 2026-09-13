@@ -26,6 +26,9 @@ model Settings {
   enableStages      Boolean @default(true)
   enableExpenses    Boolean @default(true)
   enableManufacturingDates Boolean @default(false)
+  enableServicesFinanceReport Boolean @default(false)
+  enablePurchaseSaleSplit     Boolean @default(false)
+  enablePdfExtras             Boolean @default(false)
 }
 
 model Employee {

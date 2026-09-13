@@ -80,6 +80,8 @@ router.get('/', ah(async (req, res) => {
       orderStatusColors: settingsRow.orderStatusColors, logoUrl: settingsRow.logoUrl, faviconUrl: settingsRow.faviconUrl,
       enableProductType: settingsRow.enableProductType, enableWeight: settingsRow.enableWeight, enableStages: settingsRow.enableStages,
       enableExpenses: settingsRow.enableExpenses, enableManufacturingDates: settingsRow.enableManufacturingDates,
+      enableServicesFinanceReport: settingsRow.enableServicesFinanceReport, enablePurchaseSaleSplit: settingsRow.enablePurchaseSaleSplit,
+      enablePdfExtras: settingsRow.enablePdfExtras,
     }
     : { ...DEFAULT_SETTINGS };
 

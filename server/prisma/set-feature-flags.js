@@ -3,7 +3,8 @@
 // from a console that mangles curl one-liners full of quotes/braces/@.
 //
 // Usage: node prisma/set-feature-flags.js <flag>=on|off [<flag>=on|off ...]
-// Flags: productType, weight, stages, expenses, manufacturing
+// Flags: productType, weight, stages, expenses, manufacturing,
+//        servicesReport, purchaseSaleSplit, pdfExtras
 // Only the flags you name are changed — everything else is left as-is.
 import { PrismaClient } from '@prisma/client';
 
@@ -15,6 +16,9 @@ const FIELD_MAP = {
   stages: 'enableStages',
   expenses: 'enableExpenses',
   manufacturing: 'enableManufacturingDates',
+  servicesReport: 'enableServicesFinanceReport',
+  purchaseSaleSplit: 'enablePurchaseSaleSplit',
+  pdfExtras: 'enablePdfExtras',
 };
 
 function usage() {

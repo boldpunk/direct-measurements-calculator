@@ -29,6 +29,9 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   if (body.enableStages !== undefined) data.enableStages = !!body.enableStages;
   if (body.enableExpenses !== undefined) data.enableExpenses = !!body.enableExpenses;
   if (body.enableManufacturingDates !== undefined) data.enableManufacturingDates = !!body.enableManufacturingDates;
+  if (body.enableServicesFinanceReport !== undefined) data.enableServicesFinanceReport = !!body.enableServicesFinanceReport;
+  if (body.enablePurchaseSaleSplit !== undefined) data.enablePurchaseSaleSplit = !!body.enablePurchaseSaleSplit;
+  if (body.enablePdfExtras !== undefined) data.enablePdfExtras = !!body.enablePdfExtras;
 
   const before = await prisma.settings.findUnique({ where: { id: 'default' } });
   const settings = await prisma.settings.upsert({
@@ -47,6 +50,8 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     logoUrl: settings.logoUrl, faviconUrl: settings.faviconUrl,
     enableProductType: settings.enableProductType, enableWeight: settings.enableWeight, enableStages: settings.enableStages,
     enableExpenses: settings.enableExpenses, enableManufacturingDates: settings.enableManufacturingDates,
+    enableServicesFinanceReport: settings.enableServicesFinanceReport, enablePurchaseSaleSplit: settings.enablePurchaseSaleSplit,
+    enablePdfExtras: settings.enablePdfExtras,
   });
 }));
 

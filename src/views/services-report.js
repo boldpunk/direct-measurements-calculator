@@ -4,7 +4,7 @@
 // report, but for services instead of stock-sourced materials.
 
 import { api } from '../api.js';
-import { getFinance } from '../store.js';
+import { getFinance, getSettings } from '../store.js';
 import { money, escapeHtml } from '../format.js';
 import { can, maskUnless } from '../permissions.js';
 
@@ -44,6 +44,7 @@ function computeServicesReport(periodOrders) {
 }
 
 export function renderServicesReportSection(periodOrders) {
+  if (!getSettings().enableServicesFinanceReport) return '';
   if (!can('services', 'view')) return '';
   if (loading) {
     return `
@@ -98,6 +99,7 @@ async function loadServicesReportData(rerender) {
 }
 
 export function attachServicesReportHandlers(root, rerender) {
+  if (!getSettings().enableServicesFinanceReport) return;
   if (!loadStarted) {
     loadStarted = true;
     loadServicesReportData(rerender);

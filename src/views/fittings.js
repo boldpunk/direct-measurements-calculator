@@ -4,7 +4,7 @@
 // balance owed to each supplier with a "добавить оплату" action.
 
 import { api } from '../api.js';
-import { getFinance, todayISO } from '../store.js';
+import { getFinance, todayISO, getSettings } from '../store.js';
 import { money, escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
@@ -24,6 +24,7 @@ function computeFittingsReport(periodOrders) {
   const byCategory = new Map();
   const byProduct = new Map();
   let totalRevenue = 0;
+  let totalPurchaseCost = 0;
   let totalQty = 0;
 
   for (const order of periodOrders) {
@@ -32,7 +33,9 @@ function computeFittingsReport(periodOrders) {
       if (m.source !== 'stock' || !m.specId) continue;
       const info = specLookup.get(m.specId);
       const revenue = m.qty * m.unitPrice;
+      const purchaseCost = m.qty * (info?.purchasePrice || 0);
       totalRevenue += revenue;
+      totalPurchaseCost += purchaseCost;
       totalQty += m.qty;
 
       const catName = info?.categoryName || 'Без категории';
@@ -49,7 +52,7 @@ function computeFittingsReport(periodOrders) {
   }
 
   return {
-    totalRevenue, totalQty,
+    totalRevenue, totalPurchaseCost, totalQty,
     byCategory: [...byCategory.values()].sort((a, b) => b.revenue - a.revenue),
     byProduct: [...byProduct.values()].sort((a, b) => b.revenue - a.revenue),
   };
@@ -98,6 +101,12 @@ export function renderFittingsSection(periodOrders) {
       <div class="order-detail__section-title" style="margin-top:18px;">Фурнитура</div>
       <div class="section-block">
         <div class="section-totals"><span>Продано фурнитуры: <b>${maskUnless('seesFinanceAnalytics', money(report.totalRevenue))}</b> (${report.totalQty} шт.)</span></div>
+        ${getSettings().enablePurchaseSaleSplit ? `
+          <div class="section-totals">
+            <span>Цена закупки: <b>${maskUnless('seesPurchasePrices', money(report.totalPurchaseCost))}</b></span>
+            <span>Цена продажи: <b>${maskUnless('seesFinanceAnalytics', money(report.totalRevenue))}</b></span>
+          </div>
+        ` : ''}
       </div>
       <div class="order-detail__section-title">По категориям</div>
       <div class="section-block"><div class="mat-rows">${catRows}</div></div>
