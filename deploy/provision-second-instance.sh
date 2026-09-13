@@ -32,7 +32,7 @@ echo "==> App directory"
 mkdir -p "$APP_DIR"
 
 echo "==> PostgreSQL role + database"
-DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -base64 24)}"
+DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 24)}"
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1; then
   sudo -u postgres psql -c "CREATE ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASSWORD}';"
 fi
