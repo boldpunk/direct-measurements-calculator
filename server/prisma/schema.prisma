@@ -209,6 +209,8 @@ model Material {
   qty       Float  @default(0)
   unit      String @default("шт.")
   unitPrice Float  @default(0)
+  sku       String @default("")
+  weight    Float  @default(0)
 
   // Set when this line was pulled from the Склад catalog rather than typed
   // manually — drives the reservation lifecycle (see StockReservation).
@@ -252,6 +254,7 @@ model OrderService {
   qty       Float    @default(0)
   unit      String   @default("шт.")
   unitPrice Float    @default(0)
+  weight    Float    @default(0)
   createdAt Float    @default(0)
 
   @@index([orderId])

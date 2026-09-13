@@ -11,15 +11,16 @@ const router = Router();
 router.get('/:id/pdf', requirePermission('orders', 'view'), ah(async (req, res) => {
   const order = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!order) return res.status(404).json({ error: 'Заказ не найден' });
-  const [materials, services, manager, settings] = await Promise.all([
+  const [materials, services, stages, manager, settings] = await Promise.all([
     prisma.material.findMany({ where: { orderId: order.id } }),
     prisma.orderService.findMany({ where: { orderId: order.id } }),
+    prisma.stage.findMany({ where: { orderId: order.id, skipped: false }, orderBy: { position: 'asc' } }),
     order.managerId ? prisma.employee.findUnique({ where: { id: order.managerId } }) : Promise.resolve(null),
     prisma.settings.findUnique({ where: { id: 'default' } }),
   ]);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="order-${order.number}.pdf"`);
-  renderOrderPdf(res, { order, materials, services, manager, settings });
+  renderOrderPdf(res, { order, materials, services, stages, manager, settings });
 }));
 
 async function pushActivity(tx, orderId, text) {
@@ -308,6 +309,7 @@ router.post('/:id/materials', requirePermission('finance', 'editPayment'), ah(as
         data: {
           id: uid('mat'), orderId, name: `${spec.name || ''}`.trim() || 'Товар со склада',
           qty, unit: spec.unit, unitPrice: spec.salePrice, specId: spec.id, source: 'stock',
+          sku: spec.sku || '', weight: Number(body.weight) || 0,
         },
       });
       await tx.productSpec.update({ where: { id: spec.id }, data: { reserved: { increment: qty } } });
@@ -335,7 +337,10 @@ router.post('/:id/materials', requirePermission('finance', 'editPayment'), ah(as
     const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order) return null;
     const created = await tx.material.create({
-      data: { id: uid('mat'), orderId, name: body.name, qty: Number(body.qty) || 0, unit: body.unit || 'шт.', unitPrice: Number(body.unitPrice) || 0 },
+      data: {
+        id: uid('mat'), orderId, name: body.name, qty: Number(body.qty) || 0, unit: body.unit || 'шт.',
+        unitPrice: Number(body.unitPrice) || 0, weight: Number(body.weight) || 0,
+      },
     });
     await pushActivity(tx, orderId, `Добавлен материал: ${body.name}`);
     return created;
@@ -424,7 +429,8 @@ router.post('/:id/services', requirePermission('finance', 'editPayment'), ah(asy
     const created = await tx.orderService.create({
       data: {
         id: uid('osv'), orderId, serviceId: service.id,
-        name: service.name, unit: service.unit, unitPrice: service.price, qty, createdAt: Date.now(),
+        name: service.name, unit: service.unit, unitPrice: service.price, qty,
+        weight: Number(body.weight) || 0, createdAt: Date.now(),
       },
     });
     await pushActivity(tx, orderId, `Добавлена услуга: ${service.name} — ${qty} ${service.unit}`);

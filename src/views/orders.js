@@ -282,10 +282,10 @@ function renderPaymentsSection(order, finance, fin) {
 function materialRow(order, m, { canDelete, canEdit, seesPrices }) {
   return `
     <div class="mat-row">
-      <span class="mat-row__name">${escapeHtml(m.name)}</span>
+      <span class="mat-row__name">${escapeHtml(m.name)}${m.sku ? ` <span class="row-item__sub">(${escapeHtml(m.sku)})</span>` : ''}</span>
       <span class="mat-row__calc">
         ${m.source === 'stock' && canEdit ? `<button type="button" class="mat-row__remove" data-edit-material-qty="${m.id}" data-order="${order.id}" title="Изменить количество"><i class="fa-solid fa-pen"></i></button>` : ''}
-        ${m.qty} ${escapeHtml(m.unit)} × ${seesPrices ? money(m.unitPrice) : maskUnless('seesPurchasePrices', '')}
+        ${m.qty} ${escapeHtml(m.unit)} × ${seesPrices ? money(m.unitPrice) : maskUnless('seesPurchasePrices', '')}${m.weight ? ` · ${m.weight} кг` : ''}
       </span>
       <span class="mat-row__sum">${maskUnless('seesPurchasePrices', money(m.qty * m.unitPrice))}</span>
       ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-material="${m.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
@@ -317,6 +317,7 @@ function renderMaterialsSection(order, finance) {
           <input type="number" name="qty" placeholder="Кол-во" min="0.01" step="0.01" value="1" required />
           <select name="unit">${UNITS.map((u) => `<option>${u}</option>`).join('')}</select>
           <input type="number" name="unitPrice" placeholder="Цена/ед." min="0" step="0.01" required />
+          <input type="number" name="weight" placeholder="Вес, кг" min="0" step="0.01" />
           <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
         </form>
       ` : ''}
@@ -331,7 +332,7 @@ function serviceRow(order, s, { canDelete, canEdit, seesPrices }) {
       <span class="mat-row__name">${escapeHtml(s.name)}</span>
       <span class="mat-row__calc">
         ${canEdit ? `<button type="button" class="mat-row__remove" data-edit-service-qty="${s.id}" data-order="${order.id}" title="Изменить количество"><i class="fa-solid fa-pen"></i></button>` : ''}
-        ${s.qty} ${escapeHtml(s.unit)} × ${seesPrices ? money(s.unitPrice) : maskUnless('seesPurchasePrices', '')}
+        ${s.qty} ${escapeHtml(s.unit)} × ${seesPrices ? money(s.unitPrice) : maskUnless('seesPurchasePrices', '')}${s.weight ? ` · ${s.weight} кг` : ''}
       </span>
       <span class="mat-row__sum">${maskUnless('seesPurchasePrices', money(s.qty * s.unitPrice))}</span>
       ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-service="${s.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
@@ -632,6 +633,7 @@ async function openStockPickerModal(orderId, rerender) {
         </select>
       </label>
       <label>Количество<input type="number" name="qty" id="stock-pick-qty" min="0.01" step="0.01" value="1" required /></label>
+      <label>Вес, кг <span class="form-hint">(необязательно)</span><input type="number" name="weight" id="stock-pick-weight" min="0" step="0.01" /></label>
       <p class="form-hint" id="stock-pick-preview"></p>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
@@ -660,11 +662,12 @@ async function openStockPickerModal(orderId, rerender) {
     e.preventDefault();
     const specId = select.value;
     const qty = Number(qtyInput.value) || 0;
+    const weight = Number(document.getElementById('stock-pick-weight').value) || 0;
     if (!specId) { window.alert('Выберите товар'); return; }
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     try {
-      await addStockMaterial(orderId, { specId, qty });
+      await addStockMaterial(orderId, { specId, qty, weight });
       closeModal();
       rerender();
     } catch (err) {
@@ -718,6 +721,7 @@ async function openServicePickerModal(orderId, rerender) {
         </select>
       </label>
       <label>Количество<input type="number" name="qty" id="service-pick-qty" min="0.01" step="0.01" value="1" required /></label>
+      <label>Вес, кг <span class="form-hint">(необязательно)</span><input type="number" name="weight" id="service-pick-weight" min="0" step="0.01" /></label>
       <p class="form-hint" id="service-pick-preview"></p>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
@@ -746,11 +750,12 @@ async function openServicePickerModal(orderId, rerender) {
     e.preventDefault();
     const serviceId = select.value;
     const qty = Number(qtyInput.value) || 0;
+    const weight = Number(document.getElementById('service-pick-weight').value) || 0;
     if (!serviceId) { window.alert('Выберите услугу'); return; }
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     try {
-      await addOrderService(orderId, { serviceId, qty });
+      await addOrderService(orderId, { serviceId, qty, weight });
       closeModal();
       rerender();
     } catch (err) {
@@ -800,7 +805,7 @@ function attachAddFormHandlers(root, rerender) {
   if (matForm) matForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(matForm);
-    addMaterial(matForm.getAttribute('data-order'), { name: fd.get('name'), qty: fd.get('qty'), unit: fd.get('unit'), unitPrice: fd.get('unitPrice') });
+    addMaterial(matForm.getAttribute('data-order'), { name: fd.get('name'), qty: fd.get('qty'), unit: fd.get('unit'), unitPrice: fd.get('unitPrice'), weight: fd.get('weight') || 0 });
     rerender();
   });
 
@@ -845,7 +850,8 @@ function orderFormFields(order) {
     <label>Ответственный
       <select name="managerId">${selectOptions(state.employees, 'id', 'name', order?.managerId)}</select>
     </label>
-    ${renderMoneyField({ name: 'amount', label: 'Сумма договора', value: order ? order.amount : '', required: true })}
+    ${renderMoneyField({ name: 'amount', label: 'Сумма договора', value: order ? order.amount : '' })}
+    ${order ? '' : '<p class="form-hint">Можно оставить пустым и заполнить позже — после добавления материалов и услуг появится кнопка «Подставить в сумму договора».</p>'}
     <label>Срок выполнения<input name="deadline" type="date" required value="${order ? order.deadline : ''}" /></label>
     <label>Комментарий<textarea name="notes" rows="2" placeholder="Детали заказа">${order ? escapeHtml(order.notes || '') : ''}</textarea></label>
     ${order ? '' : '<label class="checkbox-label"><input type="checkbox" name="needsCarpentry" checked /> Требует этап «Столярка»</label>'}

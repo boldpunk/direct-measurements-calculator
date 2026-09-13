@@ -568,7 +568,7 @@ export function removePayment(orderId, id) {
 
 export function addMaterial(orderId, data) {
   const f = ensureFinance(orderId);
-  const record = { id: uid('mat'), name: data.name, qty: Number(data.qty) || 0, unit: data.unit || 'шт.', unitPrice: Number(data.unitPrice) || 0 };
+  const record = { id: uid('mat'), name: data.name, qty: Number(data.qty) || 0, unit: data.unit || 'шт.', unitPrice: Number(data.unitPrice) || 0, weight: Number(data.weight) || 0 };
   f.materials.push(record);
   const order = _state.orders.find((o) => o.id === orderId);
   if (order) pushActivity(order, `Добавлен материал: ${data.name}`);
@@ -578,8 +578,8 @@ export function addMaterial(orderId, data) {
 // Stock-sourced materials go through the awaited API (not the optimistic
 // pattern above) because the server can reject them (insufficient stock) and
 // computes the name/price snapshot itself — same reasoning as employees.js.
-export async function addStockMaterial(orderId, { specId, qty }) {
-  const record = await api.addMaterial(orderId, { specId, qty });
+export async function addStockMaterial(orderId, { specId, qty, weight }) {
+  const record = await api.addMaterial(orderId, { specId, qty, weight });
   ensureFinance(orderId).materials.push(record);
   const order = _state.orders.find((o) => o.id === orderId);
   if (order) pushActivity(order, `Добавлен материал со склада: ${record.name}`);
@@ -603,8 +603,8 @@ export function removeMaterial(orderId, id) {
 // Service line items always go through the awaited API (never optimistic) —
 // like addStockMaterial, the server looks up the catalog price/unit and
 // snapshots them, so the client can't know the real record up front.
-export async function addOrderService(orderId, { serviceId, qty }) {
-  const record = await api.addOrderService(orderId, { serviceId, qty });
+export async function addOrderService(orderId, { serviceId, qty, weight }) {
+  const record = await api.addOrderService(orderId, { serviceId, qty, weight });
   ensureFinance(orderId).services.push(record);
   const order = _state.orders.find((o) => o.id === orderId);
   if (order) pushActivity(order, `Добавлена услуга: ${record.name}`);
