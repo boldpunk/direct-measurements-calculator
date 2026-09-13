@@ -31,7 +31,7 @@ export const STAGE_DEFS = [
 export const TASK_STATUSES = ['ожидает', 'в работе', 'проверка', 'готово'];
 export const TASK_PRIORITIES = ['Низкий', 'Средний', 'Высокий', 'Срочно'];
 export const PRODUCT_TYPES = ['Кухня', 'Шкаф', 'Гардеробная', 'Тумба', 'Стол', 'Комод', 'Другое'];
-export const UNITS = ['шт.', 'лист', 'м', 'м²', 'кг', 'комплект'];
+export const UNITS = ['шт.', 'лист', 'м', 'м.п.', 'м²', 'кг', 'комплект', 'усл.'];
 
 export const ORDER_STATUSES = [
   'Новый', 'Замер', 'Дизайн', 'Согласование', 'Закупка материалов',
@@ -542,8 +542,9 @@ export function getEmployeeActiveTasks(employeeId) {
 
 function ensureFinance(orderId) {
   if (!_state.finance[orderId]) {
-    _state.finance[orderId] = { payments: [], materials: [], outsourcing: [], salaries: [], otherExpenses: [] };
+    _state.finance[orderId] = { payments: [], materials: [], services: [], outsourcing: [], salaries: [], otherExpenses: [] };
   }
+  if (!_state.finance[orderId].services) _state.finance[orderId].services = [];
   return _state.finance[orderId];
 }
 
@@ -599,6 +600,31 @@ export function removeMaterial(orderId, id) {
   api.removeMaterial(orderId, id).catch((e) => logSyncError('удаление материала', e));
 }
 
+// Service line items always go through the awaited API (never optimistic) —
+// like addStockMaterial, the server looks up the catalog price/unit and
+// snapshots them, so the client can't know the real record up front.
+export async function addOrderService(orderId, { serviceId, qty }) {
+  const record = await api.addOrderService(orderId, { serviceId, qty });
+  ensureFinance(orderId).services.push(record);
+  const order = _state.orders.find((o) => o.id === orderId);
+  if (order) pushActivity(order, `Добавлена услуга: ${record.name}`);
+  return record;
+}
+
+export async function updateOrderServiceQty(orderId, serviceLineId, qty) {
+  const record = await api.updateOrderService(orderId, serviceLineId, { qty });
+  const f = ensureFinance(orderId);
+  const i = f.services.findIndex((s) => s.id === serviceLineId);
+  if (i >= 0) f.services[i] = record;
+  return record;
+}
+
+export function removeOrderService(orderId, id) {
+  const f = ensureFinance(orderId);
+  f.services = f.services.filter((s) => s.id !== id);
+  api.removeOrderService(orderId, id).catch((e) => logSyncError('удаление услуги', e));
+}
+
 export function addOutsourceExpense(orderId, data) {
   const f = ensureFinance(orderId);
   const record = { id: uid('out'), name: data.name, amount: Number(data.amount) || 0 };
@@ -641,16 +667,17 @@ export function computeOrderFinance(orderId) {
   const order = _state.orders.find((o) => o.id === orderId);
   const f = getFinance(orderId);
   const materialsTotal = f.materials.reduce((sum, m) => sum + (Number(m.qty) || 0) * (Number(m.unitPrice) || 0), 0);
+  const servicesTotal = f.services.reduce((sum, s) => sum + (Number(s.qty) || 0) * (Number(s.unitPrice) || 0), 0);
   const outsourcingTotal = f.outsourcing.reduce((sum, o) => sum + (Number(o.amount) || 0), 0);
   const salaryTotal = f.salaries.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
   const otherExpensesTotal = f.otherExpenses.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
-  const costPrice = materialsTotal + outsourcingTotal + salaryTotal + otherExpensesTotal;
+  const costPrice = materialsTotal + servicesTotal + outsourcingTotal + salaryTotal + otherExpensesTotal;
   const orderTotal = order ? order.amount : 0;
   const profit = orderTotal - costPrice;
   const margin = orderTotal > 0 ? (profit / orderTotal) * 100 : 0;
   const receivedAmount = f.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   const remainingAmount = orderTotal - receivedAmount;
-  return { materialsTotal, outsourcingTotal, salaryTotal, otherExpensesTotal, costPrice, profit, margin, receivedAmount, remainingAmount, orderTotal };
+  return { materialsTotal, servicesTotal, outsourcingTotal, salaryTotal, otherExpensesTotal, costPrice, profit, margin, receivedAmount, remainingAmount, orderTotal };
 }
 
 export function computeMonthlyProfit(monthOffset = 0) {

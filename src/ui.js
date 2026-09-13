@@ -53,6 +53,7 @@ export const NAV_ITEMS = [
   { route: 'outsource', icon: 'fa-layer-group', label: 'Аутсорс', guard: () => can('outsource', 'view') },
   { route: 'finance', icon: 'fa-sack-dollar', label: 'Финансы', guard: () => can('finance', 'view') },
   { route: 'stock', icon: 'fa-warehouse', label: 'Склад', guard: () => can('stock', 'view') },
+  { route: 'services', icon: 'fa-screwdriver-wrench', label: 'Услуги', guard: () => can('services', 'view') },
   { route: 'employees', icon: 'fa-users', label: 'Сотрудники', guard: () => canAny('employees') },
   { route: 'audit-log', icon: 'fa-clock-rotate-left', label: 'Журнал действий', guard: () => can('settings', 'manageRoles') },
   { route: 'settings', icon: 'fa-gear', label: 'Настройки', guard: () => canAny('settings') },

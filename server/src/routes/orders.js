@@ -4,8 +4,23 @@ import { ah, uid, todayISO, addDays } from '../util.js';
 import { STAGE_DEFS, DEFAULT_SETTINGS } from '../constants.js';
 import { requirePermission } from '../middleware/auth.js';
 import { logAudit } from '../audit.js';
+import { renderOrderPdf } from '../pdf.js';
 
 const router = Router();
+
+router.get('/:id/pdf', requirePermission('orders', 'view'), ah(async (req, res) => {
+  const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+  const [materials, services, manager, settings] = await Promise.all([
+    prisma.material.findMany({ where: { orderId: order.id } }),
+    prisma.orderService.findMany({ where: { orderId: order.id } }),
+    order.managerId ? prisma.employee.findUnique({ where: { id: order.managerId } }) : Promise.resolve(null),
+    prisma.settings.findUnique({ where: { id: 'default' } }),
+  ]);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="order-${order.number}.pdf"`);
+  renderOrderPdf(res, { order, materials, services, manager, settings });
+}));
 
 async function pushActivity(tx, orderId, text) {
   await tx.activity.create({ data: { id: uid('act'), orderId, timestamp: Date.now(), text } });
@@ -389,6 +404,56 @@ router.delete('/:id/materials/:itemId', requirePermission('finance', 'deletePaym
     await tx.material.delete({ where: { id: before.id } });
   });
   await logAudit(req, { action: 'materials.delete', entityType: 'materials', entityId: before.id, oldValue: before });
+  res.status(204).end();
+}));
+
+// ---- Services (order line items backed by the Service catalog) ----
+
+router.post('/:id/services', requirePermission('finance', 'editPayment'), ah(async (req, res) => {
+  const body = req.body || {};
+  const orderId = req.params.id;
+  if (!body.serviceId) return res.status(400).json({ error: 'Выберите услугу' });
+  const qty = Number(body.qty) || 0;
+  if (qty <= 0) return res.status(400).json({ error: 'Количество должно быть больше 0' });
+
+  const record = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id: orderId } });
+    if (!order) return null;
+    const service = await tx.service.findUnique({ where: { id: body.serviceId } });
+    if (!service || service.status !== 'active') return { error: 'Услуга не найдена' };
+    const created = await tx.orderService.create({
+      data: {
+        id: uid('osv'), orderId, serviceId: service.id,
+        name: service.name, unit: service.unit, unitPrice: service.price, qty, createdAt: Date.now(),
+      },
+    });
+    await pushActivity(tx, orderId, `Добавлена услуга: ${service.name} — ${qty} ${service.unit}`);
+    return created;
+  });
+  if (!record) return res.status(404).json({ error: 'Заказ не найден' });
+  if (record.error) return res.status(404).json({ error: record.error });
+  await logAudit(req, { action: 'services.create', entityType: 'orderService', entityId: record.id, newValue: record });
+  res.status(201).json(record);
+}));
+
+router.patch('/:id/services/:itemId', requirePermission('finance', 'editPayment'), ah(async (req, res) => {
+  const body = req.body || {};
+  const before = await prisma.orderService.findUnique({ where: { id: req.params.itemId } });
+  if (!before || before.orderId !== req.params.id) return res.status(404).json({ error: 'Услуга не найдена' });
+  if (body.qty !== undefined && (Number(body.qty) || 0) <= 0) return res.status(400).json({ error: 'Количество должно быть больше 0' });
+
+  const data = {};
+  if (body.qty !== undefined) data.qty = Number(body.qty) || 0;
+  const record = await prisma.orderService.update({ where: { id: before.id }, data });
+  await logAudit(req, { action: 'services.update', entityType: 'orderService', entityId: record.id, oldValue: before, newValue: record });
+  res.json(record);
+}));
+
+router.delete('/:id/services/:itemId', requirePermission('finance', 'deletePayment'), ah(async (req, res) => {
+  const before = await prisma.orderService.findUnique({ where: { id: req.params.itemId } });
+  if (!before) return res.status(204).end();
+  await prisma.orderService.delete({ where: { id: before.id } });
+  await logAudit(req, { action: 'services.delete', entityType: 'orderService', entityId: before.id, oldValue: before });
   res.status(204).end();
 }));
 

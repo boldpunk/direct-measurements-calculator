@@ -111,6 +111,7 @@ model Order {
   activity       Activity[]
   payments       Payment[]
   materials      Material[]
+  services       OrderService[]
   outsourcing    OutsourceExpense[]
   salaries       SalaryExpense[]
   otherExpenses  OtherExpense[]
@@ -216,6 +217,42 @@ model Material {
   source String       @default("manual") // 'manual' | 'stock'
 
   reservation StockReservation?
+
+  @@index([orderId])
+}
+
+// ---- Услуги (services catalog) ----
+
+// A company service (распил, кромирование, сборка, доставка...). No stock —
+// unlike Material/ProductSpec, a service has nothing to run out of.
+model Service {
+  id        String @id
+  name      String
+  category  String @default("")
+  unit      String @default("шт.")
+  price     Float  @default(0)
+  comment   String @default("")
+  status    String @default("active") // 'active' | 'archived' — never hard-deleted once used in an order
+  createdAt Float  @default(0)
+
+  orderServices OrderService[]
+}
+
+// One line item on an order. price/name/unit are copied from Service at the
+// moment it's added (not a live reference) so a later price change in the
+// catalog never rewrites an already-saved order — see Material's specId
+// pattern above for the equivalent on the materials side.
+model OrderService {
+  id        String   @id
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  name      String
+  qty       Float    @default(0)
+  unit      String   @default("шт.")
+  unitPrice Float    @default(0)
+  createdAt Float    @default(0)
 
   @@index([orderId])
 }

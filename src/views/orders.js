@@ -5,6 +5,7 @@ import {
   getFinance, computeOrderFinance,
   addPayment, removePayment, addMaterial, removeMaterial,
   addStockMaterial, updateStockMaterialQty,
+  addOrderService, updateOrderServiceQty, removeOrderService,
   addOutsourceExpense, removeOutsourceExpense, addSalaryExpense, removeSalaryExpense,
   addOtherExpense, removeOtherExpense, UNITS, todayISO,
 } from '../store.js';
@@ -213,6 +214,7 @@ function renderOrderDetail(orderId) {
       </div>
       <div class="order-detail__actions">
         ${renderStatusControl(order)}
+        <button type="button" class="btn btn--sm" data-action="order-pdf" data-id="${order.id}"><i class="fa-solid fa-file-pdf"></i> PDF</button>
         ${can('orders', 'edit') ? `<button type="button" class="btn btn--sm" data-action="edit-order" data-id="${order.id}"><i class="fa-solid fa-pen"></i></button>` : ''}
         ${can('orders', 'delete') ? `<button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-order" data-id="${order.id}"><i class="fa-solid fa-trash"></i></button>` : ''}
       </div>
@@ -227,7 +229,8 @@ function renderOrderDetail(orderId) {
 
     ${renderPaymentsSection(order, finance, fin)}
     ${renderMaterialsSection(order, finance)}
-    ${renderStockSection(order, finance)}
+    ${renderServicesSection(order, finance)}
+    ${renderItemsSummary(order, fin)}
     ${renderExpenseSection('outsourcing', 'Аутсорс', 'Название (напр. Покраска)', finance.outsourcing, order.id)}
     ${renderExpenseSection('salary', 'Зарплаты', 'Сотрудник / работа', finance.salaries, order.id)}
     ${renderExpenseSection('expense', 'Прочие расходы', 'Название расхода', finance.otherExpenses, order.id)}
@@ -290,52 +293,86 @@ function materialRow(order, m, { canDelete, canEdit, seesPrices }) {
   `;
 }
 
+// Материалы is one unified section — both stock-sourced and manually-typed
+// rows come from the same finance.materials list (source: 'stock'|'manual'),
+// they're just two different ways of adding to it.
 function renderMaterialsSection(order, finance) {
   const canDelete = can('finance', 'deletePayment');
   const canEdit = can('finance', 'editPayment');
   const seesPrices = sees('seesPurchasePrices');
-  const manualMaterials = finance.materials.filter((m) => m.source !== 'stock');
 
-  const rows = manualMaterials.map((m) => materialRow(order, m, { canDelete, canEdit, seesPrices })).join('')
+  const rows = finance.materials.map((m) => materialRow(order, m, { canDelete, canEdit, seesPrices })).join('')
     || '<div class="empty-state empty-state--sm">Материалы пока не добавлены</div>';
 
-  const materialsTotal = manualMaterials.reduce((s, m) => s + m.qty * m.unitPrice, 0);
+  const materialsTotal = finance.materials.reduce((s, m) => s + m.qty * m.unitPrice, 0);
 
   return `
     <div class="order-detail__section-title">Материалы</div>
     <div class="section-block">
+      ${canEdit ? `<button type="button" class="btn btn--sm" data-action="add-from-stock" data-order="${order.id}"><i class="fa-solid fa-warehouse"></i> Выбрать со склада</button>` : ''}
       <div class="mat-rows">${rows}</div>
       ${canEdit ? `
         <form class="add-row-form add-row-form--material" data-order="${order.id}">
-          <input type="text" name="name" placeholder="Материал" required />
-          <input type="number" name="qty" placeholder="Кол-во" min="0" step="0.01" value="1" required />
+          <input type="text" name="name" placeholder="Добавить вручную" required />
+          <input type="number" name="qty" placeholder="Кол-во" min="0.01" step="0.01" value="1" required />
           <select name="unit">${UNITS.map((u) => `<option>${u}</option>`).join('')}</select>
           <input type="number" name="unitPrice" placeholder="Цена/ед." min="0" step="0.01" required />
           <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
         </form>
       ` : ''}
-      <div class="section-totals"><span>Материалы: <b>${maskUnless('seesPurchasePrices', money(materialsTotal))}</b></span></div>
+      <div class="section-totals"><span>Материалы: <b>${materialsTotal ? maskUnless('seesPurchasePrices', money(materialsTotal)) : '—'}</b></span></div>
     </div>
   `;
 }
 
-function renderStockSection(order, finance) {
+function serviceRow(order, s, { canDelete, canEdit, seesPrices }) {
+  return `
+    <div class="mat-row">
+      <span class="mat-row__name">${escapeHtml(s.name)}</span>
+      <span class="mat-row__calc">
+        ${canEdit ? `<button type="button" class="mat-row__remove" data-edit-service-qty="${s.id}" data-order="${order.id}" title="Изменить количество"><i class="fa-solid fa-pen"></i></button>` : ''}
+        ${s.qty} ${escapeHtml(s.unit)} × ${seesPrices ? money(s.unitPrice) : maskUnless('seesPurchasePrices', '')}
+      </span>
+      <span class="mat-row__sum">${maskUnless('seesPurchasePrices', money(s.qty * s.unitPrice))}</span>
+      ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-service="${s.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
+    </div>
+  `;
+}
+
+function renderServicesSection(order, finance) {
   const canDelete = can('finance', 'deletePayment');
   const canEdit = can('finance', 'editPayment');
   const seesPrices = sees('seesPurchasePrices');
-  const stockMaterials = finance.materials.filter((m) => m.source === 'stock');
 
-  const rows = stockMaterials.map((m) => materialRow(order, m, { canDelete, canEdit, seesPrices })).join('')
-    || '<div class="empty-state empty-state--sm">Со склада пока ничего не добавлено</div>';
+  const rows = finance.services.map((s) => serviceRow(order, s, { canDelete, canEdit, seesPrices })).join('')
+    || '<div class="empty-state empty-state--sm">Услуги пока не добавлены</div>';
 
-  const stockTotal = stockMaterials.reduce((s, m) => s + m.qty * m.unitPrice, 0);
+  const servicesTotal = finance.services.reduce((s, x) => s + x.qty * x.unitPrice, 0);
 
   return `
-    <div class="order-detail__section-title">Склад</div>
+    <div class="order-detail__section-title">Услуги</div>
     <div class="section-block">
+      ${canEdit ? `<button type="button" class="btn btn--sm" data-action="add-service" data-order="${order.id}"><i class="fa-solid fa-screwdriver-wrench"></i> Добавить услугу</button>` : ''}
       <div class="mat-rows">${rows}</div>
-      ${canEdit ? `<button type="button" class="btn btn--sm" data-action="add-from-stock" data-order="${order.id}"><i class="fa-solid fa-warehouse"></i> Добавить со склада</button>` : ''}
-      <div class="section-totals"><span>Склад: <b>${maskUnless('seesPurchasePrices', money(stockTotal))}</b></span></div>
+      <div class="section-totals"><span>Услуги: <b>${servicesTotal ? maskUnless('seesPurchasePrices', money(servicesTotal)) : '—'}</b></span></div>
+    </div>
+  `;
+}
+
+// The literal "Материалы: — / Услуги: — / Итого: —" summary the new flow
+// calls for — separate from the fuller ФИНАНСЫ panel below (profit/margin/
+// cost breakdown), this is just the running total while building the order,
+// with a one-click way to carry it into "Сумма договора" if it matches.
+function renderItemsSummary(order, fin) {
+  const canEdit = can('finance', 'editPayment');
+  const itemsTotal = fin.materialsTotal + fin.servicesTotal;
+  const fmt = (v) => (v ? maskUnless('seesPurchasePrices', money(v)) : '—');
+  return `
+    <div class="section-totals order-items-summary">
+      <span>Материалы: <b>${fmt(fin.materialsTotal)}</b></span>
+      <span>Услуги: <b>${fmt(fin.servicesTotal)}</b></span>
+      <span>Итого позиций: <b>${fmt(itemsTotal)}</b></span>
+      ${canEdit && itemsTotal > 0 && itemsTotal !== order.amount ? `<button type="button" class="btn btn--sm" data-action="apply-items-total" data-order="${order.id}" data-total="${itemsTotal}">Подставить в сумму договора</button>` : ''}
     </div>
   `;
 }
@@ -387,6 +424,7 @@ function renderFinanceSummary(order, fin) {
       <div class="finance-summary__row"><span>Остаток</span><b class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : (fin.remainingAmount < 0 ? `Переплата ${money(Math.abs(fin.remainingAmount))}` : 'Оплачено')}</b></div>
       <div class="finance-summary__divider"></div>
       <div class="finance-summary__row"><span>Материалы</span><b>${maskUnless('seesPurchasePrices', money(fin.materialsTotal))}</b></div>
+      <div class="finance-summary__row"><span>Услуги</span><b>${maskUnless('seesPurchasePrices', money(fin.servicesTotal))}</b></div>
       <div class="finance-summary__row"><span>Аутсорс</span><b>${money(fin.outsourcingTotal)}</b></div>
       <div class="finance-summary__row"><span>Зарплаты</span><b>${maskUnless('seesSalaries', money(fin.salaryTotal))}</b></div>
       <div class="finance-summary__row"><span>Прочие расходы</span><b>${money(fin.otherExpensesTotal)}</b></div>
@@ -518,6 +556,36 @@ export function attachOrderHandlers(root, rerender) {
   attachRowRemoveHandlers(root, rerender);
   attachAddFormHandlers(root, rerender);
   attachStockPickerHandlers(root, rerender);
+  attachServicePickerHandlers(root, rerender);
+
+  const pdfBtn = root.querySelector('[data-action="order-pdf"]');
+  if (pdfBtn) {
+    pdfBtn.addEventListener('click', async () => {
+      const orderId = pdfBtn.getAttribute('data-id');
+      const original = pdfBtn.innerHTML;
+      pdfBtn.disabled = true;
+      pdfBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      try {
+        const blob = await api.getOrderPdfBlob(orderId);
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (e) {
+        window.alert(e.message || 'Не удалось сформировать PDF');
+      } finally {
+        pdfBtn.disabled = false;
+        pdfBtn.innerHTML = original;
+      }
+    });
+  }
+
+  const applyTotalBtn = root.querySelector('[data-action="apply-items-total"]');
+  if (applyTotalBtn) {
+    applyTotalBtn.addEventListener('click', () => {
+      updateOrder(applyTotalBtn.getAttribute('data-order'), { amount: Number(applyTotalBtn.getAttribute('data-total')) });
+      rerender();
+    });
+  }
 }
 
 function attachStockPickerHandlers(root, rerender) {
@@ -606,6 +674,92 @@ async function openStockPickerModal(orderId, rerender) {
   });
 }
 
+function attachServicePickerHandlers(root, rerender) {
+  const addServiceBtn = root.querySelector('[data-action="add-service"]');
+  if (addServiceBtn) {
+    addServiceBtn.addEventListener('click', () => openServicePickerModal(addServiceBtn.getAttribute('data-order'), rerender));
+  }
+
+  root.querySelectorAll('[data-edit-service-qty]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const orderId = btn.getAttribute('data-order');
+      const serviceLineId = btn.getAttribute('data-edit-service-qty');
+      const finance = getFinance(orderId);
+      const line = finance.services.find((s) => s.id === serviceLineId);
+      if (!line) return;
+      const input = window.prompt(`Новое количество (${line.unit}):`, line.qty);
+      if (input === null) return;
+      const qty = Number(input);
+      if (!qty || qty <= 0) { window.alert('Введите количество больше 0'); return; }
+      try {
+        await updateOrderServiceQty(orderId, serviceLineId, qty);
+        rerender();
+      } catch (e) {
+        window.alert(e.message || 'Не удалось изменить количество');
+      }
+    });
+  });
+}
+
+async function openServicePickerModal(orderId, rerender) {
+  let services = [];
+  try {
+    services = await api.getServices({ status: 'active' });
+  } catch (e) {
+    window.alert(e.message || 'Не удалось загрузить услуги');
+    return;
+  }
+  openModal('Добавить услугу', `
+    <form id="service-pick-form" class="form">
+      <label>Услуга
+        <select name="serviceId" id="service-pick-select" required>
+          <option value="">— выберите услугу —</option>
+          ${services.map((s) => `<option value="${s.id}" data-unit="${escapeHtml(s.unit)}" data-price="${s.price}">${escapeHtml(s.category ? `${s.category} / ` : '')}${escapeHtml(s.name)} (${money(s.price)} / ${escapeHtml(s.unit)})</option>`).join('')}
+        </select>
+      </label>
+      <label>Количество<input type="number" name="qty" id="service-pick-qty" min="0.01" step="0.01" value="1" required /></label>
+      <p class="form-hint" id="service-pick-preview"></p>
+      <div class="form-actions">
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary">Добавить</button>
+      </div>
+    </form>
+  `);
+
+  const form = document.getElementById('service-pick-form');
+  const select = document.getElementById('service-pick-select');
+  const qtyInput = document.getElementById('service-pick-qty');
+  const preview = document.getElementById('service-pick-preview');
+
+  function updatePreview() {
+    const opt = select.selectedOptions[0];
+    if (!opt || !opt.value) { preview.textContent = ''; return; }
+    const price = Number(opt.dataset.price) || 0;
+    const qty = Number(qtyInput.value) || 0;
+    preview.textContent = `Цена: ${money(price)} × ${qty} = Сумма: ${money(price * qty)}`;
+  }
+  select.addEventListener('change', updatePreview);
+  qtyInput.addEventListener('input', updatePreview);
+  updatePreview();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const serviceId = select.value;
+    const qty = Number(qtyInput.value) || 0;
+    if (!serviceId) { window.alert('Выберите услугу'); return; }
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      await addOrderService(orderId, { serviceId, qty });
+      closeModal();
+      rerender();
+    } catch (err) {
+      window.alert(err.message || 'Не удалось добавить услугу');
+      submitBtn.disabled = false;
+    }
+  });
+}
+
 function attachRowRemoveHandlers(root, rerender) {
   root.querySelectorAll('[data-remove-payment]').forEach((btn) => btn.addEventListener('click', () => {
     removePayment(btn.getAttribute('data-order'), btn.getAttribute('data-remove-payment'));
@@ -613,6 +767,10 @@ function attachRowRemoveHandlers(root, rerender) {
   }));
   root.querySelectorAll('[data-remove-material]').forEach((btn) => btn.addEventListener('click', () => {
     removeMaterial(btn.getAttribute('data-order'), btn.getAttribute('data-remove-material'));
+    rerender();
+  }));
+  root.querySelectorAll('[data-remove-service]').forEach((btn) => btn.addEventListener('click', () => {
+    removeOrderService(btn.getAttribute('data-order'), btn.getAttribute('data-remove-service'));
     rerender();
   }));
   root.querySelectorAll('[data-remove-outsourcing]').forEach((btn) => btn.addEventListener('click', () => {

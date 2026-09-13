@@ -90,6 +90,21 @@ export const api = {
   },
   getState: () => request('/api/state'),
 
+  // Bypasses request()'s JSON-only assumption — the PDF endpoint returns a
+  // binary application/pdf body, so this does its own authenticated fetch
+  // and hands back a Blob for the caller to open/print/download.
+  async getOrderPdfBlob(orderId) {
+    const headers = {};
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/api/orders/${orderId}/pdf`, { headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new ApiError((data && data.error) || `Ошибка сервера (${res.status})`, res.status);
+    }
+    return res.blob();
+  },
+
   createClient: (data) => request('/api/clients', { method: 'POST', body: data }),
   updateClient: (id, patch) => request(`/api/clients/${id}`, { method: 'PATCH', body: patch }),
   deleteClient: (id) => request(`/api/clients/${id}`, { method: 'DELETE' }),
@@ -107,6 +122,9 @@ export const api = {
   addMaterial: (orderId, data) => request(`/api/orders/${orderId}/materials`, { method: 'POST', body: data }),
   updateMaterial: (orderId, id, patch) => request(`/api/orders/${orderId}/materials/${id}`, { method: 'PATCH', body: patch }),
   removeMaterial: (orderId, id) => request(`/api/orders/${orderId}/materials/${id}`, { method: 'DELETE' }),
+  addOrderService: (orderId, data) => request(`/api/orders/${orderId}/services`, { method: 'POST', body: data }),
+  updateOrderService: (orderId, id, patch) => request(`/api/orders/${orderId}/services/${id}`, { method: 'PATCH', body: patch }),
+  removeOrderService: (orderId, id) => request(`/api/orders/${orderId}/services/${id}`, { method: 'DELETE' }),
   addOutsourceExpense: (orderId, data) => request(`/api/orders/${orderId}/outsourcing`, { method: 'POST', body: data }),
   removeOutsourceExpense: (orderId, id) => request(`/api/orders/${orderId}/outsourcing/${id}`, { method: 'DELETE' }),
   addSalaryExpense: (orderId, data) => request(`/api/orders/${orderId}/salaries`, { method: 'POST', body: data }),
@@ -170,4 +188,13 @@ export const api = {
   getSuppliersSummary: () => request('/api/stock/suppliers-summary'),
   getSupplierPayments: (id) => request(`/api/stock/suppliers/${id}/payments`),
   addSupplierPayment: (id, data) => request(`/api/stock/suppliers/${id}/payments`, { method: 'POST', body: data }),
+
+  getServices: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return request(`/api/services${suffix}`);
+  },
+  createService: (data) => request('/api/services', { method: 'POST', body: data }),
+  updateService: (id, patch) => request(`/api/services/${id}`, { method: 'PATCH', body: patch }),
+  deleteService: (id) => request(`/api/services/${id}`, { method: 'DELETE' }),
 };

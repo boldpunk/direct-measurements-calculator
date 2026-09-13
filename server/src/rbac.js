@@ -16,6 +16,7 @@ export const MODULES = {
   finance: ['view', 'addPayment', 'editPayment', 'deletePayment', 'export'],
   clients: ['view', 'create', 'edit', 'delete'],
   stock: ['view', 'create', 'edit', 'delete', 'income', 'expense', 'adjustment', 'export'],
+  services: ['view', 'create', 'edit', 'delete'],
   employees: ['create', 'edit', 'block', 'delete'],
   settings: ['edit', 'manageRoles'],
 };
@@ -89,6 +90,7 @@ export const PRESET_ROLES = {
       clients: { view: true, create: true, edit: true },
       orders: { view: true, create: true, edit: true },
       stock: { view: true },
+      services: { view: true },
     }),
     financialFlags: emptyFinancialFlags(),
     scopeFlags: defaultScopeFlags(),

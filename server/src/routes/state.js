@@ -15,7 +15,7 @@ const fullEmployee = (e) => ({
 // Returns the full app state in the same shape src/store.js keeps in memory,
 // so the frontend can hydrate its local cache in one round trip.
 router.get('/', ah(async (req, res) => {
-  const [orders, activity, stages, tasks, rework, partners, employees, clients, payments, materials, outsourcing, salaries, otherExpenses, settingsRow] =
+  const [orders, activity, stages, tasks, rework, partners, employees, clients, payments, materials, orderServices, outsourcing, salaries, otherExpenses, settingsRow] =
     await Promise.all([
       prisma.order.findMany(),
       prisma.activity.findMany({ orderBy: { timestamp: 'desc' } }),
@@ -27,6 +27,7 @@ router.get('/', ah(async (req, res) => {
       prisma.client.findMany(),
       prisma.payment.findMany(),
       prisma.material.findMany(),
+      prisma.orderService.findMany(),
       prisma.outsourceExpense.findMany(),
       prisma.salaryExpense.findMany(),
       prisma.otherExpense.findMany(),
@@ -41,11 +42,12 @@ router.get('/', ah(async (req, res) => {
 
   const financeByOrder = {};
   const ensure = (orderId) => {
-    if (!financeByOrder[orderId]) financeByOrder[orderId] = { payments: [], materials: [], outsourcing: [], salaries: [], otherExpenses: [] };
+    if (!financeByOrder[orderId]) financeByOrder[orderId] = { payments: [], materials: [], services: [], outsourcing: [], salaries: [], otherExpenses: [] };
     return financeByOrder[orderId];
   };
   payments.forEach((p) => ensure(p.orderId).payments.push(p));
   materials.forEach((m) => ensure(m.orderId).materials.push(m));
+  orderServices.forEach((s) => ensure(s.orderId).services.push(s));
   outsourcing.forEach((o) => ensure(o.orderId).outsourcing.push(o));
   salaries.forEach((s) => ensure(s.orderId).salaries.push(s));
   otherExpenses.forEach((e) => ensure(e.orderId).otherExpenses.push(e));

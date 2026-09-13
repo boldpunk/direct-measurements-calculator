@@ -13,6 +13,7 @@ export const MODULES = {
   finance: ['view', 'addPayment', 'editPayment', 'deletePayment', 'export'],
   clients: ['view', 'create', 'edit', 'delete'],
   stock: ['view', 'create', 'edit', 'delete', 'income', 'expense', 'adjustment', 'export'],
+  services: ['view', 'create', 'edit', 'delete'],
   employees: ['create', 'edit', 'block', 'delete'],
   settings: ['edit', 'manageRoles'],
 };
@@ -20,7 +21,7 @@ export const MODULES = {
 export const MODULE_LABELS = {
   orders: 'Заказы', production: 'Производство', carpentry: 'Столярка', rework: 'Переделки',
   tasks: 'Задачи', outsource: 'Аутсорс', finance: 'Финансы', clients: 'Клиенты',
-  stock: 'Склад', employees: 'Сотрудники', settings: 'Настройки',
+  stock: 'Склад', services: 'Услуги', employees: 'Сотрудники', settings: 'Настройки',
 };
 
 export const ACTION_LABELS = {

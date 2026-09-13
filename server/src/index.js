@@ -13,6 +13,7 @@ import employeesRoutes from './routes/employees.js';
 import settingsRoutes from './routes/settings.js';
 import auditLogRoutes from './routes/auditLog.js';
 import stockRoutes from './routes/stock.js';
+import servicesRoutes from './routes/services.js';
 import migrationRoutes from './routes/migration.js';
 import brandingRoutes from './routes/branding.js';
 import { requireAuth } from './middleware/auth.js';
@@ -45,6 +46,7 @@ app.use('/api/employees', requireAuth, employeesRoutes);
 app.use('/api/settings', requireAuth, settingsRoutes);
 app.use('/api/audit-log', requireAuth, auditLogRoutes);
 app.use('/api/stock', requireAuth, stockRoutes);
+app.use('/api/services', requireAuth, servicesRoutes);
 app.use('/api/migration', migrationRoutes);
 app.use('/api/branding', brandingRoutes);
 
