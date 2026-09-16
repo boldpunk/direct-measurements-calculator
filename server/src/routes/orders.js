@@ -470,15 +470,128 @@ router.delete('/:id/services/:itemId', requirePermission('finance', 'deletePayme
   res.status(204).end();
 }));
 
-financeResource('outsourcing', 'outsourceExpense',
-  (b) => ({ name: b.name, amount: Number(b.amount) || 0 }),
-  (b) => `Добавлен аутсорс: ${b.name}`,
-  { createPerm: 'editPayment', deletePerm: 'deletePayment' });
+// ---- Outsourcing (either a directory partner, or a free-text "сторонний
+// партнёр" one-off entry — partnerId is null in the latter case) ----
 
-financeResource('salaries', 'salaryExpense',
-  (b) => ({ name: b.name, amount: Number(b.amount) || 0 }),
-  null,
-  { createPerm: 'editPayment', deletePerm: 'deletePayment' });
+router.post('/:id/outsourcing', requirePermission('outsourcePayments', 'create'), ah(async (req, res) => {
+  const body = req.body || {};
+  const record = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id: req.params.id } });
+    if (!order) return null;
+    let name = body.name || '';
+    if (body.partnerId) {
+      const partner = await tx.partner.findUnique({ where: { id: body.partnerId } });
+      if (!partner) return { error: 'Партнёр не найден' };
+      name = partner.name;
+    }
+    if (!name) return { error: 'Укажите партнёра или название' };
+    const created = await tx.outsourceExpense.create({
+      data: { id: body.id || uid('out'), orderId: order.id, partnerId: body.partnerId || null, name, amount: Number(body.amount) || 0 },
+    });
+    await pushActivity(tx, order.id, `Добавлен аутсорс: ${name}`);
+    return created;
+  });
+  if (!record) return res.status(404).json({ error: 'Заказ не найден' });
+  if (record.error) return res.status(400).json({ error: record.error });
+  await logAudit(req, { action: 'outsourcing.create', entityType: 'outsourcing', entityId: record.id, newValue: record });
+  res.status(201).json(record);
+}));
+
+router.patch('/:id/outsourcing/:itemId', requirePermission('outsourcePayments', 'edit'), ah(async (req, res) => {
+  const body = req.body || {};
+  const before = await prisma.outsourceExpense.findUnique({ where: { id: req.params.itemId } });
+  if (!before || before.orderId !== req.params.id) return res.status(404).json({ error: 'Запись не найдена' });
+
+  const data = {};
+  if (body.partnerId !== undefined) {
+    if (body.partnerId) {
+      const partner = await prisma.partner.findUnique({ where: { id: body.partnerId } });
+      if (!partner) return res.status(400).json({ error: 'Партнёр не найден' });
+      data.partnerId = partner.id;
+      data.name = partner.name;
+    } else {
+      data.partnerId = null;
+      if (body.name !== undefined) data.name = body.name;
+    }
+  } else if (body.name !== undefined) {
+    data.name = body.name;
+  }
+  if (body.amount !== undefined) data.amount = Number(body.amount) || 0;
+
+  const record = await prisma.outsourceExpense.update({ where: { id: before.id }, data });
+  await logAudit(req, { action: 'outsourcing.update', entityType: 'outsourcing', entityId: record.id, oldValue: before, newValue: record });
+  res.json(record);
+}));
+
+router.delete('/:id/outsourcing/:itemId', requirePermission('outsourcePayments', 'delete'), ah(async (req, res) => {
+  const before = await prisma.outsourceExpense.findUnique({ where: { id: req.params.itemId } });
+  await prisma.outsourceExpense.delete({ where: { id: req.params.itemId } }).catch(() => null);
+  if (before) await logAudit(req, { action: 'outsourcing.delete', entityType: 'outsourcing', entityId: before.id, oldValue: before });
+  res.status(204).end();
+}));
+
+// ---- Salaries (either an employee-directory pick, or free-text) ----
+
+router.post('/:id/salaries', requirePermission('salaryPayments', 'create'), ah(async (req, res) => {
+  const body = req.body || {};
+  const record = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id: req.params.id } });
+    if (!order) return null;
+    let name = body.name || '';
+    if (body.employeeId) {
+      const employee = await tx.employee.findUnique({ where: { id: body.employeeId } });
+      if (!employee) return { error: 'Сотрудник не найден' };
+      name = employee.name;
+    }
+    if (!name) return { error: 'Укажите сотрудника или название' };
+    const created = await tx.salaryExpense.create({
+      data: {
+        id: body.id || uid('sal'), orderId: order.id, employeeId: body.employeeId || null, name,
+        amount: Number(body.amount) || 0, date: body.date || todayISO(), createdById: req.employee?.id || null,
+      },
+    });
+    await pushActivity(tx, order.id, `Начислена зарплата: ${name}`);
+    return created;
+  });
+  if (!record) return res.status(404).json({ error: 'Заказ не найден' });
+  if (record.error) return res.status(400).json({ error: record.error });
+  await logAudit(req, { action: 'salaries.create', entityType: 'salaries', entityId: record.id, newValue: record });
+  res.status(201).json(record);
+}));
+
+router.patch('/:id/salaries/:itemId', requirePermission('salaryPayments', 'edit'), ah(async (req, res) => {
+  const body = req.body || {};
+  const before = await prisma.salaryExpense.findUnique({ where: { id: req.params.itemId } });
+  if (!before || before.orderId !== req.params.id) return res.status(404).json({ error: 'Запись не найдена' });
+
+  const data = {};
+  if (body.employeeId !== undefined) {
+    if (body.employeeId) {
+      const employee = await prisma.employee.findUnique({ where: { id: body.employeeId } });
+      if (!employee) return res.status(400).json({ error: 'Сотрудник не найден' });
+      data.employeeId = employee.id;
+      data.name = employee.name;
+    } else {
+      data.employeeId = null;
+      if (body.name !== undefined) data.name = body.name;
+    }
+  } else if (body.name !== undefined) {
+    data.name = body.name;
+  }
+  if (body.amount !== undefined) data.amount = Number(body.amount) || 0;
+  if (body.date !== undefined) data.date = body.date;
+
+  const record = await prisma.salaryExpense.update({ where: { id: before.id }, data });
+  await logAudit(req, { action: 'salaries.update', entityType: 'salaries', entityId: record.id, oldValue: before, newValue: record });
+  res.json(record);
+}));
+
+router.delete('/:id/salaries/:itemId', requirePermission('salaryPayments', 'delete'), ah(async (req, res) => {
+  const before = await prisma.salaryExpense.findUnique({ where: { id: req.params.itemId } });
+  await prisma.salaryExpense.delete({ where: { id: req.params.itemId } }).catch(() => null);
+  if (before) await logAudit(req, { action: 'salaries.delete', entityType: 'salaries', entityId: before.id, oldValue: before });
+  res.status(204).end();
+}));
 
 financeResource('other-expenses', 'otherExpense',
   (b) => ({ name: b.name, amount: Number(b.amount) || 0 }),

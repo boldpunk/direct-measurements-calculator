@@ -12,7 +12,7 @@
 // self-consistent — and any drift resolves itself on the next reload when
 // initStore() re-hydrates from the server, which is the source of truth.
 
-import { api } from './api.js';
+import { api, getCurrentEmployee } from './api.js';
 
 export const STAGE_DEFS = [
   { key: 'sale', name: 'Продажа', type: 'internal' },
@@ -665,11 +665,20 @@ export function removeOrderService(orderId, id) {
 
 export function addOutsourceExpense(orderId, data) {
   const f = ensureFinance(orderId);
-  const record = { id: uid('out'), name: data.name, amount: Number(data.amount) || 0 };
+  const partner = data.partnerId ? _state.partners.find((p) => p.id === data.partnerId) : null;
+  const name = partner ? partner.name : (data.name || '');
+  const record = { id: uid('out'), partnerId: data.partnerId || null, name, amount: Number(data.amount) || 0 };
   f.outsourcing.push(record);
   const order = _state.orders.find((o) => o.id === orderId);
-  if (order) pushActivity(order, `Добавлен аутсорс: ${data.name}`);
+  if (order) pushActivity(order, `Добавлен аутсорс: ${name}`);
   api.addOutsourceExpense(orderId, { ...data, id: record.id }).catch((e) => logSyncError('аутсорс', e));
+}
+export async function updateOutsourceExpense(orderId, id, patch) {
+  const record = await api.updateOutsourceExpense(orderId, id, patch);
+  const f = ensureFinance(orderId);
+  const i = f.outsourcing.findIndex((o) => o.id === id);
+  if (i >= 0) f.outsourcing[i] = record;
+  return record;
 }
 export function removeOutsourceExpense(orderId, id) {
   const f = ensureFinance(orderId);
@@ -677,11 +686,38 @@ export function removeOutsourceExpense(orderId, id) {
   api.removeOutsourceExpense(orderId, id).catch((e) => logSyncError('удаление аутсорса', e));
 }
 
+// Completed-order count + total paid for one partner, across all orders —
+// backs both the Партнёры card badge and the Финансы "Аутсорс" breakdown.
+export function getPartnerStats(partnerId) {
+  let completedOrders = 0;
+  let totalPaid = 0;
+  const seenOrders = new Set();
+  for (const order of _state.orders) {
+    const entries = getFinance(order.id).outsourcing.filter((o) => o.partnerId === partnerId);
+    if (!entries.length) continue;
+    totalPaid += entries.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    if (order.status === 'Завершён' && !seenOrders.has(order.id)) {
+      seenOrders.add(order.id);
+      completedOrders += 1;
+    }
+  }
+  return { completedOrders, totalPaid };
+}
+
 export function addSalaryExpense(orderId, data) {
   const f = ensureFinance(orderId);
-  const record = { id: uid('sal'), name: data.name, amount: Number(data.amount) || 0 };
+  const employee = data.employeeId ? _state.employees.find((e) => e.id === data.employeeId) : null;
+  const name = employee ? employee.name : (data.name || '');
+  const record = { id: uid('sal'), employeeId: data.employeeId || null, name, amount: Number(data.amount) || 0, date: data.date || todayISO(), createdById: getCurrentEmployee()?.id || null };
   f.salaries.push(record);
   api.addSalaryExpense(orderId, { ...data, id: record.id }).catch((e) => logSyncError('зарплата', e));
+}
+export async function updateSalaryExpense(orderId, id, patch) {
+  const record = await api.updateSalaryExpense(orderId, id, patch);
+  const f = ensureFinance(orderId);
+  const i = f.salaries.findIndex((s) => s.id === id);
+  if (i >= 0) f.salaries[i] = record;
+  return record;
 }
 export function removeSalaryExpense(orderId, id) {
   const f = ensureFinance(orderId);

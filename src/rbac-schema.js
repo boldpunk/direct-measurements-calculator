@@ -11,6 +11,8 @@ export const MODULES = {
   tasks: ['view', 'create', 'edit', 'delete'],
   outsource: ['view', 'create', 'edit', 'delete'],
   finance: ['view', 'addPayment', 'editPayment', 'deletePayment', 'export'],
+  salaryPayments: ['view', 'create', 'edit', 'delete'],
+  outsourcePayments: ['view', 'create', 'edit', 'delete'],
   clients: ['view', 'create', 'edit', 'delete'],
   stock: ['view', 'create', 'edit', 'delete', 'income', 'expense', 'adjustment', 'export'],
   services: ['view', 'create', 'edit', 'delete'],
@@ -22,6 +24,7 @@ export const MODULE_LABELS = {
   orders: 'Заказы', production: 'Производство', carpentry: 'Столярка', rework: 'Переделки',
   tasks: 'Задачи', outsource: 'Аутсорс', finance: 'Финансы', clients: 'Клиенты',
   stock: 'Склад', services: 'Услуги', employees: 'Сотрудники', settings: 'Настройки',
+  salaryPayments: 'Зарплаты (начисления)', outsourcePayments: 'Аутсорс-платежи',
 };
 
 export const ACTION_LABELS = {

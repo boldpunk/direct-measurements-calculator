@@ -6,6 +6,8 @@ import { selectOrder } from './orders.js';
 import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
 import { renderFittingsSection, attachFittingsHandlers } from './fittings.js';
 import { renderServicesReportSection, attachServicesReportHandlers } from './services-report.js';
+import { renderSalaryReportSection } from './salary-report.js';
+import { renderOutsourceReportSection } from './outsource-report.js';
 import { exportFinanceWorkbook } from '../export.js';
 import { api } from '../api.js';
 
@@ -81,6 +83,8 @@ export function renderFinance() {
       </div>
     </div>
     ${renderServicesReportSection(periodOrders)}
+    ${renderSalaryReportSection(periodOrders)}
+    ${renderOutsourceReportSection(periodOrders)}
     ${renderFittingsSection(periodOrders)}
   `;
 }

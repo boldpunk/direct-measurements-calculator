@@ -58,6 +58,8 @@ model Employee {
   reworkResponsible Rework[] @relation("ReworkResponsible")
   auditLogs         AuditLog[]
   stockMovements    StockMovement[]
+  salaryPayments    SalaryExpense[] @relation("SalaryEmployee")
+  salariesRecorded  SalaryExpense[] @relation("SalaryRecordedBy")
 }
 
 model AuditLog {
@@ -87,7 +89,8 @@ model Partner {
   rating      Int      @default(0)
   comment     String   @default("")
 
-  stages Stage[]
+  stages           Stage[]
+  outsourcePayments OutsourceExpense[]
 }
 
 model Client {
@@ -408,23 +411,38 @@ model StockReservation {
 }
 
 model OutsourceExpense {
-  id      String @id
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  name    String
-  amount  Float  @default(0)
+  id        String   @id
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Set for a permanent partner picked from the directory (name is snapshotted
+  // from Partner at creation time, same reasoning as Service/Material
+  // snapshotting). Null for a one-off "сторонний партнёр" — name is then the
+  // free-text value the user typed directly, not backed by any directory row.
+  partnerId String?
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  name      String
+  amount    Float    @default(0)
 
   @@index([orderId])
+  @@index([partnerId])
 }
 
 model SalaryExpense {
-  id      String @id
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  name    String
-  amount  Float  @default(0)
+  id          String    @id
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Set when picked from the employee directory (name is snapshotted from
+  // Employee at creation time). Null keeps the old free-text behavior.
+  employeeId  String?
+  employee    Employee? @relation("SalaryEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  name        String
+  amount      Float     @default(0)
+  date        String    @default("")
+  createdById String?
+  createdBy   Employee? @relation("SalaryRecordedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([employeeId])
 }
 
 model OtherExpense {

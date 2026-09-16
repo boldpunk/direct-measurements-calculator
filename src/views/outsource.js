@@ -1,13 +1,16 @@
-import { getState, createPartner, updatePartner, deletePartner, OUTSOURCE_SERVICES } from '../store.js';
-import { escapeHtml } from '../format.js';
+import { getState, createPartner, updatePartner, deletePartner, OUTSOURCE_SERVICES, getPartnerStats } from '../store.js';
+import { money, escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
 
 export function renderOutsource() {
   const state = getState();
   const seesContacts = sees('seesSupplierData');
+  const seesPaymentStats = can('outsourcePayments', 'view');
 
-  const rows = state.partners.map((p) => `
+  const rows = state.partners.map((p) => {
+    const stats = seesPaymentStats ? getPartnerStats(p.id) : null;
+    return `
     <div class="partner-card">
       <div class="partner-card__header">
         <b>${escapeHtml(p.name)}</b>
@@ -20,13 +23,20 @@ export function renderOutsource() {
         <span><i class="fa-solid fa-phone"></i> ${p.contacts ? (seesContacts ? `<a class="tel-link" href="tel:${escapeHtml(p.contacts.replace(/[^+\d]/g, ''))}">${escapeHtml(p.contacts)}</a>` : maskUnless('seesSupplierData', '')) : '—'}</span>
         <span><i class="fa-solid fa-clock"></i> ${p.avgLeadDays} дн.</span>
       </div>
+      ${stats ? `
+        <div class="partner-card__meta">
+          <span><i class="fa-solid fa-box-check"></i> Выполнено заказов: ${stats.completedOrders}</span>
+          <span><i class="fa-solid fa-sack-dollar"></i> Выплачено: ${money(stats.totalPaid)}</span>
+        </div>
+      ` : ''}
       ${p.comment ? `<div class="partner-card__comment">${escapeHtml(p.comment)}</div>` : ''}
       <div class="partner-card__actions">
         ${can('outsource', 'edit') ? `<button class="btn btn--sm" data-action="edit-partner" data-id="${p.id}">Изменить</button>` : ''}
         ${can('outsource', 'delete') ? `<button class="btn btn--sm btn--danger-ghost" data-action="delete-partner" data-id="${p.id}">Удалить</button>` : ''}
       </div>
     </div>
-  `).join('') || '<div class="empty-state">Партнёров нет</div>';
+  `;
+  }).join('') || '<div class="empty-state">Партнёров нет</div>';
 
   return `
     <div class="page-header">

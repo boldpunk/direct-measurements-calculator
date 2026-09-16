@@ -242,8 +242,8 @@ function renderOrderDetail(orderId) {
     ${renderServicesSection(order, finance)}
     ${renderItemsSummary(fin)}
     ${getSettings().enableExpenses !== false ? `
-      ${renderExpenseSection('outsourcing', 'Аутсорс', 'Название (напр. Покраска)', finance.outsourcing, order.id)}
-      ${renderExpenseSection('salary', 'Зарплаты', 'Сотрудник / работа', finance.salaries, order.id)}
+      ${renderOutsourceSection(order, finance, state)}
+      ${renderSalarySection(order, finance, state)}
       ${renderExpenseSection('expense', 'Прочие расходы', 'Название расхода', finance.otherExpenses, order.id)}
     ` : ''}
     ${getSettings().enableManufacturingDates ? renderManufacturingSection(order, finance) : ''}
@@ -395,10 +395,88 @@ function renderItemsSummary(fin) {
 }
 
 const EXPENSE_ACTIONS = {
-  outsourcing: { add: addOutsourceExpense, remove: removeOutsourceExpense, label: 'Итого аутсорс' },
-  salary: { add: addSalaryExpense, remove: removeSalaryExpense, label: 'Итого зарплаты' },
   expense: { add: addOtherExpense, remove: removeOtherExpense, label: 'Итого' },
 };
+
+// Аутсорс: either a directory partner (amount stays disabled until one is
+// picked) or a free-text "сторонний партнёр" one-off entry — both land in
+// the same finance.outsourcing list, partnerId is what tells them apart.
+function renderOutsourceSection(order, finance, state) {
+  const canCreate = can('outsourcePayments', 'create');
+  const canDelete = can('outsourcePayments', 'delete');
+  const items = finance.outsourcing;
+
+  const rows = items.map((it) => `
+    <div class="mat-row">
+      <span class="mat-row__name">${escapeHtml(it.name)}${!it.partnerId ? ' <span class="badge badge--muted">разовый</span>' : ''}</span>
+      <span class="mat-row__sum">${money(it.amount)}</span>
+      ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-outsourcing="${it.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
+    </div>
+  `).join('') || '<div class="empty-state empty-state--sm">Пока не добавлено</div>';
+
+  const total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+
+  return `
+    <div class="order-detail__section-title">Аутсорс</div>
+    <div class="section-block">
+      <div class="mat-rows">${rows}</div>
+      ${canCreate ? `
+        <form class="add-row-form add-row-form--outsourcing-partner" data-order="${order.id}">
+          <select name="partnerId" required>
+            ${selectOptions(state.partners, 'id', 'name', '')}
+          </select>
+          <input type="number" name="amount" placeholder="Сумма" min="0" step="0.01" required disabled />
+          <button type="submit" class="btn btn--sm" disabled><i class="fa-solid fa-plus"></i></button>
+        </form>
+        <div class="row-item__sub" style="margin-top:10px;">Сторонние партнёры</div>
+        <form class="add-row-form add-row-form--outsourcing-adhoc" data-order="${order.id}">
+          <input type="text" name="name" placeholder="Название партнёра" required />
+          <input type="number" name="amount" placeholder="Сумма" min="0" step="0.01" required />
+          <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
+        </form>
+      ` : ''}
+      <div class="section-totals"><span>Итого аутсорс: <b>${money(total)}</b></span></div>
+    </div>
+  `;
+}
+
+// Зарплаты: employee picked from the directory (name snapshotted), amount,
+// and an accrual date — one order can carry several entries (designer +
+// assembler + installer etc).
+function renderSalarySection(order, finance, state) {
+  const canCreate = can('salaryPayments', 'create');
+  const canDelete = can('salaryPayments', 'delete');
+  const items = finance.salaries;
+
+  const rows = items.map((it) => `
+    <div class="mat-row">
+      <span class="mat-row__name">${escapeHtml(it.name)}</span>
+      <span class="mat-row__calc">${it.date ? shortDate(it.date) : ''}</span>
+      <span class="mat-row__sum">${maskUnless('seesSalaries', money(it.amount))}</span>
+      ${canDelete ? `<button type="button" class="mat-row__remove" data-remove-salary="${it.id}" data-order="${order.id}" title="Удалить"><i class="fa-solid fa-xmark"></i></button>` : '<span></span>'}
+    </div>
+  `).join('') || '<div class="empty-state empty-state--sm">Пока не добавлено</div>';
+
+  const total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+
+  return `
+    <div class="order-detail__section-title">Зарплаты</div>
+    <div class="section-block">
+      <div class="mat-rows">${rows}</div>
+      ${canCreate ? `
+        <form class="add-row-form add-row-form--salary" data-order="${order.id}">
+          <select name="employeeId" required>
+            ${selectOptions(state.employees, 'id', 'name', '')}
+          </select>
+          <input type="number" name="amount" placeholder="Сумма" min="0" step="0.01" required />
+          <input type="date" name="date" value="${todayISO()}" required />
+          <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
+        </form>
+      ` : ''}
+      <div class="section-totals"><span>Итого зарплаты: <b>${maskUnless('seesSalaries', money(total))}</b></span></div>
+    </div>
+  `;
+}
 
 function renderExpenseSection(kind, title, placeholder, items, orderId) {
   const canDelete = can('finance', 'deletePayment');
@@ -871,11 +949,30 @@ function attachAddFormHandlers(root, rerender) {
     rerender();
   });
 
-  const outForm = root.querySelector('.add-row-form--outsourcing');
-  if (outForm) outForm.addEventListener('submit', (e) => {
+  const outPartnerForm = root.querySelector('.add-row-form--outsourcing-partner');
+  if (outPartnerForm) {
+    const partnerSelect = outPartnerForm.querySelector('[name="partnerId"]');
+    const amountInput = outPartnerForm.querySelector('[name="amount"]');
+    const submitBtn = outPartnerForm.querySelector('button[type="submit"]');
+    partnerSelect.addEventListener('change', () => {
+      const enabled = !!partnerSelect.value;
+      amountInput.disabled = !enabled;
+      submitBtn.disabled = !enabled;
+      if (!enabled) amountInput.value = '';
+    });
+    outPartnerForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(outPartnerForm);
+      addOutsourceExpense(outPartnerForm.getAttribute('data-order'), { partnerId: fd.get('partnerId'), amount: fd.get('amount') });
+      rerender();
+    });
+  }
+
+  const outAdhocForm = root.querySelector('.add-row-form--outsourcing-adhoc');
+  if (outAdhocForm) outAdhocForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const fd = new FormData(outForm);
-    addOutsourceExpense(outForm.getAttribute('data-order'), { name: fd.get('name'), amount: fd.get('amount') });
+    const fd = new FormData(outAdhocForm);
+    addOutsourceExpense(outAdhocForm.getAttribute('data-order'), { name: fd.get('name'), amount: fd.get('amount') });
     rerender();
   });
 
@@ -883,7 +980,7 @@ function attachAddFormHandlers(root, rerender) {
   if (salForm) salForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(salForm);
-    addSalaryExpense(salForm.getAttribute('data-order'), { name: fd.get('name'), amount: fd.get('amount') });
+    addSalaryExpense(salForm.getAttribute('data-order'), { employeeId: fd.get('employeeId'), amount: fd.get('amount'), date: fd.get('date') });
     rerender();
   });
 

@@ -10,6 +10,7 @@ import { renderCarpentry, attachCarpentryHandlers } from './views/carpentry.js';
 import { renderRework, attachReworkHandlers } from './views/rework.js';
 import { renderOutsource, attachOutsourceHandlers } from './views/outsource.js';
 import { renderFinance, attachFinanceHandlers } from './views/finance.js';
+import { renderSalary, attachSalaryHandlers } from './views/salary.js';
 import { renderEmployees, attachEmployeesHandlers } from './views/employees.js';
 import { renderStock, attachStockHandlers } from './views/stock.js';
 import { renderServices, attachServicesHandlers } from './views/services.js';
@@ -30,6 +31,7 @@ const ROUTES = {
   tasks: { render: renderTasks, attach: attachTasksHandlers },
   outsource: { render: renderOutsource, attach: attachOutsourceHandlers },
   finance: { render: renderFinance, attach: attachFinanceHandlers },
+  salary: { render: renderSalary, attach: attachSalaryHandlers },
   stock: { render: renderStock, attach: attachStockHandlers },
   services: { render: renderServices, attach: attachServicesHandlers },
   employees: { render: renderEmployees, attach: attachEmployeesHandlers },

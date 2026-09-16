@@ -103,3 +103,24 @@ export async function exportFinanceWorkbook() {
   const dateStr = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(wb, `Финансы_${dateStr}.xlsx`);
 }
+
+// One-sheet export of the currently filtered "Заработная плата" rows.
+// `rows` is the same {entry, order, createdByName} shape salary.js builds.
+export async function exportSalaryWorkbook(rows) {
+  const XLSX = await import('xlsx');
+  const canSeeAmount = sees('seesSalaries');
+  const keys = ['Сотрудник', 'Заказ', 'Сумма', 'Дата начисления', 'Кто начислил'];
+  const aoa = [keys, ...rows.map((r) => [
+    r.entry.name,
+    `#${r.order.number} — ${r.order.clientName}`,
+    canSeeAmount ? r.entry.amount : '••••',
+    r.entry.date || '',
+    r.createdByName || '',
+  ])];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 22 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Зарплаты');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `Зарплаты_${dateStr}.xlsx`);
+}

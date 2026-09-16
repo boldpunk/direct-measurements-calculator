@@ -596,8 +596,9 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .add-row-form button { justify-content: center; }
 .add-row-form--payment { grid-template-columns: 130px 1fr 100px auto; }
 .add-row-form--material { grid-template-columns: 1fr 80px 90px 90px auto; }
-.add-row-form--outsourcing, .add-row-form--salary, .add-row-form--expense { grid-template-columns: 1fr 100px auto; }
+.add-row-form--outsourcing-partner, .add-row-form--outsourcing-adhoc, .add-row-form--expense { grid-template-columns: 1fr 100px auto; }
 .add-row-form--manufacturing { grid-template-columns: 1fr 150px auto; }
+.add-row-form--salary { grid-template-columns: 1fr 100px 150px auto; }
 
 /* Financial summary block */
 
@@ -931,7 +932,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   .add-row-form--material input[name="name"] { grid-column: 1 / -1; }
   .add-row-form--material button { grid-column: 1 / -1; justify-content: center; }
 
-  .add-row-form--outsourcing, .add-row-form--salary, .add-row-form--expense, .add-row-form--manufacturing { grid-template-columns: 1fr; }
+  .add-row-form--outsourcing-partner, .add-row-form--outsourcing-adhoc, .add-row-form--salary, .add-row-form--expense, .add-row-form--manufacturing { grid-template-columns: 1fr; }
 
   .kanban-board { display: flex; overflow-x: auto; padding-bottom: 8px; }
   .kanban-col { width: 260px; flex-shrink: 0; }
