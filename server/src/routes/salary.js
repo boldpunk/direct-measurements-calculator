@@ -29,10 +29,14 @@ router.post('/accruals', requirePermission('salaryPayments', 'create'), ah(async
 
   const employee = await prisma.employee.findUnique({ where: { id: body.employeeId } });
   if (!employee) return res.status(404).json({ error: 'Сотрудник не найден' });
+  if (body.orderId) {
+    const order = await prisma.order.findUnique({ where: { id: body.orderId } });
+    if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+  }
 
   const accrual = await prisma.salaryAccrual.create({
     data: {
-      id: body.id || uid('acr'), employeeId: employee.id, period: body.period || '',
+      id: body.id || uid('acr'), employeeId: employee.id, orderId: body.orderId || null, period: body.period || '',
       type: body.type || 'Другое', amount, comment: body.comment || '',
       createdById: req.employee?.id || null, createdAt: Date.now(), updatedAt: Date.now(),
     },
@@ -49,6 +53,13 @@ router.patch('/accruals/:id', requirePermission('salaryPayments', 'edit'), ah(as
 
   const data = { updatedAt: Date.now() };
   if (body.employeeId !== undefined) data.employeeId = body.employeeId;
+  if (body.orderId !== undefined) {
+    if (body.orderId) {
+      const order = await prisma.order.findUnique({ where: { id: body.orderId } });
+      if (!order) return res.status(400).json({ error: 'Заказ не найден' });
+    }
+    data.orderId = body.orderId || null;
+  }
   if (body.period !== undefined) data.period = body.period;
   if (body.type !== undefined) data.type = body.type;
   if (body.comment !== undefined) data.comment = body.comment;

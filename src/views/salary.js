@@ -55,8 +55,10 @@ function renderAccrualLedger(state) {
   const totalDebt = rows.reduce((s, r) => s + r.remaining, 0);
   const employeeCount = new Set(rows.map((r) => r.accrual.employeeId)).size;
 
+  const orderById = new Map(state.orders.map((o) => [o.id, o]));
   const tableRows = rows.map(({ accrual, paid, remaining, status, payouts }) => {
     const employee = employeeById.get(accrual.employeeId);
+    const linkedOrder = accrual.orderId ? orderById.get(accrual.orderId) : null;
     const expanded = expandedAccrualId === accrual.id;
     const historyRows = payouts.map((p) => `
       <div class="mat-row">
@@ -69,7 +71,11 @@ function renderAccrualLedger(state) {
     return `
       <tr>
         <td>${escapeHtml(employee?.name || '—')}</td>
-        <td>${escapeHtml(accrual.type)}${accrual.period ? ` · ${escapeHtml(accrual.period)}` : ''}${accrual.comment ? `<div class="row-item__sub">${escapeHtml(accrual.comment)}</div>` : ''}</td>
+        <td>
+          ${escapeHtml(accrual.type)}${accrual.period ? ` · ${escapeHtml(accrual.period)}` : ''}
+          ${accrual.comment ? `<div class="row-item__sub">${escapeHtml(accrual.comment)}</div>` : ''}
+          ${linkedOrder ? `<button type="button" class="badge badge--muted" data-goto-order="${linkedOrder.id}" style="border:none;cursor:pointer;">#${linkedOrder.number} — ${escapeHtml(linkedOrder.clientName)}</button>` : ''}
+        </td>
         <td>${maskUnless('seesSalaries', money(accrual.amount))}</td>
         <td>${maskUnless('seesSalaries', money(paid))}</td>
         <td>${maskUnless('seesSalaries', money(remaining))}</td>
@@ -109,12 +115,21 @@ function renderAccrualLedger(state) {
   `;
 }
 
+function orderOptions(orders, selectedId) {
+  return `<option value="">— не привязан —</option>` + [...orders].reverse().map((o) => `
+    <option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>#${o.number} — ${escapeHtml(o.clientName)}</option>
+  `).join('');
+}
+
 function openAccrualModal(rerender) {
   const state = getState();
   openModal('Начислить зарплату', `
     <form id="accrual-form" class="form">
       <label>Сотрудник
         <select name="employeeId" required>${selectOptions(state.employees, 'id', 'name', '')}</select>
+      </label>
+      <label>Заказ (необязательно)
+        <select name="orderId">${orderOptions(state.orders, '')}</select>
       </label>
       <label>Период<input name="period" placeholder="напр. Сентябрь 2026" /></label>
       <label>Тип
@@ -135,7 +150,7 @@ function openAccrualModal(rerender) {
     submitBtn.disabled = true;
     try {
       await createSalaryAccrual({
-        employeeId: fd.get('employeeId'), period: fd.get('period'), type: fd.get('type'),
+        employeeId: fd.get('employeeId'), orderId: fd.get('orderId'), period: fd.get('period'), type: fd.get('type'),
         amount: fd.get('amount'), comment: fd.get('comment'),
       });
       closeModal();
@@ -157,6 +172,9 @@ function openEditAccrualModal(accrualId, rerender) {
       <label>Сотрудник
         <select name="employeeId" required>${selectOptions(state.employees, 'id', 'name', accrual.employeeId)}</select>
       </label>
+      <label>Заказ (необязательно)
+        <select name="orderId">${orderOptions(state.orders, accrual.orderId || '')}</select>
+      </label>
       <label>Период<input name="period" value="${escapeHtml(accrual.period || '')}" /></label>
       <label>Тип
         <select name="type">${SALARY_ACCRUAL_TYPES.map((t) => `<option ${t === accrual.type ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -176,7 +194,7 @@ function openEditAccrualModal(accrualId, rerender) {
     submitBtn.disabled = true;
     try {
       await updateSalaryAccrual(accrualId, {
-        employeeId: fd.get('employeeId'), period: fd.get('period'), type: fd.get('type'),
+        employeeId: fd.get('employeeId'), orderId: fd.get('orderId'), period: fd.get('period'), type: fd.get('type'),
         amount: fd.get('amount'), comment: fd.get('comment'),
       });
       closeModal();
@@ -400,6 +418,14 @@ export function attachSalaryHandlers(root, rerender) {
   root.querySelectorAll('[data-order-row]').forEach((row) => {
     row.addEventListener('click', () => {
       selectOrder(row.getAttribute('data-order-row'));
+      window.location.hash = '#/orders';
+    });
+  });
+
+  root.querySelectorAll('[data-goto-order]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectOrder(btn.getAttribute('data-goto-order'));
       window.location.hash = '#/orders';
     });
   });

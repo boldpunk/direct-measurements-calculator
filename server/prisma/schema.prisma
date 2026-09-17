@@ -137,6 +137,7 @@ model Order {
   salaries       SalaryExpense[]
   otherExpenses  OtherExpense[]
   manufacturingEntries ManufacturingEntry[]
+  salaryAccruals SalaryAccrual[]
 }
 
 model Activity {
@@ -470,6 +471,11 @@ model SalaryAccrual {
   id          String   @id
   employeeId  String
   employee    Employee @relation("AccrualEmployee", fields: [employeeId], references: [id])
+  // Optional — most accruals aren't tied to a specific customer job (advances,
+  // office pay, etc, per the spreadsheet), but the user can link one if the
+  // salary was actually earned working a particular order.
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
   period      String   @default("") // free-text accrual period, e.g. "Сентябрь 2026" — distinct from payout dates
   type        String   @default("Другое") // Оклад/Аванс/Премия/Бонус/Комиссия/Доплата/Отпускные/Другое
   amount      Float    @default(0)
@@ -482,6 +488,7 @@ model SalaryAccrual {
   payouts SalaryPayout[]
 
   @@index([employeeId])
+  @@index([orderId])
 }
 
 model SalaryPayout {
