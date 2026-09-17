@@ -509,6 +509,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .data-table tbody tr { cursor: pointer; transition: background var(--ease); }
 .data-table tbody tr:hover { background: var(--bg); }
 .data-table tbody tr.is-selected { background: var(--primary-light); }
+.table-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .order-detail__header { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px; gap: 12px; }
 .order-detail__header h2 { margin: 0; font-size: 18px; }

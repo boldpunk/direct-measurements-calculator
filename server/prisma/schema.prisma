@@ -60,6 +60,10 @@ model Employee {
   stockMovements    StockMovement[]
   salaryPayments    SalaryExpense[] @relation("SalaryEmployee")
   salariesRecorded  SalaryExpense[] @relation("SalaryRecordedBy")
+  accrualsReceived  SalaryAccrual[] @relation("AccrualEmployee")
+  accrualsCreated   SalaryAccrual[] @relation("AccrualCreatedBy")
+  payoutsReceived   SalaryPayout[]  @relation("PayoutEmployee")
+  payoutsCreated    SalaryPayout[]  @relation("PayoutCreatedBy")
 }
 
 model AuditLog {
@@ -453,6 +457,50 @@ model OtherExpense {
   amount  Float  @default(0)
 
   @@index([orderId])
+}
+
+// ---- Заработная плата (standalone company payroll — not tied to an Order) ----
+//
+// Accrual != actual spend: SalaryAccrual records what's owed, SalaryPayout
+// records what's actually been paid out (one accrual can have several
+// partial payouts on different dates/methods). Финансы counts only payouts
+// (money that's actually left the company) as an expense, never accruals —
+// this mirrors how order Payments already work (received != invoiced).
+model SalaryAccrual {
+  id          String   @id
+  employeeId  String
+  employee    Employee @relation("AccrualEmployee", fields: [employeeId], references: [id])
+  period      String   @default("") // free-text accrual period, e.g. "Сентябрь 2026" — distinct from payout dates
+  type        String   @default("Другое") // Оклад/Аванс/Премия/Бонус/Комиссия/Доплата/Отпускные/Другое
+  amount      Float    @default(0)
+  comment     String   @default("") // "Описание / Объект" — matches the spreadsheet's free-text column
+  createdById String?
+  createdBy   Employee? @relation("AccrualCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   Float
+  updatedAt   Float    @default(0)
+
+  payouts SalaryPayout[]
+
+  @@index([employeeId])
+}
+
+model SalaryPayout {
+  id            String        @id
+  accrualId     String
+  accrual       SalaryAccrual @relation(fields: [accrualId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee      @relation("PayoutEmployee", fields: [employeeId], references: [id])
+  amount        Float         @default(0)
+  paymentDate   String
+  paymentMethod String        @default("")
+  comment       String        @default("")
+  createdById   String?
+  createdBy     Employee?     @relation("PayoutCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     Float
+
+  @@index([accrualId])
+  @@index([employeeId])
+  @@index([paymentDate])
 }
 
 // "Дата изготовления" — a simple manually-entered list of {service, date}

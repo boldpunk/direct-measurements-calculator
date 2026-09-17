@@ -236,3 +236,41 @@ export function renderPurchaseListPdf(res, { rows, settings }) {
 
   doc.end();
 }
+
+// "Заработная плата" — every salary accrual with its paid/remaining state.
+export function renderSalaryAccrualReportPdf(res, { rows, settings }) {
+  const currency = settings?.currency || '$';
+  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+  doc.registerFont('regular', FONT_REGULAR);
+  doc.registerFont('bold', FONT_BOLD);
+  doc.pipe(res);
+
+  doc.font('bold').fontSize(20).text((settings?.companyName || 'MEBELFLOW').toUpperCase());
+  doc.font('bold').fontSize(13).fillColor('#444444').text('ОТЧЁТ ПО ЗАРАБОТНОЙ ПЛАТЕ');
+  doc.fillColor('#000000');
+  doc.moveDown(0.5);
+  doc.font('regular').fontSize(10).text(`Дата: ${fmtDate(Date.now())}`);
+  doc.moveDown(0.8);
+
+  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const cols = [
+    { key: 'n', label: '№', slot: 24 },
+    { key: 'name', label: 'Сотрудник', slot: usableWidth - 24 - 90 - 90 - 90 - 90 },
+    { key: 'amount', label: 'Начислено', slot: 90, align: 'right' },
+    { key: 'paid', label: 'Выплачено', slot: 90, align: 'right' },
+    { key: 'remaining', label: 'К выплате', slot: 90, align: 'right' },
+    { key: 'status', label: 'Статус', slot: 90 },
+  ];
+  const tableRows = rows.map((r, idx) => [
+    String(idx + 1), r.employeeName, fmtMoney(r.amount, currency), fmtMoney(r.paid, currency), fmtMoney(r.remaining, currency), r.status,
+  ]);
+  const totalAccrued = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalPaid = rows.reduce((s, r) => s + (Number(r.paid) || 0), 0);
+  const totalRemaining = rows.reduce((s, r) => s + (Number(r.remaining) || 0), 0);
+  const drawRow = drawGridTable(doc, { cols, rows: tableRows, emptyLabel: 'Начислений нет' });
+  if (rows.length && drawRow) {
+    drawRow(['', 'ИТОГО', fmtMoney(totalAccrued, currency), fmtMoney(totalPaid, currency), fmtMoney(totalRemaining, currency), ''], { bold: true });
+  }
+
+  doc.end();
+}

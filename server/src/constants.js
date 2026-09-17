@@ -39,3 +39,7 @@ export const DEFAULT_SETTINGS = {
 export const CUSTOM_ORDER_STATUSES = [
   'Закупка материалов', 'Распил', 'Кромка', 'Присадка', 'Ровер', 'Овальная кромка', 'Готово',
 ];
+
+export const SALARY_ACCRUAL_TYPES = [
+  'Оклад', 'Аванс', 'Премия', 'Бонус', 'Комиссия', 'Доплата', 'Отпускные', 'Другое',
+];

@@ -28,6 +28,10 @@ export const STAGE_DEFS = [
   { key: 'handover', name: 'Сдача', type: 'internal' },
 ];
 
+export const SALARY_ACCRUAL_TYPES = [
+  'Оклад', 'Аванс', 'Премия', 'Бонус', 'Комиссия', 'Доплата', 'Отпускные', 'Другое',
+];
+
 export const TASK_STATUSES = ['ожидает', 'в работе', 'проверка', 'готово'];
 export const TASK_PRIORITIES = ['Низкий', 'Средний', 'Высокий', 'Срочно'];
 export const PRODUCT_TYPES = ['Кухня', 'Шкаф', 'Гардеробная', 'Тумба', 'Стол', 'Комод', 'Другое'];
@@ -723,6 +727,49 @@ export function removeSalaryExpense(orderId, id) {
   const f = ensureFinance(orderId);
   f.salaries = f.salaries.filter((sa) => sa.id !== id);
   api.removeSalaryExpense(orderId, id).catch((e) => logSyncError('удаление зарплаты', e));
+}
+
+// ---- Заработная плата (standalone payroll ledger, not tied to an Order) ----
+// Accrual != actual spend — see server/src/routes/salary.js. Every mutation
+// here is awaited (never optimistic): whether a payout is allowed depends on
+// server-computed remaining debt, so the frontend can't decide locally.
+
+export function getAccrualTotals(accrualId) {
+  const payouts = _state.salaryPayouts.filter((p) => p.accrualId === accrualId);
+  const accrual = _state.salaryAccruals.find((a) => a.id === accrualId);
+  const paid = payouts.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const remaining = Math.max(0, (Number(accrual?.amount) || 0) - paid);
+  const status = paid <= 0 ? 'Не выплачено' : remaining <= 0 ? 'Выплачено' : 'Частично выплачено';
+  return { paid, remaining, status, payouts };
+}
+
+export async function createSalaryAccrual(data) {
+  const accrual = await api.createSalaryAccrual(data);
+  _state.salaryAccruals.unshift(accrual);
+  return accrual;
+}
+
+export async function updateSalaryAccrual(id, patch) {
+  const accrual = await api.updateSalaryAccrual(id, patch);
+  const i = _state.salaryAccruals.findIndex((a) => a.id === id);
+  if (i >= 0) _state.salaryAccruals[i] = accrual;
+  return accrual;
+}
+
+export async function deleteSalaryAccrual(id) {
+  await api.deleteSalaryAccrual(id);
+  _state.salaryAccruals = _state.salaryAccruals.filter((a) => a.id !== id);
+}
+
+export async function paySalaryAccrual(accrualId, data) {
+  const payout = await api.createSalaryPayout(accrualId, data);
+  _state.salaryPayouts.unshift(payout);
+  return payout;
+}
+
+export async function deleteSalaryPayout(id) {
+  await api.deleteSalaryPayout(id);
+  _state.salaryPayouts = _state.salaryPayouts.filter((p) => p.id !== id);
 }
 
 export function addOtherExpense(orderId, data) {

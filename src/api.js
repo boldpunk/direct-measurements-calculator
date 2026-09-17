@@ -148,6 +148,24 @@ export const api = {
   addManufacturingEntry: (orderId, data) => request(`/api/orders/${orderId}/manufacturing`, { method: 'POST', body: data }),
   removeManufacturingEntry: (orderId, id) => request(`/api/orders/${orderId}/manufacturing/${id}`, { method: 'DELETE' }),
 
+  createSalaryAccrual: (data) => request('/api/salary/accruals', { method: 'POST', body: data }),
+  updateSalaryAccrual: (id, patch) => request(`/api/salary/accruals/${id}`, { method: 'PATCH', body: patch }),
+  deleteSalaryAccrual: (id) => request(`/api/salary/accruals/${id}`, { method: 'DELETE' }),
+  createSalaryPayout: (accrualId, data) => request(`/api/salary/accruals/${accrualId}/payouts`, { method: 'POST', body: data }),
+  deleteSalaryPayout: (id) => request(`/api/salary/payouts/${id}`, { method: 'DELETE' }),
+
+  async getSalaryReportPdfBlob() {
+    const headers = {};
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/api/salary/report/pdf`, { headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new ApiError((data && data.error) || `Ошибка сервера (${res.status})`, res.status);
+    }
+    return res.blob();
+  },
+
   createTask: (data) => request('/api/tasks', { method: 'POST', body: data }),
   updateTask: (id, patch) => request(`/api/tasks/${id}`, { method: 'PATCH', body: patch }),
   deleteTask: (id) => request(`/api/tasks/${id}`, { method: 'DELETE' }),

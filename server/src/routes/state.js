@@ -15,7 +15,8 @@ const fullEmployee = (e) => ({
 // Returns the full app state in the same shape src/store.js keeps in memory,
 // so the frontend can hydrate its local cache in one round trip.
 router.get('/', ah(async (req, res) => {
-  const [orders, activity, stages, tasks, rework, partners, employees, clients, payments, materials, orderServices, outsourcing, salaries, otherExpenses, manufacturingEntries, settingsRow] =
+  const seesPayroll = !!req.employee?.permissions?.salaryPayments?.view;
+  const [orders, activity, stages, tasks, rework, partners, employees, clients, payments, materials, orderServices, outsourcing, salaries, otherExpenses, manufacturingEntries, settingsRow, salaryAccruals, salaryPayouts] =
     await Promise.all([
       prisma.order.findMany(),
       prisma.activity.findMany({ orderBy: { timestamp: 'desc' } }),
@@ -33,6 +34,10 @@ router.get('/', ah(async (req, res) => {
       prisma.otherExpense.findMany(),
       prisma.manufacturingEntry.findMany(),
       prisma.settings.findUnique({ where: { id: 'default' } }),
+      // Payroll ledger is sensitive — only fetched for viewers who actually
+      // hold the permission, same reasoning as the employees list below.
+      seesPayroll ? prisma.salaryAccrual.findMany({ orderBy: { createdAt: 'desc' } }) : Promise.resolve([]),
+      seesPayroll ? prisma.salaryPayout.findMany({ orderBy: { paymentDate: 'desc' } }) : Promise.resolve([]),
     ]);
 
   const activityByOrder = new Map();
@@ -99,6 +104,8 @@ router.get('/', ah(async (req, res) => {
     finance: financeByOrder,
     orderSeq: settingsRow ? settingsRow.orderSeq : 100,
     settings,
+    salaryAccruals,
+    salaryPayouts,
   });
 }));
 

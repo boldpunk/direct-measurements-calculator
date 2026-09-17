@@ -2,9 +2,10 @@
 // the period, broken down by employee and by order — mirrors
 // services-report.js's Услуги report, but for SalaryExpense entries.
 
-import { getFinance } from '../store.js';
+import { getFinance, getState, getAccrualTotals } from '../store.js';
 import { money, escapeHtml } from '../format.js';
 import { can, maskUnless } from '../permissions.js';
+import { inPeriodRange } from '../period-filter.js';
 
 function computeSalaryReport(periodOrders) {
   const byEmployee = new Map();
@@ -65,6 +66,39 @@ export function renderSalaryReportSection(periodOrders) {
       <div class="section-block"><div class="mat-rows">${employeeRows}</div></div>
       <div class="order-detail__section-title">По заказам</div>
       <div class="section-block section-block--last"><div class="mat-rows">${orderRows}</div></div>
+    </div>
+  `;
+}
+
+// Standalone accrual/payout ledger (not order-tied) — see salary.js. Debt
+// ("Задолженность") is always the current running total, not period-scoped:
+// an unpaid accrual from a past period is still owed today. Начислено/
+// Выплачено are period-scoped flow figures, matching the range Финансы is
+// already filtered to.
+export function renderPayrollLedgerSection(range) {
+  if (!can('salaryPayments', 'view')) return '';
+
+  const state = getState();
+  const accruedInPeriod = state.salaryAccruals
+    .filter((a) => inPeriodRange(a.createdAt, range))
+    .reduce((s, a) => s + (Number(a.amount) || 0), 0);
+  const paidInPeriod = state.salaryPayouts
+    .filter((p) => inPeriodRange(new Date(p.paymentDate).getTime(), range))
+    .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const totalDebt = state.salaryAccruals.reduce((s, a) => s + getAccrualTotals(a.id).remaining, 0);
+
+  if (!state.salaryAccruals.length) return '';
+
+  return `
+    <div class="panel">
+      <div class="order-detail__section-title" style="margin-top:18px;">Заработная плата (начисления и выплаты)</div>
+      <div class="section-block section-block--last">
+        <div class="section-totals">
+          <span>Начислено за период: <b>${maskUnless('seesSalaries', money(accruedInPeriod))}</b></span>
+          <span>Выплачено за период: <b>${maskUnless('seesSalaries', money(paidInPeriod))}</b></span>
+          <span>Задолженность (всего): <b>${maskUnless('seesSalaries', money(totalDebt))}</b></span>
+        </div>
+      </div>
     </div>
   `;
 }
