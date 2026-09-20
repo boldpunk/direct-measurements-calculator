@@ -49,7 +49,10 @@ function refResource(field, model, buildData, { uniqueByName = false } = {}) {
 }
 
 refResource('categories', 'category', (b) => ({ name: b.name }), { uniqueByName: true });
-refResource('brands', 'brand', (b) => ({ name: b.name }), { uniqueByName: true });
+// logoUrl is optional and only used by the commercial-proposal PDF; leaving
+// it out of a PATCH body leaves the stored logo untouched (Prisma skips
+// undefined), while an explicit null clears it.
+refResource('brands', 'brand', (b) => ({ name: b.name, logoUrl: b.logoUrl }), { uniqueByName: true });
 refResource('suppliers', 'supplier', (b) => ({
   name: b.name, phone: b.phone || '', contactPerson: b.contactPerson || '', comment: b.comment || '',
 }), { uniqueByName: true });

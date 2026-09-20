@@ -88,6 +88,9 @@ router.get('/', ah(async (req, res) => {
       enableServicesFinanceReport: settingsRow.enableServicesFinanceReport, enablePurchaseSaleSplit: settingsRow.enablePurchaseSaleSplit,
       enablePdfExtras: settingsRow.enablePdfExtras, enablePurchaseList: settingsRow.enablePurchaseList,
       enableCustomOrderStatuses: settingsRow.enableCustomOrderStatuses,
+      companySlogan: settingsRow.companySlogan, companyAddress: settingsRow.companyAddress,
+      companyPhone: settingsRow.companyPhone, companyInstagram: settingsRow.companyInstagram,
+      companyWebsite: settingsRow.companyWebsite,
     }
     : { ...DEFAULT_SETTINGS };
 

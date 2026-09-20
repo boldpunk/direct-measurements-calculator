@@ -13,6 +13,7 @@ export const MODULES = {
   finance: ['view', 'addPayment', 'editPayment', 'deletePayment', 'export'],
   salaryPayments: ['view', 'create', 'edit', 'delete'],
   outsourcePayments: ['view', 'create', 'edit', 'delete'],
+  proposals: ['view', 'create', 'edit', 'delete', 'pdf', 'templates'],
   clients: ['view', 'create', 'edit', 'delete'],
   stock: ['view', 'create', 'edit', 'delete', 'income', 'expense', 'adjustment', 'export'],
   services: ['view', 'create', 'edit', 'delete'],
@@ -25,6 +26,7 @@ export const MODULE_LABELS = {
   tasks: 'Задачи', outsource: 'Аутсорс', finance: 'Финансы', clients: 'Клиенты',
   stock: 'Склад', services: 'Услуги', employees: 'Сотрудники', settings: 'Настройки',
   salaryPayments: 'Зарплаты (начисления)', outsourcePayments: 'Аутсорс-платежи',
+  proposals: 'Коммерческие предложения',
 };
 
 export const ACTION_LABELS = {
@@ -33,6 +35,7 @@ export const ACTION_LABELS = {
   addPayment: 'Внесение платежей', editPayment: 'Редактирование платежей', deletePayment: 'Удаление платежей',
   income: 'Приход', expense: 'Расход', adjustment: 'Корректировка',
   block: 'Блокировка', manageRoles: 'Управление ролями',
+  pdf: 'Формирование PDF', templates: 'Шаблоны текстов',
 };
 
 export const FINANCIAL_FLAGS = [

@@ -18,6 +18,7 @@ import migrationRoutes from './routes/migration.js';
 import brandingRoutes from './routes/branding.js';
 import reportsRoutes from './routes/reports.js';
 import salaryRoutes from './routes/salary.js';
+import proposalsRoutes from './routes/proposals.js';
 import { requireAuth } from './middleware/auth.js';
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map((s) => s.trim()).filter(Boolean);
@@ -53,6 +54,7 @@ app.use('/api/migration', migrationRoutes);
 app.use('/api/branding', brandingRoutes);
 app.use('/api/reports', requireAuth, reportsRoutes);
 app.use('/api/salary', requireAuth, salaryRoutes);
+app.use('/api/proposals', requireAuth, proposalsRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

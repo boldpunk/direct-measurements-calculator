@@ -11,6 +11,7 @@ import { renderRework, attachReworkHandlers } from './views/rework.js';
 import { renderOutsource, attachOutsourceHandlers } from './views/outsource.js';
 import { renderFinance, attachFinanceHandlers } from './views/finance.js';
 import { renderSalary, attachSalaryHandlers } from './views/salary.js';
+import { renderProposals, attachProposalsHandlers } from './views/proposals.js';
 import { renderEmployees, attachEmployeesHandlers } from './views/employees.js';
 import { renderStock, attachStockHandlers } from './views/stock.js';
 import { renderServices, attachServicesHandlers } from './views/services.js';
@@ -32,6 +33,7 @@ const ROUTES = {
   outsource: { render: renderOutsource, attach: attachOutsourceHandlers },
   finance: { render: renderFinance, attach: attachFinanceHandlers },
   salary: { render: renderSalary, attach: attachSalaryHandlers },
+  proposals: { render: renderProposals, attach: attachProposalsHandlers },
   stock: { render: renderStock, attach: attachStockHandlers },
   services: { render: renderServices, attach: attachServicesHandlers },
   employees: { render: renderEmployees, attach: attachEmployeesHandlers },

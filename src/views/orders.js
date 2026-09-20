@@ -16,6 +16,7 @@ import { renderMoneyField, attachMoneyFields } from '../money-field.js';
 import { can, sees, maskUnless, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
 import { api } from '../api.js';
 import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
+import { openProposal } from './proposals.js';
 
 let selectedOrderId = null;
 let currentQuery = '';
@@ -225,6 +226,7 @@ function renderOrderDetail(orderId) {
       <div class="order-detail__actions">
         ${renderStatusControl(order)}
         <button type="button" class="btn btn--sm" data-action="order-pdf" data-id="${order.id}"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+        ${can('proposals', 'create') ? `<button type="button" class="btn btn--sm" data-action="order-to-proposal" data-id="${order.id}" title="Создать коммерческое предложение из заказа"><i class="fa-solid fa-file-contract"></i> КП</button>` : ''}
         ${can('orders', 'edit') ? `<button type="button" class="btn btn--sm" data-action="edit-order" data-id="${order.id}"><i class="fa-solid fa-pen"></i></button>` : ''}
         ${can('orders', 'delete') ? `<button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-order" data-id="${order.id}"><i class="fa-solid fa-trash"></i></button>` : ''}
       </div>
@@ -693,6 +695,24 @@ export function attachOrderHandlers(root, rerender) {
   attachAddFormHandlers(root, rerender);
   attachStockPickerHandlers(root, rerender);
   attachServicePickerHandlers(root, rerender);
+
+  const toProposalBtn = root.querySelector('[data-action="order-to-proposal"]');
+  if (toProposalBtn) {
+    toProposalBtn.addEventListener('click', async () => {
+      const original = toProposalBtn.innerHTML;
+      toProposalBtn.disabled = true;
+      toProposalBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+      try {
+        const proposal = await api.createProposalFromOrder(toProposalBtn.getAttribute('data-id'));
+        openProposal(proposal.id);
+        window.location.hash = '#/proposals';
+      } catch (e) {
+        window.alert(e.message || 'Не удалось создать КП');
+        toProposalBtn.disabled = false;
+        toProposalBtn.innerHTML = original;
+      }
+    });
+  }
 
   const pdfBtn = root.querySelector('[data-action="order-pdf"]');
   if (pdfBtn) {

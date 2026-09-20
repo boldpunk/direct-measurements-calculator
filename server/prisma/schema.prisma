@@ -18,6 +18,16 @@ model Settings {
   logoUrl           String?
   faviconUrl        String?
 
+  // Company contact details — used in the commercial-proposal PDF footer and
+  // header. Kept here rather than in a new entity: this is the one place the
+  // app already stores "who we are".
+  companySlogan     String @default("")
+  companyAddress    String @default("")
+  companyPhone      String @default("")
+  companyInstagram  String @default("")
+  companyWebsite    String @default("")
+  proposalSeq       Int    @default(3000)
+
   // Per-instance feature toggles — every instance shares the same codebase,
   // but a company can turn off features it doesn't use (e.g. sps.mebelflow.uz
   // doesn't track product categories, item weight, or a production schedule).
@@ -64,6 +74,9 @@ model Employee {
   accrualsCreated   SalaryAccrual[] @relation("AccrualCreatedBy")
   payoutsReceived   SalaryPayout[]  @relation("PayoutEmployee")
   payoutsCreated    SalaryPayout[]  @relation("PayoutCreatedBy")
+  proposalsOwned    CommercialProposal[] @relation("ProposalResponsible")
+  proposalsCreated  CommercialProposal[] @relation("ProposalCreatedBy")
+  textTemplates     ProposalTextTemplate[]
 }
 
 model AuditLog {
@@ -104,7 +117,8 @@ model Client {
   address   String   @default("")
   createdAt Float    @default(0)
 
-  orders Order[]
+  orders    Order[]
+  proposals CommercialProposal[]
 }
 
 model Order {
@@ -138,6 +152,7 @@ model Order {
   otherExpenses  OtherExpense[]
   manufacturingEntries ManufacturingEntry[]
   salaryAccruals SalaryAccrual[]
+  proposals      CommercialProposal[]
 }
 
 model Activity {
@@ -300,6 +315,9 @@ model Category {
 model Brand {
   id        String @id
   name      String @unique
+  // Optional brand mark shown in the proposal's "партнёры проекта" row —
+  // falls back to the plain name when absent.
+  logoUrl   String?
   createdAt Float  @default(0)
 
   products Product[]
@@ -508,6 +526,81 @@ model SalaryPayout {
   @@index([accrualId])
   @@index([employeeId])
   @@index([paymentDate])
+}
+
+// ---- Коммерческие предложения (commercial proposals) ----
+//
+// A proposal is a standalone presentation document. Client/employee/brand
+// data is *snapshotted* into it at save time (clientName, item unitPrice,
+// etc) so editing a client or a price list later never rewrites a proposal
+// that's already been sent — same reasoning as OrderService/Material.
+model CommercialProposal {
+  id            String   @id
+  number        String   @unique
+  date          String
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientName    String   @default("")
+  clientPhone   String   @default("")
+  clientAddress String   @default("")
+  projectName   String   @default("")
+  language      String   @default("ru") // 'ru' | 'uz'
+  currency      String   @default("$")
+  themeColor    String   @default("#E8913A")
+  responsibleId String?
+  responsible   Employee? @relation("ProposalResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  // Set when the proposal was generated from an order — informational only,
+  // the two documents are independent from that point on.
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  deadline      String   @default("")
+  brandIds      String[]
+  subtotal      Float    @default(0)
+  total         Float    @default(0)
+  finalText     String   @default("")
+  status        String   @default("Черновик")
+  createdById   String?
+  createdBy     Employee? @relation("ProposalCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     Float
+  updatedAt     Float    @default(0)
+
+  items CommercialProposalItem[]
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model CommercialProposalItem {
+  id          String   @id
+  proposalId  String
+  proposal    CommercialProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  sortOrder   Int      @default(0)
+  name        String
+  description String   @default("")
+  // Either a data: URI (uploaded/pasted, normalised to JPEG client-side) or
+  // an http(s) URL the PDF renderer fetches at render time.
+  imageUrl    String?
+  quantity    Float    @default(1)
+  unit        String   @default("шт.")
+  dimensions  String   @default("")
+  unitPrice   Float    @default(0)
+  total       Float    @default(0)
+  createdAt   Float
+  updatedAt   Float    @default(0)
+
+  @@index([proposalId])
+}
+
+model ProposalTextTemplate {
+  id          String   @id
+  name        String
+  language    String   @default("ru")
+  text        String
+  active      Boolean  @default(true)
+  createdById String?
+  createdBy   Employee? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   Float
+  updatedAt   Float    @default(0)
 }
 
 // "Дата изготовления" — a simple manually-entered list of {service, date}

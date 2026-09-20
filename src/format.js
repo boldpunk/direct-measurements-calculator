@@ -1,9 +1,11 @@
 import { getState, getOrderStatusTone } from './store.js';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
-export function money(n) {
+// currencyOverride is used by commercial proposals, which each carry their
+// own currency rather than the instance-wide one.
+export function money(n, currencyOverride) {
   const v = Number(n) || 0;
-  const currency = getState().settings?.currency || '$';
+  const currency = currencyOverride || getState().settings?.currency || '$';
   return `${v.toLocaleString('ru-RU')} ${currency}`;
 }
 

@@ -148,6 +148,34 @@ export const api = {
   addManufacturingEntry: (orderId, data) => request(`/api/orders/${orderId}/manufacturing`, { method: 'POST', body: data }),
   removeManufacturingEntry: (orderId, id) => request(`/api/orders/${orderId}/manufacturing/${id}`, { method: 'DELETE' }),
 
+  getProposals: () => request('/api/proposals'),
+  getProposal: (id) => request(`/api/proposals/${id}`),
+  createProposal: (data) => request('/api/proposals', { method: 'POST', body: data }),
+  updateProposal: (id, patch) => request(`/api/proposals/${id}`, { method: 'PATCH', body: patch }),
+  deleteProposal: (id) => request(`/api/proposals/${id}`, { method: 'DELETE' }),
+  duplicateProposal: (id) => request(`/api/proposals/${id}/duplicate`, { method: 'POST' }),
+  createProposalFromOrder: (orderId) => request(`/api/proposals/from-order/${orderId}`, { method: 'POST' }),
+  addProposalItem: (id, data) => request(`/api/proposals/${id}/items`, { method: 'POST', body: data }),
+  updateProposalItem: (id, itemId, patch) => request(`/api/proposals/${id}/items/${itemId}`, { method: 'PATCH', body: patch }),
+  deleteProposalItem: (id, itemId) => request(`/api/proposals/${id}/items/${itemId}`, { method: 'DELETE' }),
+  reorderProposalItems: (id, ids) => request(`/api/proposals/${id}/items/reorder`, { method: 'POST', body: { ids } }),
+  getProposalTemplates: () => request('/api/proposals/templates'),
+  createProposalTemplate: (data) => request('/api/proposals/templates', { method: 'POST', body: data }),
+  updateProposalTemplate: (id, patch) => request(`/api/proposals/templates/${id}`, { method: 'PATCH', body: patch }),
+  deleteProposalTemplate: (id) => request(`/api/proposals/templates/${id}`, { method: 'DELETE' }),
+
+  async getProposalPdfBlob(id) {
+    const headers = {};
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/api/proposals/${id}/pdf`, { headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new ApiError((data && data.error) || `Ошибка сервера (${res.status})`, res.status);
+    }
+    return res.blob();
+  },
+
   createSalaryAccrual: (data) => request('/api/salary/accruals', { method: 'POST', body: data }),
   updateSalaryAccrual: (id, patch) => request(`/api/salary/accruals/${id}`, { method: 'PATCH', body: patch }),
   deleteSalaryAccrual: (id) => request(`/api/salary/accruals/${id}`, { method: 'DELETE' }),

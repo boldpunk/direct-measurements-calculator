@@ -24,6 +24,9 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   }
   if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl || null;
   if (body.faviconUrl !== undefined) data.faviconUrl = body.faviconUrl || null;
+  for (const field of ['companySlogan', 'companyAddress', 'companyPhone', 'companyInstagram', 'companyWebsite']) {
+    if (body[field] !== undefined) data[field] = body[field] || '';
+  }
   if (body.enableProductType !== undefined) data.enableProductType = !!body.enableProductType;
   if (body.enableWeight !== undefined) data.enableWeight = !!body.enableWeight;
   if (body.enableStages !== undefined) data.enableStages = !!body.enableStages;
@@ -55,6 +58,9 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     enableServicesFinanceReport: settings.enableServicesFinanceReport, enablePurchaseSaleSplit: settings.enablePurchaseSaleSplit,
     enablePdfExtras: settings.enablePdfExtras, enablePurchaseList: settings.enablePurchaseList,
     enableCustomOrderStatuses: settings.enableCustomOrderStatuses,
+    companySlogan: settings.companySlogan, companyAddress: settings.companyAddress,
+    companyPhone: settings.companyPhone, companyInstagram: settings.companyInstagram,
+    companyWebsite: settings.companyWebsite,
   });
 }));
 
