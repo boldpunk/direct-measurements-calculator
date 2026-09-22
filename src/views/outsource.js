@@ -2,6 +2,7 @@ import { getState, createPartner, updatePartner, deletePartner, OUTSOURCE_SERVIC
 import { money, escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
+import { renderPartnerBalanceBlock, attachPartnerBalanceCardHandlers } from './partner-balance.js';
 
 export function renderOutsource() {
   const state = getState();
@@ -30,6 +31,7 @@ export function renderOutsource() {
         </div>
       ` : ''}
       ${p.comment ? `<div class="partner-card__comment">${escapeHtml(p.comment)}</div>` : ''}
+      ${renderPartnerBalanceBlock(p.id)}
       <div class="partner-card__actions">
         ${can('outsource', 'edit') ? `<button class="btn btn--sm" data-action="edit-partner" data-id="${p.id}">Изменить</button>` : ''}
         ${can('outsource', 'delete') ? `<button class="btn btn--sm btn--danger-ghost" data-action="delete-partner" data-id="${p.id}">Удалить</button>` : ''}
@@ -48,6 +50,8 @@ export function renderOutsource() {
 }
 
 export function attachOutsourceHandlers(root, rerender) {
+  attachPartnerBalanceCardHandlers(root, rerender);
+
   const newBtn = root.querySelector('[data-action="new-partner"]');
   if (newBtn) newBtn.addEventListener('click', () => openNewPartnerModal(rerender));
 
@@ -59,9 +63,15 @@ export function attachOutsourceHandlers(root, rerender) {
   });
 
   root.querySelectorAll('[data-action="delete-partner"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      deletePartner(btn.getAttribute('data-id'));
-      rerender();
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await deletePartner(btn.getAttribute('data-id'));
+        rerender();
+      } catch (e) {
+        window.alert(e.message || 'Не удалось удалить партнёра');
+        btn.disabled = false;
+      }
     });
   });
 }

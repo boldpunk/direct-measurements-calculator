@@ -160,9 +160,12 @@ export function renderShell(currentRoute) {
   `;
 }
 
-export function openModal(titleHtml, bodyHtml) {
+// `wide` widens the dialog for content that's really a table (the partner
+// взаиморасчёты ledger) — the default 460px is sized for forms.
+export function openModal(titleHtml, bodyHtml, { wide = false } = {}) {
   const overlay = document.getElementById('modal-overlay');
   const body = document.getElementById('modal-body');
+  body.className = wide ? 'modal modal--wide' : 'modal';
   body.innerHTML = `
     <div class="modal__header">
       <h3>${titleHtml}</h3>

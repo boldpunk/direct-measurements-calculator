@@ -201,6 +201,31 @@ export const api = {
   createRework: (data) => request('/api/rework', { method: 'POST', body: data }),
   updateReworkStatus: (id, status) => request(`/api/rework/${id}/status`, { method: 'PATCH', body: { status } }),
 
+  getPartnerBalanceSummary: (params = {}) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return request(`/api/partner-balance/summary${suffix}`);
+  },
+  getPartnerBalance: (partnerId) => request(`/api/partner-balance/partners/${partnerId}`),
+  getPartnerOutsourceExpenses: (partnerId) => request(`/api/partner-balance/partners/${partnerId}/outsource-expenses`),
+  addPartnerBalanceTransaction: (partnerId, data) => request(`/api/partner-balance/partners/${partnerId}/transactions`, { method: 'POST', body: data }),
+  reversePartnerBalanceTransaction: (id, data = {}) => request(`/api/partner-balance/transactions/${id}/reverse`, { method: 'POST', body: data }),
+  updatePartnerBalanceTransaction: (id, patch) => request(`/api/partner-balance/transactions/${id}`, { method: 'PATCH', body: patch }),
+
+  async getPartnerBalanceReportPdfBlob(params = {}) {
+    const headers = {};
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const res = await fetch(`${API_BASE}/api/partner-balance/report/pdf${suffix}`, { headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new ApiError((data && data.error) || `Ошибка сервера (${res.status})`, res.status);
+    }
+    return res.blob();
+  },
+
   createPartner: (data) => request('/api/partners', { method: 'POST', body: data }),
   updatePartner: (id, patch) => request(`/api/partners/${id}`, { method: 'PATCH', body: patch }),
   deletePartner: (id) => request(`/api/partners/${id}`, { method: 'DELETE' }),

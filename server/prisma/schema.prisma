@@ -77,6 +77,7 @@ model Employee {
   proposalsOwned    CommercialProposal[] @relation("ProposalResponsible")
   proposalsCreated  CommercialProposal[] @relation("ProposalCreatedBy")
   textTemplates     ProposalTextTemplate[]
+  partnerBalanceTxs PartnerBalanceTransaction[]
 }
 
 model AuditLog {
@@ -108,6 +109,7 @@ model Partner {
 
   stages           Stage[]
   outsourcePayments OutsourceExpense[]
+  balanceTransactions PartnerBalanceTransaction[]
 }
 
 model Client {
@@ -446,6 +448,11 @@ model OutsourceExpense {
   name      String
   amount    Float    @default(0)
 
+  // A partner-balance entry may point here to say "this ledger line is the
+  // one backed by real money that already left the company". The link is
+  // informational only — see PartnerBalanceTransaction.
+  balanceTransactions PartnerBalanceTransaction[]
+
   @@index([orderId])
   @@index([partnerId])
 }
@@ -615,4 +622,64 @@ model ManufacturingEntry {
   createdAt Float  @default(0)
 
   @@index([orderId])
+}
+
+// ---- Взаиморасчёты с партнёрами (partner debit/credit ledger) ----
+//
+// Append-only journal: the journal IS the balance. Nothing ever stores "the
+// partner's balance" as a mutable number, so a balance can always be traced
+// back through the operations that produced it. Balance = SUM(DEBIT) -
+// SUM(CREDIT), per partner AND per currency (a $ balance and a so'm balance
+// are separate ledgers that are never added together).
+//
+// DEBIT  = партнёр должен нам (balance goes up)
+// CREDIT = мы должны партнёру (balance goes down)
+//
+// This is deliberately NOT a money-movement record: writing "партнёр должен
+// нам 10 000 000" does not mean the cash desk received anything, so these
+// rows never create an income/expense anywhere in Финансы. When a ledger
+// line does correspond to actual money that moved, it points at the
+// OutsourceExpense that recorded that payment (outsourceExpenseId) instead
+// of duplicating it.
+model PartnerBalanceTransaction {
+  id        String  @id
+  partnerId String
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  type     String // 'DEBIT' | 'CREDIT'
+  amount   Float  @default(0)
+  currency String @default("$")
+  date     String // business date (yyyy-mm-dd), free to edit — never reorders the chain
+  comment  String @default("")
+
+  // Snapshotted at insert time by the backend, never by the client. The chain
+  // follows insertion order within (partner, currency), not `date`, so a
+  // back-dated entry can't silently rewrite the balances of rows above it.
+  previousBalance Float @default(0)
+  balanceAfter    Float @default(0)
+
+  // Marks the opening balance carried over from before the partner existed in
+  // MebelFlow, so the history can tell "начальный баланс" from a normal
+  // operation (and so it's obvious a balance didn't appear out of nowhere).
+  isInitial Boolean @default(false)
+
+  // Сторно instead of deletion: a mistake is cancelled by an opposite entry
+  // that points back at the row it cancels. Both rows stay in the history.
+  reversalOfId String?                     @unique
+  reversalOf   PartnerBalanceTransaction?  @relation("BalanceReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversedBy   PartnerBalanceTransaction?  @relation("BalanceReversal")
+
+  // Optional link to the actual outsourcing payment this line corresponds to
+  // (see the model comment) — never creates or duplicates that expense.
+  outsourceExpenseId String?
+  outsourceExpense   OutsourceExpense? @relation(fields: [outsourceExpenseId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   Employee? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   Float
+  updatedAt   Float     @default(0)
+
+  @@index([partnerId])
+  @@index([partnerId, currency])
+  @@index([createdAt])
 }

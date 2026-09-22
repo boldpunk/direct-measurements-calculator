@@ -44,6 +44,13 @@ router.patch('/:id', requirePermission('outsource', 'edit'), ah(async (req, res)
 
 router.delete('/:id', requirePermission('outsource', 'delete'), ah(async (req, res) => {
   const before = await prisma.partner.findUnique({ where: { id: req.params.id } });
+  // Взаиморасчёты are financial history and are never deleted (see
+  // routes/partnerBalance.js) — and deleting the partner would cascade them
+  // away. Close the balance with a сторно/операция first.
+  const ledgerCount = await prisma.partnerBalanceTransaction.count({ where: { partnerId: req.params.id } });
+  if (ledgerCount > 0) {
+    return res.status(400).json({ error: 'У партнёра есть история взаиморасчётов — удалить его нельзя. История долгов и оплат не удаляется.' });
+  }
   await prisma.partner.delete({ where: { id: req.params.id } }).catch(() => null);
   if (before) await logAudit(req, { action: 'partner.delete', entityType: 'partner', entityId: before.id, oldValue: before });
   res.status(204).end();

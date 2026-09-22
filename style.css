@@ -931,6 +931,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   max-height: 90vh;
   overflow-y: auto;
 }
+.modal--wide { max-width: 880px; }
 .modal__header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
 .modal__header h3 { margin: 0; font-size: 17px; }
 .modal__close { background: none; border: none; font-size: 16px; color: var(--text-muted); }
@@ -1289,3 +1290,74 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 /* ---- Masked value (financial visibility off) ---- */
 
 .masked-value { color: var(--text-muted); letter-spacing: 1px; user-select: none; }
+
+/* ---- Взаиморасчёты с партнёрами (долг / кредит) ---- */
+
+.pb-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.pb-total {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pb-total__label { font-size: 12px; color: var(--text-muted); }
+.pb-total__value { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.pb-total--pos .pb-total__value { color: var(--success); }
+.pb-total--neg .pb-total__value { color: var(--danger); }
+
+.pb-card {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pb-card__title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.pb-card-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  font-size: 13px;
+}
+.pb-card-line--empty { color: var(--text-muted); }
+.pb-card__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.pb-balances {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.pb-balance {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.pb-balance__row { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+.pb-balance__row--total { border-top: 1px solid var(--border); padding-top: 6px; font-size: 15px; }
+.pb-balance__status { margin-top: 2px; }
+
+/* A reversed (сторнированная) operation stays in the history, dimmed — the
+   record of the mistake is part of the audit trail, not something to hide. */
+.pb-row--reversed { opacity: 0.55; }
+.pb-row--reversed td { text-decoration: line-through; }
+.pb-row--reversed td:last-child { text-decoration: none; }
+
+.form-actions--left { justify-content: flex-start; }
+.pb-totals__caption { font-size: 12px; color: var(--text-muted); margin: 6px 0 4px; font-weight: 600; }
+.pb-nowrap { white-space: nowrap; }

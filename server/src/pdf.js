@@ -274,3 +274,63 @@ export function renderSalaryAccrualReportPdf(res, { rows, settings }) {
 
   doc.end();
 }
+
+// Отчёт «Партнёры: долг / кредит» — one row per partner for a single
+// currency (balances in different currencies are separate ledgers and are
+// never summed), plus the company-wide totals underneath.
+export function renderPartnerBalanceReportPdf(res, { rows, currency, settings, period }) {
+  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+  doc.registerFont('regular', FONT_REGULAR);
+  doc.registerFont('bold', FONT_BOLD);
+  doc.pipe(res);
+
+  doc.font('bold').fontSize(20).text((settings?.companyName || 'MEBELFLOW').toUpperCase());
+  doc.font('bold').fontSize(13).fillColor('#444444').text('ВЗАИМОРАСЧЁТЫ С ПАРТНЁРАМИ');
+  doc.fillColor('#000000');
+  doc.moveDown(0.5);
+  doc.font('regular').fontSize(10).text(`Дата: ${fmtDate(Date.now())}`);
+  doc.text(`Валюта: ${currency}`);
+  if (period) doc.text(`Период: ${period}`);
+  doc.moveDown(0.8);
+
+  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const cols = [
+    { key: 'n', label: '№', slot: 24 },
+    { key: 'name', label: 'Партнёр', slot: usableWidth - 24 - 95 - 95 - 100 - 85 },
+    { key: 'debit', label: 'Дебит', slot: 95, align: 'right' },
+    { key: 'credit', label: 'Кредит', slot: 95, align: 'right' },
+    { key: 'balance', label: 'Баланс', slot: 100, align: 'right' },
+    { key: 'status', label: 'Статус', slot: 85 },
+  ];
+
+  const tableRows = rows.map((r, idx) => [
+    String(idx + 1),
+    r.name,
+    fmtMoney(r.debit, currency),
+    fmtMoney(r.credit, currency),
+    // The sign carries the meaning here: + «нам должны», − «мы должны».
+    `${r.balance > 0 ? '+' : ''}${fmtMoney(r.balance, currency)}`,
+    r.status,
+  ]);
+
+  const totalDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
+  const totalCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
+  const owedToUs = rows.filter((r) => r.balance > 0).reduce((s, r) => s + r.balance, 0);
+  const owedByUs = rows.filter((r) => r.balance < 0).reduce((s, r) => s + Math.abs(r.balance), 0);
+
+  const drawRow = drawGridTable(doc, { cols, rows: tableRows, emptyLabel: 'Операций нет' });
+  if (rows.length && drawRow) {
+    drawRow(['', 'ИТОГО', fmtMoney(totalDebit, currency), fmtMoney(totalCredit, currency), `${owedToUs - owedByUs > 0 ? '+' : ''}${fmtMoney(owedToUs - owedByUs, currency)}`, ''], { bold: true });
+  }
+
+  doc.moveDown(1);
+  doc.font('bold').fontSize(11).text('ИТОГОВЫЕ ПОКАЗАТЕЛИ');
+  doc.font('regular').fontSize(10);
+  doc.text(`Всего нам должны: ${fmtMoney(owedToUs, currency)}`);
+  doc.text(`Всего мы должны: ${fmtMoney(owedByUs, currency)}`);
+  doc.text(`Чистый баланс: ${owedToUs - owedByUs > 0 ? '+' : ''}${fmtMoney(owedToUs - owedByUs, currency)}`);
+  doc.text(`Закрытых взаиморасчётов: ${rows.filter((r) => r.balance === 0).length}`);
+  doc.text(`Активных взаиморасчётов: ${rows.filter((r) => r.balance !== 0).length}`);
+
+  doc.end();
+}

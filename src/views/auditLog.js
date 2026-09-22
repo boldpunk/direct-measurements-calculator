@@ -13,6 +13,7 @@ const ENTITY_LABELS = {
   partner: 'партнёра', employee: 'сотрудника', settings: 'настройки',
   payments: 'оплату', materials: 'материал', outsourcing: 'аутсорс',
   salaries: 'зарплату', 'other-expenses': 'расход',
+  partnerBalanceTransaction: 'операцию взаиморасчёта',
 };
 
 function findLabel(entityType, entityId) {
@@ -122,6 +123,18 @@ function describe(entry) {
       return `${who} разблокировал сотрудника ${label}`;
     case 'employee.delete':
       return `${who} удалил сотрудника «${escapeHtml(entry.oldValue?.name || '')}»`;
+    case 'partnerBalance.create': {
+      const v = entry.newValue || {};
+      const kind = v.type === 'CREDIT' ? 'кредит' : 'дебит';
+      return `${who} добавил ${kind} ${money(v.amount, v.currency)} партнёру «${escapeHtml(v.partnerName || '')}» (баланс: ${money(v.balanceAfter, v.currency)})`;
+    }
+    case 'partnerBalance.reverse': {
+      const o = entry.oldValue || {};
+      const v = entry.newValue || {};
+      return `${who} сторнировал операцию ${money(o.amount, o.currency)} партнёра «${escapeHtml(o.partnerName || '')}» (баланс: ${money(v.balanceAfter, v.currency)})`;
+    }
+    case 'partnerBalance.update':
+      return `${who} изменил комментарий операции взаиморасчёта`;
     case 'settings.update':
       return `${who} изменил настройки системы`;
     default:

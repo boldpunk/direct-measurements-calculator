@@ -547,9 +547,12 @@ export function createPartner(data) {
   return partner;
 }
 
-export function deletePartner(partnerId) {
+// Deliberately not optimistic: the server refuses to delete a partner that
+// has взаиморасчёты history, so the card must only disappear once the delete
+// actually succeeded — otherwise it would come back on the next reload.
+export async function deletePartner(partnerId) {
+  await api.deletePartner(partnerId);
   _state.partners = _state.partners.filter((p) => p.id !== partnerId);
-  api.deletePartner(partnerId).catch((e) => logSyncError('удаление партнёра', e));
 }
 
 export async function updatePartner(partnerId, patch) {

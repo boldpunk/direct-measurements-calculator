@@ -16,6 +16,7 @@ export const MODULES = {
   finance: ['view', 'addPayment', 'editPayment', 'deletePayment', 'export'],
   salaryPayments: ['view', 'create', 'edit', 'delete'],
   outsourcePayments: ['view', 'create', 'edit', 'delete'],
+  partnerBalance: ['view', 'create', 'edit', 'cancel', 'report'],
   proposals: ['view', 'create', 'edit', 'delete', 'pdf', 'templates'],
   clients: ['view', 'create', 'edit', 'delete'],
   stock: ['view', 'create', 'edit', 'delete', 'income', 'expense', 'adjustment', 'export'],
@@ -131,6 +132,7 @@ export const PRESET_ROLES = {
     permissions: permSet({
       outsource: { view: true, create: true, edit: true, delete: true },
       outsourcePayments: { view: true, create: true, edit: true, delete: true },
+      partnerBalance: { view: true, create: true, report: true },
       orders: { view: true },
       stock: { view: true, income: true, edit: true },
     }),
@@ -142,6 +144,7 @@ export const PRESET_ROLES = {
       finance: { view: true, addPayment: true, editPayment: true, deletePayment: true, export: true },
       salaryPayments: { view: true, create: true, edit: true, delete: true },
       outsourcePayments: { view: true, create: true, edit: true, delete: true },
+      partnerBalance: { view: true, create: true, edit: true, cancel: true, report: true },
       orders: { view: true, export: true },
     }),
     financialFlags: fullFinancialFlags(),

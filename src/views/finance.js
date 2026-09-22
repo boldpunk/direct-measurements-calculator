@@ -8,6 +8,7 @@ import { renderFittingsSection, attachFittingsHandlers } from './fittings.js';
 import { renderServicesReportSection, attachServicesReportHandlers } from './services-report.js';
 import { renderSalaryReportSection, renderPayrollLedgerSection } from './salary-report.js';
 import { renderOutsourceReportSection } from './outsource-report.js';
+import { renderPartnerBalanceSection, attachPartnerBalanceHandlers } from './partner-balance.js';
 import { exportFinanceWorkbook } from '../export.js';
 import { api } from '../api.js';
 
@@ -86,6 +87,7 @@ export function renderFinance() {
     ${renderPayrollLedgerSection(range)}
     ${renderSalaryReportSection(periodOrders)}
     ${renderOutsourceReportSection(periodOrders)}
+    ${renderPartnerBalanceSection(range)}
     ${renderFittingsSection(periodOrders)}
   `;
 }
@@ -138,4 +140,5 @@ export function attachFinanceHandlers(root, rerender) {
   });
   attachFittingsHandlers(root, rerender);
   attachServicesReportHandlers(root, rerender);
+  attachPartnerBalanceHandlers(root, rerender, getPeriodRange(currentPeriod, currentPeriodFrom, currentPeriodTo));
 }
