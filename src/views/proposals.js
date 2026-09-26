@@ -29,6 +29,9 @@ let listCache = null;
 let detail = null;
 let templates = null;
 let brands = [];
+// Distinguishes "склад ещё не заполнен" from "этому сотруднику склад не
+// виден": an empty list is worth explaining, a failed request isn't.
+let brandsUnavailable = false;
 let selectedId = null;
 let statusFilter = '';
 let query = '';
@@ -46,7 +49,7 @@ async function ensureData(rerender) {
       const [list, tpl, brandList] = await Promise.all([
         api.getProposals(),
         api.getProposalTemplates().catch(() => []),
-        api.getStockBrands().catch(() => []),
+        api.getStockBrands().catch(() => { brandsUnavailable = true; return []; }),
       ]);
       listCache = list;
       templates = tpl;
@@ -236,7 +239,14 @@ function renderEditor() {
           </div>
         </div>
 
-        ${brands.length ? `
+        ${!brands.length ? (brandsUnavailable ? '' : `
+          <div class="proposal-brands">
+            <span class="proposal-theme__label">Бренды проекта</span>
+            <p class="form-hint">
+              Брендов пока нет.${can('stock', 'view') ? ' Добавьте их в «Склад → Справочники → Бренды» — логотипы известных брендов подставятся в КП сами.' : ''}
+            </p>
+          </div>
+        `) : `
           <div class="proposal-brands">
             <span class="proposal-theme__label">Бренды проекта</span>
             <div class="checkbox-row">
@@ -251,7 +261,7 @@ function renderEditor() {
               `; }).join('')}
             </div>
           </div>
-        ` : ''}
+        `}
       </div>
     </div>
 
