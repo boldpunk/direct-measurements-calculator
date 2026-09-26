@@ -10,7 +10,7 @@
 // what the client receives.
 
 import { getState, UNITS } from '../store.js';
-import { money, shortDate, escapeHtml } from '../format.js';
+import { money, shortDate, escapeHtml, brandLogoSrc } from '../format.js';
 import { can } from '../permissions.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 import { api } from '../api.js';
@@ -240,12 +240,15 @@ function renderEditor() {
           <div class="proposal-brands">
             <span class="proposal-theme__label">Бренды проекта</span>
             <div class="checkbox-row">
-              ${brands.map((b) => `
-                <label class="checkbox-label">
+              ${brands.map((b) => {
+                const logo = brandLogoSrc(b);
+                return `
+                <label class="checkbox-label brand-check">
                   <input type="checkbox" data-brand="${b.id}" ${p.brandIds.includes(b.id) ? 'checked' : ''} ${canEdit ? '' : 'disabled'} />
+                  ${logo ? `<img src="${escapeHtml(logo)}" alt="" class="brand-check__logo" onerror="this.remove()" />` : ''}
                   ${escapeHtml(b.name)}
                 </label>
-              `).join('')}
+              `; }).join('')}
             </div>
           </div>
         ` : ''}

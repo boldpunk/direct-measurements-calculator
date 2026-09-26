@@ -1,8 +1,9 @@
 import { api } from '../api.js';
-import { money, escapeHtml } from '../format.js';
+import { money, escapeHtml, brandLogoSrc } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
 import { openSupplierPaymentModal } from './fittings.js';
+import { renderImagePicker, attachImagePicker } from '../image-picker.js';
 
 const UNITS = ['шт.', 'компл.', 'м', 'м²', 'л', 'кг', 'упаковка'];
 const EXPENSE_REASONS = ['производство', 'сборка', 'заказ', 'брак', 'потеря', 'другое'];
@@ -450,15 +451,23 @@ function openAdjustmentModal(rerender) {
 
 // ---- Categories / brands / suppliers management ----
 
-function refRow(item) {
-  const isSupplier = item.balance !== undefined;
+function refRow(item, kind) {
+  const isSupplier = kind === 'supplier';
+  const isBrand = kind === 'brand';
   return `
     <div class="mat-row">
+      ${isBrand ? `
+        <span class="brand-logo-cell" title="${item.logoUrl ? 'Свой логотип' : 'Логотип из комплекта (по названию бренда)'}">
+          ${brandLogoSrc(item) ? `<img src="${escapeHtml(brandLogoSrc(item))}" alt="" class="brand-logo-cell__img" onerror="this.remove()" />` : ''}
+          <i class="fa-solid fa-image brand-logo-cell__ph"></i>
+        </span>
+      ` : ''}
       <span class="mat-row__name">
         ${escapeHtml(item.name)}${item.phone ? ` · ${escapeHtml(item.phone)}` : ''}
         ${isSupplier ? ` · Долг: ${maskUnless('seesSupplierData', money(item.balance))}` : ''}
       </span>
       ${isSupplier && can('stock', 'income') ? `<button type="button" class="btn btn--sm" data-ref-pay-supplier="${item.id}">Оплатить</button>` : ''}
+      ${isBrand && can('stock', 'edit') ? `<button type="button" class="btn btn--sm" data-ref-logo="${item.id}">Логотип</button>` : ''}
       ${isSupplier
         ? `<button type="button" class="mat-row__remove" data-ref-edit-supplier="${item.id}" title="Изменить"><i class="fa-solid fa-pen"></i></button>`
         : `<button type="button" class="mat-row__remove" data-ref-rename="${item.id}" title="Переименовать"><i class="fa-solid fa-pen"></i></button>`}
@@ -467,11 +476,71 @@ function refRow(item) {
   `;
 }
 
+// Логотип бренда попадает в PDF коммерческого предложения вместо названия.
+// Пустое значение — не «нет логотипа», а «взять запасной из комплекта»
+// (server/assets/brand-logos), поэтому «Убрать» возвращает именно к нему.
+function openBrandLogoModal(brand, rerender) {
+  openModal(`Логотип бренда: ${escapeHtml(brand.name)}`, `
+    <form id="brand-logo-form" class="form">
+      <p class="form-hint">
+        Логотип показывается в КП в блоке «Партнёры проекта». Если своего логотипа нет,
+        подставится запасной из комплекта (по названию бренда), а если и его нет — название текстом.
+      </p>
+      <div id="brand-logo-holder"></div>
+      <div class="form-actions">
+        ${brand.logoUrl ? '<button type="button" class="btn btn--danger-ghost" id="brand-logo-reset">Убрать</button>' : ''}
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary">Сохранить</button>
+      </div>
+    </form>
+  `);
+
+  const form = document.getElementById('brand-logo-form');
+  const holder = document.getElementById('brand-logo-holder');
+  let value = brand.logoUrl || '';
+
+  // The picker renders its preview from the value it was given and doesn't
+  // repaint itself, so redraw it on every change — otherwise picking a file
+  // looks like nothing happened.
+  const paintPicker = () => {
+    holder.innerHTML = renderImagePicker('brand-logo', value);
+    attachImagePicker(holder, 'brand-logo', (next) => { value = next || ''; paintPicker(); });
+  };
+  paintPicker();
+
+  const resetBtn = document.getElementById('brand-logo-reset');
+  if (resetBtn) resetBtn.addEventListener('click', async () => {
+    resetBtn.disabled = true;
+    try {
+      await api.updateStockBrand(brand.id, { logoUrl: null });
+      await loadRefs();
+      openRefsModal(rerender);
+    } catch (err) {
+      window.alert(err.message || 'Не удалось убрать логотип');
+      resetBtn.disabled = false;
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      await api.updateStockBrand(brand.id, { logoUrl: value || null });
+      await loadRefs();
+      openRefsModal(rerender);
+    } catch (err) {
+      window.alert(err.message || 'Не удалось сохранить логотип');
+      submitBtn.disabled = false;
+    }
+  });
+}
+
 function openRefsModal(rerender) {
   openModal('Справочники склада', `
     <div class="order-detail__section-title">Категории</div>
     <div class="section-block">
-      <div class="mat-rows" id="refs-categories">${categories.map((c) => refRow(c)).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
+      <div class="mat-rows" id="refs-categories">${categories.map((c) => refRow(c, 'category')).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
       <form class="add-row-form" id="add-category-form">
         <input type="text" name="name" placeholder="Новая категория" required />
         <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
@@ -479,7 +548,7 @@ function openRefsModal(rerender) {
     </div>
     <div class="order-detail__section-title">Бренды</div>
     <div class="section-block">
-      <div class="mat-rows" id="refs-brands">${brands.map((b) => refRow(b)).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
+      <div class="mat-rows" id="refs-brands">${brands.map((b) => refRow(b, 'brand')).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
       <form class="add-row-form" id="add-brand-form">
         <input type="text" name="name" placeholder="Новый бренд" required />
         <button type="submit" class="btn btn--sm"><i class="fa-solid fa-plus"></i></button>
@@ -487,7 +556,7 @@ function openRefsModal(rerender) {
     </div>
     <div class="order-detail__section-title">Поставщики</div>
     <div class="section-block">
-      <div class="mat-rows" id="refs-suppliers">${suppliers.map((s) => refRow(s)).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
+      <div class="mat-rows" id="refs-suppliers">${suppliers.map((s) => refRow(s, 'supplier')).join('') || '<div class="empty-state empty-state--sm">Пока нет</div>'}</div>
       <form class="add-row-form" id="add-supplier-form">
         <input type="text" name="name" placeholder="Название" required />
         <input type="text" name="phone" placeholder="Телефон" />
@@ -566,6 +635,12 @@ function openRefsModal(rerender) {
         } catch (err) {
           window.alert(err.message || `Не удалось переименовать ${noun}`);
         }
+      });
+    });
+    container.querySelectorAll('[data-ref-logo]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const brand = brands.find((b) => b.id === btn.getAttribute('data-ref-logo'));
+        if (brand) openBrandLogoModal(brand, rerender);
       });
     });
     container.querySelectorAll('[data-ref-delete]').forEach((btn) => {

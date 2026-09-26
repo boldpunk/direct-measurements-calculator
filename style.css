@@ -1361,3 +1361,26 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .form-actions--left { justify-content: flex-start; }
 .pb-totals__caption { font-size: 12px; color: var(--text-muted); margin: 6px 0 4px; font-weight: 600; }
 .pb-nowrap { white-space: nowrap; }
+
+/* Логотип бренда в «Справочниках склада» — превью рядом с названием. */
+.brand-logo-cell {
+  width: 46px;
+  height: 26px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow: hidden;
+}
+.brand-logo-cell__img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* The <img> removes itself via onerror when no bundled logo exists for the
+   brand key, which re-reveals the placeholder icon behind this sibling rule. */
+.brand-logo-cell__img ~ .brand-logo-cell__ph { display: none; }
+
+.brand-check { gap: 6px; }
+.brand-check__logo { height: 18px; max-width: 70px; object-fit: contain; vertical-align: middle; }

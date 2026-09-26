@@ -7,12 +7,16 @@
 // every label, themeColor drives accents, and the currency symbol is
 // whatever the proposal was saved with.
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FONT_REGULAR = path.join(__dirname, '../assets/fonts/DejaVuSans.ttf');
 const FONT_BOLD = path.join(__dirname, '../assets/fonts/DejaVuSans-Bold.ttf');
+// Shipped with the frontend (public/ is copied into dist/ at build time), so
+// the same files back both the PDF here and the previews in the UI.
+const BRAND_LOGO_DIR = path.join(__dirname, '../../public/brand-logos');
 
 const STRINGS = {
   ru: {
@@ -118,6 +122,32 @@ async function loadImage(src) {
     // Unreadable image — fall through and render the card without it.
   }
   return null;
+}
+
+// Brand names are typed per instance ("BLUM", "Blum", "SPS - Услуга"), so a
+// bundled logo is matched on the latin letters and digits alone rather than
+// on an exact string — that's also why the key can't escape the directory.
+function brandKey(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+const bundledLogoCache = new Map();
+
+// Fallback logo shipped with the app (server/assets/brand-logos), used when a
+// brand has no uploaded logo of its own. Cached per process — these files
+// never change while the server runs.
+function bundledBrandLogo(name) {
+  const key = brandKey(name);
+  if (!key) return null;
+  if (bundledLogoCache.has(key)) return bundledLogoCache.get(key);
+  let buf = null;
+  try {
+    buf = fs.readFileSync(path.join(BRAND_LOGO_DIR, `${key}.png`));
+  } catch {
+    buf = null; // no bundled logo for this brand — the name is drawn instead
+  }
+  bundledLogoCache.set(key, buf);
+  return buf;
 }
 
 function contentWidth(doc) {
@@ -490,7 +520,7 @@ export async function renderProposalPdf(res, { proposal, settings, responsible, 
   ]);
   const brandLogos = new Map();
   await Promise.all(brands.map(async (b) => {
-    const img = await loadImage(b.logoUrl);
+    const img = (await loadImage(b.logoUrl)) || bundledBrandLogo(b.name);
     if (img) brandLogos.set(b.id, img);
   }));
 

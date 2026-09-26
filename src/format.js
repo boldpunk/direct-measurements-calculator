@@ -9,6 +9,17 @@ export function money(n, currencyOverride) {
   return `${v.toLocaleString('ru-RU')} ${currency}`;
 }
 
+// Mirrors bundledBrandLogo() in server/src/pdf-proposal.js: the same key rule
+// over the same files in public/brand-logos, so what the editor previews is
+// what the КП PDF draws. Returns '' when the brand has no own logo and its
+// name yields no key; a key that has no file 404s and the <img> is dropped by
+// its own onerror, falling back to the placeholder/name.
+export function brandLogoSrc(brand) {
+  if (brand?.logoUrl) return brand.logoUrl;
+  const key = String(brand?.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return key ? `/brand-logos/${key}.png` : '';
+}
+
 export function shortDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);

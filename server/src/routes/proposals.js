@@ -42,7 +42,9 @@ async function nextNumber(tx) {
   const updated = await tx.settings.update({
     where: { id: 'default' }, data: { proposalSeq: { increment: 1 } },
   });
-  return { number: `MH-${updated.proposalSeq}`, settings };
+  // MF = MebelFlow. Earlier documents were numbered MH-… and keep the number
+  // they were issued with — the prefix only applies to new proposals.
+  return { number: `MF-${updated.proposalSeq}`, settings };
 }
 
 // ---- Text templates (must precede /:id so "templates" isn't read as an id) ----
