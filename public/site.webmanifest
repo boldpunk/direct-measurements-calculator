@@ -1,19 +1,25 @@
 {
-  "name": "MebelFlow",
+  "id": "/",
+  "name": "MebelFlow — управление мебельным производством",
   "short_name": "MebelFlow",
+  "description": "Заказы, производство, склад, финансы и коммерческие предложения мебельной компании.",
+  "lang": "ru",
+  "start_url": "/#/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#FFFFFF",
+  "background_color": "#EEF1F7",
   "icons": [
-    {
-      "src": "/favicon/android-chrome-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/favicon/android-chrome-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    { "src": "/favicon/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon/maskable-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/favicon/maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/favicon/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
-  "theme_color": "#1c2e26",
-  "background_color": "#f4f1ea",
-  "display": "standalone"
+  "shortcuts": [
+    { "name": "Заказы", "url": "/#/orders", "icons": [{ "src": "/favicon/android-chrome-192x192.png", "sizes": "192x192" }] },
+    { "name": "Производство", "url": "/#/production", "icons": [{ "src": "/favicon/android-chrome-192x192.png", "sizes": "192x192" }] },
+    { "name": "Задачи", "url": "/#/tasks", "icons": [{ "src": "/favicon/android-chrome-192x192.png", "sizes": "192x192" }] }
+  ]
 }
