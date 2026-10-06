@@ -45,11 +45,72 @@ a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; font-size: 14px; min-width: 0; max-width: 100%; }
 input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transition: border-color var(--ease), background var(--ease), box-shadow var(--ease), transform var(--ease), color var(--ease); }
+
+/* ---- Inputs: one look everywhere ----
+   Base styles sit inside :where(), which has zero specificity, so every
+   existing contextual rule (.form, .add-row-form, .stage-row__select, a
+   borderless input inside a search wrapper…) still wins where it sets
+   something. Before this, a field outside those contexts — a filter in a
+   section toolbar, the image-picker URL box — fell back to the raw browser
+   look with a black border. */
+:root { --field-border-hover: #cdd5e3; }
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]):not([type="range"]), select, textarea) {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  background-color: var(--panel);
+  color: var(--text);
+  line-height: 1.35;
+  outline: none;
+}
+:where(input, select, textarea):hover:not(:disabled):not(:focus) { border-color: var(--field-border-hover); }
+:where(input, select, textarea):focus,
 .form input:focus, .form select:focus, .form textarea:focus,
-.stage-row__select:focus, .stage-row__date:focus, #global-search:focus,
-.add-row-form input:focus, .add-row-form select:focus, .orders-toolbar input:focus {
+.stage-row__select:focus, .stage-row__date:focus,
+.add-row-form input:focus, .add-row-form select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-light);
+}
+/* The ring above already marks focus — don't stack the global outline on top. */
+:where(input, select, textarea):focus-visible { outline: none; }
+:where(input, select, textarea):disabled { background-color: var(--bg); color: var(--text-muted); cursor: not-allowed; }
+::placeholder { color: #9aa3b2; opacity: 1; }
+
+/* Search boxes are a borderless input inside a styled wrapper — the wrapper
+   carries the focus ring instead. */
+.orders-toolbar__search:focus-within, .topbar__search:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+.orders-toolbar__search input:focus, .topbar__search input:focus { box-shadow: none; }
+
+/* One chevron for every dropdown instead of each OS's own. The selector is
+   deliberately more specific than the contextual `padding:` shorthands so the
+   right padding always leaves room for the arrow; compact contexts tune it
+   through the two variables. Badge-style status selects keep their pill look. */
+select:not([multiple]):not([size]):not(.badge):not(.priority-select) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--select-chevron-x, 12px) center;
+  background-size: 11px 8px;
+  padding-right: var(--select-pad-right, 34px);
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+.add-row-form, .stage-row, .prod-card, .status-color-row { --select-chevron-x: 9px; --select-pad-right: 28px; }
+
+/* Number fields: the spinner arrows eat a third of a narrow money field and
+   get clicked by accident while scrolling. Typing/keyboard arrows still work. */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Phones zoom the whole page into any field under 16px on focus — keep
+   fields at 16px on small screens so tapping one doesn't jump the layout. */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]), select:not(.badge), textarea { font-size: 16px !important; }
 }
 
 .tel-link { color: var(--primary); font-weight: 500; }
@@ -118,6 +179,8 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
 }
 .topbar__search input {
   border: none;
+  border-radius: 0;
+  padding: 0;
   background: transparent;
   outline: none;
   flex: 1;
@@ -255,6 +318,25 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
 .sidebar-backdrop[hidden] { display: none; }
 
 .sidebar__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.sidebar__group + .sidebar__group { margin-top: 14px; }
+.sidebar__group-label {
+  padding: 0 12px 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #9aa3b2;
+}
+/* Desktop: keep the menu in view on long pages (Финансы, order detail)
+   instead of letting it scroll away with the content. */
+@media (min-width: 981px) {
+  /* The aside itself keeps stretching (so the white column and its border run
+     the full page height); only the link list inside it sticks. */
+  .sidebar > nav {
+    position: sticky;
+    top: calc(var(--topbar-h, 61px) + 18px);
+    max-height: calc(100vh - var(--topbar-h, 61px) - 36px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
 .sidebar__link {
   position: relative;
   display: flex; align-items: center; gap: 12px;
@@ -359,7 +441,9 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
 
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  /* 170px lets Склад's six tiles share one row on a laptop instead of
+     leaving a lone tile on a second row. */
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -493,7 +577,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 
 .orders-layout {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: minmax(0, 1.55fr) minmax(380px, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -509,6 +593,13 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .data-table tbody tr { cursor: pointer; transition: background var(--ease); }
 .data-table tbody tr:hover { background: var(--bg); }
 .data-table tbody tr.is-selected { background: var(--primary-light); }
+/* Denser variant for tables that share the row with a detail panel. */
+.data-table--compact th, .data-table--compact td { padding: 10px; }
+.data-table--compact th:first-child, .data-table--compact td:first-child { padding-left: 16px; }
+.data-table .badge, .cell-nowrap { white-space: nowrap; }
+.cell-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.cell-sub--danger { color: var(--danger); font-weight: 600; }
+.cell-sub--warning { color: var(--warning); font-weight: 600; }
 .table-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* ---- Commercial proposals ---- */
@@ -607,9 +698,13 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   .image-picker__preview-actions { flex-direction: row; }
 }
 
-.order-detail__header { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px; gap: 12px; }
+.order-detail__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; padding: 18px; gap: 12px; }
+/* The detail column is narrow on laptops: let the title block take the row
+   and drop the action buttons under it instead of crushing the client line
+   into a one-word-wide column. */
+.order-detail__header > div:first-child { flex: 1 1 220px; min-width: 0; }
 .order-detail__header h2 { margin: 0; font-size: 18px; }
-.order-detail__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.order-detail__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .order-detail__stats { display: flex; gap: 22px; padding: 0 18px 16px; }
 .order-detail__stats div { display: flex; flex-direction: column; gap: 2px; }
 .order-detail__stats span { font-size: 11.5px; color: var(--text-muted); }
@@ -634,7 +729,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   display: flex; align-items: center; gap: 8px;
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px;
 }
-.orders-toolbar__search input { border: none; outline: none; flex: 1; background: transparent; font-size: 14px; color: var(--text); width: 100%; }
+.orders-toolbar__search input { border: none; border-radius: 0; padding: 0; outline: none; flex: 1; background: transparent; font-size: 14px; color: var(--text); width: 100%; }
 .orders-toolbar__search i { color: var(--text-muted); }
 .orders-toolbar select { border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; background: var(--panel); color: var(--text); font-size: 13.5px; }
 
@@ -685,17 +780,22 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .pay-row__comment { flex: 1; font-weight: 500; }
 .pay-row__amount { font-weight: 700; }
 
-.add-row-form { display: grid; gap: 8px; margin-bottom: 10px; }
+/* Inline "add a row" forms live in narrow places (the ~430px order-detail
+   column, modals, phones), so they wrap instead of forcing a fixed grid: a
+   fixed 4–6 column grid there squeezed the free-text field down to a single
+   letter. Text/directory pickers take the most room, numbers and dates share
+   the rest, and the button keeps its natural width. */
+.add-row-form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.add-row-form > * { flex: 1 1 92px; min-width: 0; }
+.add-row-form > input[type="text"],
+.add-row-form > select[name="partnerId"],
+.add-row-form > select[name="employeeId"] { flex: 3 1 170px; }
+.add-row-form > input[type="date"] { flex: 1 1 140px; }
+.add-row-form > button { flex: 0 0 auto; justify-content: center; }
 .add-row-form input, .add-row-form select {
   width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
-  font-size: 12.5px; background: var(--panel); color: var(--text);
+  font-size: 12.5px; background-color: var(--panel); color: var(--text);
 }
-.add-row-form button { justify-content: center; }
-.add-row-form--payment { grid-template-columns: 130px 1fr 100px auto; }
-.add-row-form--material { grid-template-columns: 1fr 80px 90px 90px auto; }
-.add-row-form--outsourcing-partner, .add-row-form--outsourcing-adhoc, .add-row-form--expense { grid-template-columns: 1fr 100px auto; }
-.add-row-form--manufacturing { grid-template-columns: 1fr 150px auto; }
-.add-row-form--salary { grid-template-columns: 1fr 100px 150px auto; }
 
 /* Financial summary block */
 
@@ -923,6 +1023,8 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   padding: 20px;
 }
 .modal-overlay[hidden] { display: none; }
+/* Keep the page behind an open dialog from scrolling along with it. */
+body.has-modal { overflow: hidden; }
 .modal {
   background: var(--panel);
   border-radius: var(--radius);
@@ -1022,15 +1124,8 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   .mat-add-form input[name="name"] { grid-column: 1 / -1; }
   .mat-add-form button { grid-column: 1 / -1; justify-content: center; }
 
-  .add-row-form--payment { grid-template-columns: 1fr 1fr; }
-  .add-row-form--payment input[name="comment"] { grid-column: 1 / -1; }
-  .add-row-form--payment button { grid-column: 1 / -1; justify-content: center; }
 
-  .add-row-form--material { grid-template-columns: 1fr 1fr; }
-  .add-row-form--material input[name="name"] { grid-column: 1 / -1; }
-  .add-row-form--material button { grid-column: 1 / -1; justify-content: center; }
 
-  .add-row-form--outsourcing-partner, .add-row-form--outsourcing-adhoc, .add-row-form--salary, .add-row-form--expense, .add-row-form--manufacturing { grid-template-columns: 1fr; }
 
   .kanban-board { display: flex; overflow-x: auto; padding-bottom: 8px; }
   .kanban-col { width: 260px; flex-shrink: 0; }
@@ -1038,8 +1133,17 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
   .prod-col { width: 200px; }
 }
 
+/* Phones: two compact KPI tiles per row instead of a column of five
+   full-width cards that pushed the actual content two screens down. */
 @media (max-width: 480px) {
-  .kpi-row { grid-template-columns: 1fr; }
+  .kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; }
+  .kpi__icon { width: 32px; height: 32px; font-size: 14px; border-radius: 9px; }
+  .kpi .kpi__chevron { display: none; } /* beat Font Awesome's own display rule, injected after this sheet */
+  .kpi__title { font-size: 12px; }
+  .kpi__value { font-size: 17px; }
+  /* An odd last tile spans the row rather than leaving a hole beside it. */
+  .kpi-row > .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
 
 /* ---- Login ---- */
@@ -1384,3 +1488,88 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 
 .brand-check { gap: 6px; }
 .brand-check__logo { height: 18px; max-width: 70px; object-fit: contain; vertical-align: middle; }
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #111827;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: 0 10px 30px rgba(16, 24, 40, 0.25);
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+  cursor: pointer;
+}
+.toast.is-visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast--success i { color: #4ade80; }
+.toast--error { background: #7f1d1d; }
+.toast--error i { color: #fecaca; }
+/* Clear the mobile bottom navigation bar. */
+@media (max-width: 768px) { .toast { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); } }
+
+.settings-subhead { display: flex; flex-direction: column; gap: 2px; padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--border); }
+.settings-subhead b { font-size: 14px; color: var(--text); }
+.settings-subhead span { font-size: 12.5px; color: var(--text-muted); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+
+/* ---- Brand mark (inline SVG icon + wordmark, see src/brand.js) ---- */
+.brand { display: inline-flex; align-items: center; gap: 10px; line-height: 1; }
+.brand .brand-icon { width: 32px; height: 32px; flex: none; display: block; }
+.brand-word { font-weight: 700; font-size: 19px; letter-spacing: -0.02em; color: var(--text); }
+.brand-word__accent { color: var(--primary); }
+.brand--stack { flex-direction: column; gap: 12px; }
+.brand--stack .brand-icon { width: 60px; height: 60px; filter: drop-shadow(0 8px 18px rgba(37, 99, 235, 0.28)); }
+.brand--stack .brand-word { font-size: 22px; }
+/* Phones: icon only in the top bar, so the search box gets the room. */
+@media (max-width: 640px) { .topbar .brand-word { display: none; } }
+.sidebar__mobile-header .brand .brand-icon { width: 28px; height: 28px; }
+.sidebar__mobile-header .brand-word { font-size: 17px; }
+
+/* Landscape on notched phones: keep content and fixed bars clear of the cut-out
+   (only non-zero now that the viewport uses viewport-fit=cover). */
+body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.bottom-nav { padding-left: max(4px, env(safe-area-inset-left, 0px)); padding-right: max(4px, env(safe-area-inset-right, 0px)); }
+
+/* ---- Tabs (Финансы) ---- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  background: var(--panel);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tabs__tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  flex: none;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tabs__tab i { font-size: 13px; }
+.tabs__tab:hover { background: var(--bg); color: var(--text); }
+.tabs__tab.is-active { background: var(--primary-light); color: var(--primary); }
+/* Sections inside a tab already carry their own title — drop the extra top gap. */
+.tab-panel > .panel > .order-detail__section-title:first-child { margin-top: 18px; }

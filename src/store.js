@@ -13,6 +13,7 @@
 // initStore() re-hydrates from the server, which is the source of truth.
 
 import { api, getCurrentEmployee } from './api.js';
+import { showToast } from './toast.js';
 
 export const STAGE_DEFS = [
   { key: 'sale', name: 'Продажа', type: 'internal' },
@@ -173,8 +174,14 @@ function fmtMoney(n) {
   return `${(Number(n) || 0).toLocaleString('ru-RU')} ${currency}`;
 }
 
+// Most mutations here are optimistic: the screen updates first and the save
+// runs in the background. A failed save used to only reach the console, so
+// the change looked saved and silently vanished on the next reload — say so
+// on screen instead. A 401 already sends the user to the login screen.
 function logSyncError(action, err) {
   console.error(`MebelFlow: не удалось синхронизировать «${action}» с сервером`, err);
+  if (err?.status === 401) return;
+  showToast(`Не сохранено (${action}): ${err?.message || 'ошибка сервера'}. Обновите страницу и повторите.`, { tone: 'error' });
 }
 
 function findOrCreateClientLocal({ clientId, clientName, clientPhone, address }) {
@@ -218,9 +225,11 @@ export function getSettings() {
   return _state.settings;
 }
 
+// Resolves to true/false (never rejects), so the Настройки form can confirm
+// the save while fire-and-forget callers don't leave unhandled rejections.
 export function updateSettings(patch) {
   _state.settings = { ..._state.settings, ...patch };
-  api.updateSettings(patch).catch((e) => logSyncError('настройки', e));
+  return api.updateSettings(patch).then(() => true, (e) => { logSyncError('настройки', e); return false; });
 }
 
 // Cached separately from _state.settings — populated before login (see

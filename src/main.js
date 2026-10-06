@@ -1,6 +1,20 @@
+// Fonts and icons are bundled rather than pulled from CDNs: the installed
+// PWA has to render without network access to third-party hosts, and it
+// saves two cross-origin round trips on every cold load. Only the "solid"
+// Font Awesome style is used anywhere, so regular/brands aren't shipped.
+import '@fontsource/inter/400';
+import '@fontsource/inter/500';
+import '@fontsource/inter/600';
+import '@fontsource/inter/700';
+import '@fortawesome/fontawesome-free/css/fontawesome.min.css';
+import '@fortawesome/fontawesome-free/css/solid.min.css';
 import 'flag-icons/css/flag-icons.min.css';
-import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, applyFavicon, NAV_ITEMS } from './ui.js';
+// Last, so the app's own rules keep precedence over the library CSS above
+// (the order these were in when the libraries came from <link> tags).
+import '../style.css';
+import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, applyFavicon, enhanceFields, NAV_ITEMS } from './ui.js';
 import { initSearch } from './search.js';
+import { brandLogo } from './brand.js';
 import { initNotifications } from './notifications.js';
 import { renderDashboard, attachDashboardHandlers } from './views/dashboard.js';
 import { renderOrders, attachOrderHandlers } from './views/orders.js';
@@ -53,8 +67,10 @@ let shellMounted = false;
     const branding = await api.getBranding();
     setPublicBranding(branding);
     applyFavicon(branding.faviconUrl);
-    const loginLogo = document.getElementById('login-logo-img');
-    if (loginLogo && branding.logoUrl) loginLogo.src = branding.logoUrl;
+    const loginLogo = document.getElementById('login-logo');
+    if (loginLogo && branding.logoUrl) {
+      loginLogo.innerHTML = brandLogo(branding.logoUrl, { layout: 'stack', imgClass: 'login-card__logo-img' });
+    }
   } catch (e) {
     console.error('Failed to load public branding', e);
   }
@@ -127,12 +143,18 @@ function renderApp() {
     shellMounted = true;
   } else {
     document.querySelectorAll('.sidebar__link, .bottom-nav__link').forEach((link) => {
-      link.classList.toggle('is-active', link.getAttribute('href') === `#/${route}`);
+      const active = link.getAttribute('href') === `#/${route}`;
+      link.classList.toggle('is-active', active);
+      if (active) link.setAttribute('aria-current', 'page');
+      else link.removeAttribute('aria-current');
     });
   }
 
   const viewRoot = document.getElementById('view-root');
   const view = ROUTES[route];
+  // Tab title / history entries show the page, not just the product name.
+  const navItem = NAV_ITEMS.find((i) => i.route === route);
+  document.title = navItem ? `${navItem.title || navItem.label} · MebelFlow` : 'MebelFlow';
 
   // Re-rendering replaces the whole subtree, which would otherwise steal
   // focus (and reset the cursor) out of whatever input the user is typing
@@ -144,6 +166,7 @@ function renderApp() {
 
   viewRoot.innerHTML = view.render();
   if (view.attach) view.attach(viewRoot, renderApp);
+  enhanceFields(viewRoot);
 
   if (focusInfo) {
     const el = document.getElementById(focusInfo.id);
@@ -157,6 +180,9 @@ function renderApp() {
 }
 
 function renderLoginScreen({ idle = false } = {}) {
+  // A modal open at logout (e.g. the idle timer) is torn down with the shell,
+  // so its scroll lock has to be released here.
+  document.body.classList.remove('has-modal');
   const app = document.getElementById('app');
   app.innerHTML = renderLogin();
   attachLoginHandlers(app, boot);

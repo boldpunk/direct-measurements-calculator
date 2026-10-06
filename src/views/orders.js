@@ -133,9 +133,9 @@ export function renderOrders() {
     <div class="orders-layout">
       <div class="panel orders-table-panel">
         <div class="panel__body" style="padding:0; overflow-x:auto">
-          <table class="data-table">
+          <table class="data-table data-table--compact">
             <thead>
-              <tr><th>№</th><th>Клиент</th>${getSettings().enableProductType !== false ? '<th>Тип</th>' : ''}<th>Сумма</th><th>Получено</th><th>Остаток</th><th>Срок</th><th>Статус</th><th>Прибыль</th></tr>
+              <tr><th>№</th><th>${getSettings().enableProductType !== false ? 'Клиент / изделие' : 'Клиент'}</th><th>Сумма</th><th>Остаток</th><th>Статус / срок</th><th>Прибыль</th></tr>
             </thead>
             <tbody>${tableRows}</tbody>
           </table>
@@ -154,15 +154,18 @@ function orderRow(o, fin) {
   const deadlineInfo = getOrderDeadlineInfo(o);
   return `
     <tr class="${o.id === selectedOrderId ? 'is-selected' : ''}" data-order-row="${o.id}">
-      <td>#${o.number}</td>
-      <td>${escapeHtml(o.clientName)}</td>
-      ${getSettings().enableProductType !== false ? `<td>${escapeHtml(o.productType)}</td>` : ''}
-      <td>${money(o.amount)}</td>
-      <td>${money(fin.receivedAmount)}</td>
-      <td class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : 'Оплачено'}</td>
-      <td><span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span></td>
-      <td><span class="${orderStatusBadgeClass(o.status)}">${o.status}</span></td>
-      <td class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">${maskUnless('seesProfit', money(fin.profit))}</td>
+      <td class="cell-nowrap"><b>#${o.number}</b></td>
+      <td>
+        ${escapeHtml(o.clientName)}
+        ${getSettings().enableProductType !== false && o.productType ? `<div class="cell-sub">${escapeHtml(o.productType)}</div>` : ''}
+      </td>
+      <td class="cell-nowrap">${money(o.amount)}</td>
+      <td class="cell-nowrap ${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : 'Оплачено'}</td>
+      <td>
+        <span class="${orderStatusBadgeClass(o.status)}">${o.status}</span>
+        ${deadlineInfo.text && deadlineInfo.text !== o.status ? `<div class="cell-sub cell-sub--${deadlineInfo.tone}">${deadlineInfo.text}</div>` : ''}
+      </td>
+      <td class="cell-nowrap ${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">${maskUnless('seesProfit', money(fin.profit))}</td>
     </tr>
   `;
 }

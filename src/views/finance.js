@@ -16,6 +16,24 @@ let currentPeriod = '';
 let currentPeriodFrom = '';
 let currentPeriodTo = '';
 
+// Финансы used to stack six reports on one very long page. They're tabs now;
+// the KPI row and the period filter stay above the tabs because every report
+// follows the same period. A tab only appears if its report renders for this
+// employee (each section already returns '' without the right permission or
+// with its feature switched off).
+const TABS = [
+  { key: 'orders', label: 'Заказы', icon: 'fa-box-open' },
+  { key: 'services', label: 'Услуги', icon: 'fa-screwdriver-wrench' },
+  { key: 'salary', label: 'Зарплаты', icon: 'fa-money-check-dollar' },
+  { key: 'outsource', label: 'Аутсорс', icon: 'fa-layer-group' },
+  { key: 'partners', label: 'Долг / кредит', icon: 'fa-scale-balanced' },
+  { key: 'fittings', label: 'Фурнитура', icon: 'fa-gears' },
+];
+let activeTab = 'orders';
+// Tabs available on the last render — attach only wires the visible one, so
+// a report's data is fetched the first time its tab is opened.
+let lastTabKeys = ['orders'];
+
 export function renderFinance() {
   const state = getState();
   const monthlyProfit = computeMonthlyProfit();
@@ -59,17 +77,7 @@ export function renderFinance() {
     `;
   }).join('') || `<tr><td colspan="10" class="empty-state">Заказов нет</td></tr>`;
 
-  return `
-    <div class="page-header">
-      <h1>Финансы</h1>
-      <span class="row-item__sub">Детальное редактирование оплат и расходов — на странице заказа</span>
-    </div>
-    <div class="orders-toolbar">
-      ${renderPeriodFilter('finance', { periodKey: currentPeriod, customFrom: currentPeriodFrom, customTo: currentPeriodTo })}
-      <button type="button" class="btn btn--primary" id="finance-export-btn"><i class="fa-solid fa-file-export"></i> Экспорт в Excel</button>
-      ${getSettings().enablePurchaseList ? `<button type="button" class="btn" id="purchase-list-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Заявки на закупку</button>` : ''}
-    </div>
-    <div class="kpi-row">${kpis.join('')}</div>
+  const ordersTable = `
     <div class="panel">
       <div class="panel__body" style="padding:0; overflow-x:auto">
         <table class="data-table">
@@ -83,12 +91,42 @@ export function renderFinance() {
         </table>
       </div>
     </div>
-    ${renderServicesReportSection(periodOrders)}
-    ${renderPayrollLedgerSection(range)}
-    ${renderSalaryReportSection(periodOrders)}
-    ${renderOutsourceReportSection(periodOrders)}
-    ${renderPartnerBalanceSection(range)}
-    ${renderFittingsSection(periodOrders)}
+  `;
+  const sections = {
+    orders: ordersTable,
+    services: renderServicesReportSection(periodOrders),
+    salary: `${renderPayrollLedgerSection(range)}${renderSalaryReportSection(periodOrders)}`,
+    outsource: renderOutsourceReportSection(periodOrders),
+    partners: renderPartnerBalanceSection(range),
+    fittings: renderFittingsSection(periodOrders),
+  };
+  const tabs = TABS.filter((t) => sections[t.key] && sections[t.key].trim());
+  lastTabKeys = tabs.map((t) => t.key);
+  if (!lastTabKeys.includes(activeTab)) activeTab = 'orders';
+  const tabBar = tabs.length > 1 ? `
+    <div class="tabs" role="tablist" aria-label="Разделы финансов">
+      ${tabs.map((t) => `
+        <button type="button" class="tabs__tab ${t.key === activeTab ? 'is-active' : ''}" role="tab"
+          aria-selected="${t.key === activeTab}" data-fin-tab="${t.key}">
+          <i class="fa-solid ${t.icon}"></i><span>${t.label}</span>
+        </button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  return `
+    <div class="page-header">
+      <h1>Финансы</h1>
+      <span class="row-item__sub">Детальное редактирование оплат и расходов — на странице заказа</span>
+    </div>
+    <div class="orders-toolbar">
+      ${renderPeriodFilter('finance', { periodKey: currentPeriod, customFrom: currentPeriodFrom, customTo: currentPeriodTo })}
+      <button type="button" class="btn btn--primary" id="finance-export-btn"><i class="fa-solid fa-file-export"></i> Экспорт в Excel</button>
+      ${getSettings().enablePurchaseList ? `<button type="button" class="btn" id="purchase-list-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Заявки на закупку</button>` : ''}
+    </div>
+    <div class="kpi-row">${kpis.join('')}</div>
+    ${tabBar}
+    <div class="tab-panel" role="tabpanel">${sections[activeTab]}</div>
   `;
 }
 
@@ -138,7 +176,16 @@ export function attachFinanceHandlers(root, rerender) {
   attachPeriodFilter(root, 'finance', (periodKey, from, to) => {
     currentPeriod = periodKey; currentPeriodFrom = from; currentPeriodTo = to; rerender();
   });
-  attachFittingsHandlers(root, rerender);
-  attachServicesReportHandlers(root, rerender);
-  attachPartnerBalanceHandlers(root, rerender, getPeriodRange(currentPeriod, currentPeriodFrom, currentPeriodTo));
+  root.querySelectorAll('[data-fin-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeTab = btn.getAttribute('data-fin-tab');
+      rerender();
+    });
+  });
+
+  // Only the visible report is wired (and, for the ones that fetch their own
+  // data, loaded) — opening Финансы no longer pulls every report up front.
+  if (activeTab === 'fittings') attachFittingsHandlers(root, rerender);
+  if (activeTab === 'services') attachServicesReportHandlers(root, rerender);
+  if (activeTab === 'partners') attachPartnerBalanceHandlers(root, rerender, getPeriodRange(currentPeriod, currentPeriodFrom, currentPeriodTo));
 }

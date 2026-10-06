@@ -6,7 +6,9 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 export function money(n, currencyOverride) {
   const v = Number(n) || 0;
   const currency = currencyOverride || getState().settings?.currency || '$';
-  return `${v.toLocaleString('ru-RU')} ${currency}`;
+  // No-break space before the currency: in a narrow table cell "4 200 $"
+  // otherwise wraps into "4 200" / "$" on two lines.
+  return `${v.toLocaleString('ru-RU')}\u00A0${currency}`;
 }
 
 // Mirrors bundledBrandLogo() in server/src/pdf-proposal.js: the same key rule

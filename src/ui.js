@@ -1,6 +1,7 @@
 import { escapeHtml } from './format.js';
 import { can, canAny } from './permissions.js';
 import { getSettings } from './store.js';
+import { brandLogo } from './brand.js';
 
 let defaultFaviconHTML = null;
 const OVERRIDE_IDS = ['dynamic-favicon', 'dynamic-apple-touch-icon'];
@@ -42,29 +43,40 @@ export function applyFavicon(customUrl) {
   }
 }
 
+// `group` splits the sidebar into labelled sections — a flat list of 16
+// links was hard to scan. Order within the array is the display order.
+export const NAV_GROUPS = [
+  { key: 'main', label: '' },
+  { key: 'work', label: 'Работа' },
+  { key: 'money', label: 'Деньги' },
+  { key: 'catalog', label: 'Склад и партнёры' },
+  { key: 'admin', label: 'Управление' },
+];
+
 export const NAV_ITEMS = [
-  { route: 'dashboard', icon: 'fa-house', label: 'Главная', guard: () => true },
-  { route: 'orders', icon: 'fa-box-open', label: 'Заказы', guard: () => can('orders', 'view') },
-  { route: 'clients', icon: 'fa-address-book', label: 'Клиенты', guard: () => can('clients', 'view') },
-  { route: 'production', icon: 'fa-diagram-project', label: 'Производство', guard: () => can('production', 'view') },
-  { route: 'carpentry', icon: 'fa-hammer', label: 'Столярка', guard: () => can('carpentry', 'view') },
-  { route: 'rework', icon: 'fa-rotate', label: 'Переделки', guard: () => can('rework', 'view') },
-  { route: 'tasks', icon: 'fa-list-check', label: 'Задачи', guard: () => can('tasks', 'view') },
-  { route: 'outsource', icon: 'fa-layer-group', label: 'Аутсорс', guard: () => can('outsource', 'view') },
-  { route: 'finance', icon: 'fa-sack-dollar', label: 'Финансы', guard: () => can('finance', 'view') },
-  { route: 'salary', icon: 'fa-money-check-dollar', label: 'Заработная плата', guard: () => can('salaryPayments', 'view') },
-  { route: 'proposals', icon: 'fa-file-contract', label: 'Коммерческие предложения', guard: () => can('proposals', 'view') },
-  { route: 'stock', icon: 'fa-warehouse', label: 'Склад', guard: () => can('stock', 'view') },
-  { route: 'services', icon: 'fa-screwdriver-wrench', label: 'Услуги', guard: () => can('services', 'view') },
-  { route: 'employees', icon: 'fa-users', label: 'Сотрудники', guard: () => canAny('employees') },
-  { route: 'audit-log', icon: 'fa-clock-rotate-left', label: 'Журнал действий', guard: () => can('settings', 'manageRoles') },
-  { route: 'settings', icon: 'fa-gear', label: 'Настройки', guard: () => canAny('settings') },
+  { route: 'dashboard', group: 'main', icon: 'fa-house', label: 'Главная', guard: () => true },
+  { route: 'orders', group: 'work', icon: 'fa-box-open', label: 'Заказы', guard: () => can('orders', 'view') },
+  { route: 'clients', group: 'work', icon: 'fa-address-book', label: 'Клиенты', guard: () => can('clients', 'view') },
+  { route: 'proposals', group: 'work', icon: 'fa-file-contract', label: 'Предложения (КП)', title: 'Коммерческие предложения', guard: () => can('proposals', 'view') },
+  { route: 'production', group: 'work', icon: 'fa-diagram-project', label: 'Производство', guard: () => can('production', 'view') },
+  { route: 'carpentry', group: 'work', icon: 'fa-hammer', label: 'Столярка', guard: () => can('carpentry', 'view') },
+  { route: 'rework', group: 'work', icon: 'fa-rotate', label: 'Переделки', guard: () => can('rework', 'view') },
+  { route: 'tasks', group: 'work', icon: 'fa-list-check', label: 'Задачи', guard: () => can('tasks', 'view') },
+  { route: 'finance', group: 'money', icon: 'fa-sack-dollar', label: 'Финансы', guard: () => can('finance', 'view') },
+  { route: 'salary', group: 'money', icon: 'fa-money-check-dollar', label: 'Заработная плата', guard: () => can('salaryPayments', 'view') },
+  { route: 'stock', group: 'catalog', icon: 'fa-warehouse', label: 'Склад', guard: () => can('stock', 'view') },
+  { route: 'services', group: 'catalog', icon: 'fa-screwdriver-wrench', label: 'Услуги', guard: () => can('services', 'view') },
+  { route: 'outsource', group: 'catalog', icon: 'fa-layer-group', label: 'Аутсорс', guard: () => can('outsource', 'view') },
+  { route: 'employees', group: 'admin', icon: 'fa-users', label: 'Сотрудники', guard: () => canAny('employees') },
+  { route: 'audit-log', group: 'admin', icon: 'fa-clock-rotate-left', label: 'Журнал действий', guard: () => can('settings', 'manageRoles') },
+  { route: 'settings', group: 'admin', icon: 'fa-gear', label: 'Настройки', guard: () => canAny('settings') },
 ];
 
 export const BOTTOM_NAV_ITEMS = [
   { route: 'dashboard', icon: 'fa-house', label: 'Главная', guard: () => true },
   { route: 'orders', icon: 'fa-box-open', label: 'Заказы', guard: () => can('orders', 'view') },
-  { route: 'production', icon: 'fa-diagram-project', label: 'Производство', guard: () => can('production', 'view') },
+  // Short label: the full word was cut to «Производс…» in the narrow tab.
+  { route: 'production', icon: 'fa-diagram-project', label: 'Цех', guard: () => can('production', 'view') },
   { route: 'tasks', icon: 'fa-list-check', label: 'Задачи', guard: () => can('tasks', 'view') },
 ];
 
@@ -73,9 +85,7 @@ export function visibleNavItems(items) {
 }
 
 function logoMarkup() {
-  const logoUrl = getSettings()?.logoUrl;
-  const src = logoUrl || '/logo/logo-horizontal-light.png';
-  return `<img src="${escapeHtml(src)}" alt="MebelFlow" class="logo__img" />`;
+  return brandLogo(getSettings()?.logoUrl, { layout: 'row' });
 }
 
 // The shell (topbar/sidebar) is only rendered once per session — call this
@@ -124,20 +134,29 @@ export function renderShell(currentRoute) {
       <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
       <aside class="sidebar" id="sidebar">
         <div class="sidebar__mobile-header">
-          <span class="logo__text">MebelFlow</span>
+          ${brandLogo(null, { layout: 'row' })}
           <button type="button" class="sidebar__close" id="sidebar-close" aria-label="Закрыть меню"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <nav>
-          <ul class="sidebar__list">
-            ${navItems.map((item) => `
-              <li>
-                <a href="#/${item.route}" class="sidebar__link ${currentRoute === item.route ? 'is-active' : ''}">
-                  <i class="fa-solid ${item.icon}"></i>
-                  <span>${item.label}</span>
-                </a>
-              </li>
-            `).join('')}
-          </ul>
+          ${NAV_GROUPS.map((group) => {
+            const items = navItems.filter((item) => item.group === group.key);
+            if (!items.length) return '';
+            return `
+              <div class="sidebar__group">
+                ${group.label ? `<div class="sidebar__group-label">${group.label}</div>` : ''}
+                <ul class="sidebar__list">
+                  ${items.map((item) => `
+                    <li>
+                      <a href="#/${item.route}" class="sidebar__link ${currentRoute === item.route ? 'is-active' : ''}" ${currentRoute === item.route ? 'aria-current="page"' : ''}>
+                        <i class="fa-solid ${item.icon}"></i>
+                        <span>${item.label}</span>
+                      </a>
+                    </li>
+                  `).join('')}
+                </ul>
+              </div>
+            `;
+          }).join('')}
         </nav>
       </aside>
       <main class="content" id="view-root"></main>
@@ -160,6 +179,18 @@ export function renderShell(currentRoute) {
   `;
 }
 
+// Every number field in the app is a money amount or a quantity: on phones
+// ask for the decimal keypad (or digits-only for whole-number fields) rather
+// than the full keyboard. Applied after each render and each modal, so new
+// markup doesn't have to remember the attribute.
+export function enhanceFields(root) {
+  if (!root) return;
+  root.querySelectorAll('input[type="number"]:not([inputmode])').forEach((el) => {
+    const step = el.getAttribute('step') || '';
+    el.setAttribute('inputmode', step === 'any' || step.includes('.') ? 'decimal' : 'numeric');
+  });
+}
+
 // `wide` widens the dialog for content that's really a table (the partner
 // взаиморасчёты ledger) — the default 460px is sized for forms.
 export function openModal(titleHtml, bodyHtml, { wide = false } = {}) {
@@ -173,12 +204,18 @@ export function openModal(titleHtml, bodyHtml, { wide = false } = {}) {
     </div>
     <div class="modal__content">${bodyHtml}</div>
   `;
+  enhanceFields(body);
   overlay.hidden = false;
+  document.body.classList.add('has-modal');
+  // `autofocus` doesn't fire for markup inserted via innerHTML.
+  const auto = body.querySelector('[autofocus]');
+  if (auto) auto.focus();
 }
 
 export function closeModal() {
   const overlay = document.getElementById('modal-overlay');
   overlay.hidden = true;
+  document.body.classList.remove('has-modal');
 }
 
 export function initModalHandlers() {
@@ -187,6 +224,9 @@ export function initModalHandlers() {
     if (e.target === overlay || e.target.closest('[data-action="close-modal"]')) {
       closeModal();
     }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.hidden) closeModal();
   });
 }
 

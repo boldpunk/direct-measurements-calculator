@@ -1,14 +1,13 @@
 import { api } from '../api.js';
-import { escapeHtml } from '../format.js';
 import { getPublicBranding } from '../store.js';
+import { brandLogo } from '../brand.js';
 
 export function renderLogin() {
-  const logoUrl = getPublicBranding()?.logoUrl || '/logo/logo-stacked-light.png';
   return `
     <div class="login-screen">
       <form class="login-card" id="login-form">
-        <div class="login-card__logo">
-          <img src="${escapeHtml(logoUrl)}" alt="MebelFlow" class="login-card__logo-img" id="login-logo-img" />
+        <div class="login-card__logo" id="login-logo">
+          ${brandLogo(getPublicBranding()?.logoUrl, { layout: 'stack', imgClass: 'login-card__logo-img' })}
         </div>
         <p class="login-card__subtitle">Войдите, чтобы открыть систему управления производством</p>
         <div class="form">
@@ -42,7 +41,7 @@ export function attachLoginHandlers(root, onSuccess) {
       await api.login(email, password);
       onSuccess();
     } catch (err) {
-      errorBox.textContent = escapeHtml(err.message || 'Не удалось войти');
+      errorBox.textContent = err.message || 'Не удалось войти';
       errorBox.hidden = false;
       submitBtn.disabled = false;
       submitBtn.textContent = 'Войти';

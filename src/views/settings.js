@@ -2,6 +2,7 @@ import { getState, getSettings, updateSettings, updateOrderStatusColor, CURRENCI
 import { escapeHtml } from '../format.js';
 import { can } from '../permissions.js';
 import { refreshLogo, applyFavicon } from '../ui.js';
+import { showToast } from '../toast.js';
 
 const TONE_LABELS = {
   neutral: 'Серый', info: 'Синий', warning: 'Жёлтый', success: 'Зелёный', danger: 'Красный',
@@ -32,6 +33,28 @@ export function renderSettings() {
               <input name="stageBufferDays" type="number" min="1" max="30" value="${settings.stageBufferDays}" ${canEdit ? '' : 'disabled'} />
             </label>
             <p class="form-hint">Буфер используется при создании нового заказа для расчёта дедлайна каждого из 11 этапов пайплайна.</p>
+
+            <div class="settings-subhead">
+              <b>Реквизиты для коммерческих предложений</b>
+              <span>Выводятся в шапке и подвале PDF коммерческого предложения. Пустые поля просто не показываются.</span>
+            </div>
+            <label>Слоган
+              <input name="companySlogan" value="${escapeHtml(settings.companySlogan || '')}" placeholder="напр. Premium mebel studiyasi" ${canEdit ? '' : 'disabled'} />
+            </label>
+            <label>Адрес
+              <input name="companyAddress" value="${escapeHtml(settings.companyAddress || '')}" placeholder="Город, район, улица, дом" ${canEdit ? '' : 'disabled'} />
+            </label>
+            <div class="form-row">
+              <label>Телефон
+                <input name="companyPhone" type="tel" value="${escapeHtml(settings.companyPhone || '')}" placeholder="+998 90 000 00 00" ${canEdit ? '' : 'disabled'} />
+              </label>
+              <label>Instagram
+                <input name="companyInstagram" value="${escapeHtml(settings.companyInstagram || '')}" placeholder="@company" ${canEdit ? '' : 'disabled'} />
+              </label>
+            </div>
+            <label>Сайт
+              <input name="companyWebsite" value="${escapeHtml(settings.companyWebsite || '')}" placeholder="company.uz" ${canEdit ? '' : 'disabled'} />
+            </label>
             ${canEdit ? `
               <div class="form-actions">
                 <button type="submit" class="btn btn--primary">Сохранить</button>
@@ -112,15 +135,24 @@ export function renderSettings() {
 export function attachSettingsHandlers(root, rerender) {
   const form = root.querySelector('#settings-form');
   if (form) {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
-      updateSettings({
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+      const saved = await updateSettings({
         companyName: fd.get('companyName'),
         currency: fd.get('currency'),
         stageBufferDays: Number(fd.get('stageBufferDays')) || 3,
+        companySlogan: (fd.get('companySlogan') || '').trim(),
+        companyAddress: (fd.get('companyAddress') || '').trim(),
+        companyPhone: (fd.get('companyPhone') || '').trim(),
+        companyInstagram: (fd.get('companyInstagram') || '').trim(),
+        companyWebsite: (fd.get('companyWebsite') || '').trim(),
       });
       rerender();
+      // A failed save already shows its own error toast from the store.
+      if (saved) showToast('Настройки сохранены');
     });
   }
 
