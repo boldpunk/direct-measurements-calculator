@@ -1,4 +1,4 @@
-import { getState, updateOrderStatus, getOrderDeadlineInfo, getKanbanColumns, getOrderStatuses } from '../store.js';
+import { getState, updateOrderStatus, getOrderDeadlineInfo, getKanbanColumns, getOrderStatuses, getOrderStatusTone } from '../store.js';
 import { escapeHtml, deadlineBadgeClass } from '../format.js';
 import { can } from '../permissions.js';
 import { selectOrder } from './orders.js';
@@ -10,7 +10,10 @@ export function renderProduction() {
     const orders = state.orders.filter((o) => o.status === col.status);
     return `
       <div class="prod-col" data-status="${escapeHtml(col.status)}">
-        <div class="prod-col__title">${escapeHtml(col.label)} <span class="kanban-col__count">${orders.length}</span></div>
+        <div class="prod-col__title">
+          <span class="status-dot status-dot--${getOrderStatusTone(col.status)}" aria-hidden="true"></span>
+          ${escapeHtml(col.label)} <span class="kanban-col__count">${orders.length}</span>
+        </div>
         <div class="prod-col__body" data-drop-status="${escapeHtml(col.status)}">
           ${orders.map((o) => renderCard(o, state)).join('') || '<div class="empty-state empty-state--sm">пусто</div>'}
         </div>

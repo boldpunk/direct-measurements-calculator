@@ -421,7 +421,7 @@ router.get('/report/pdf', requirePermission('partnerBalance', 'report'), ah(asyn
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline; filename="partner-balance.pdf"');
-  renderPartnerBalanceReportPdf(res, {
+  await renderPartnerBalanceReportPdf(res, {
     rows: reportRows,
     currency: reportCurrency,
     settings: settings || DEFAULT_SETTINGS,

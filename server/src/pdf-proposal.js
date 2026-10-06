@@ -10,10 +10,13 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { FONTS, fmtPhone } from './pdf-theme.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FONT_REGULAR = path.join(__dirname, '../assets/fonts/DejaVuSans.ttf');
-const FONT_BOLD = path.join(__dirname, '../assets/fonts/DejaVuSans-Bold.ttf');
+// Inter, the app's own typeface (see pdf-theme.js). "bold" maps to SemiBold:
+// most bold text here is small spaced-out labels, where Inter Bold reads heavy.
+const FONT_REGULAR = FONTS.regular;
+const FONT_BOLD = FONTS.semibold;
 // Shipped with the frontend (public/ is copied into dist/ at build time), so
 // the same files back both the PDF here and the previews in the UI.
 const BRAND_LOGO_DIR = path.join(__dirname, '../../public/brand-logos');
@@ -205,7 +208,7 @@ function drawHeader(doc, { proposal, settings, logo, t, accent }) {
   }
   if (settings?.companyPhone) {
     doc.font('regular').fontSize(8.5).fillColor(MUTED)
-      .text(settings.companyPhone, textX, doc.y + 1, { width: textW });
+      .text(fmtPhone(settings.companyPhone), textX, doc.y + 1, { width: textW });
   }
 
   const headerBottom = Math.max(doc.y, top + 62);
@@ -225,7 +228,7 @@ function drawInfoCards(doc, { proposal, settings, responsible, t, accent }) {
 
   const customerLines = [
     proposal.clientName && { bold: true, size: 11, text: proposal.clientName },
-    proposal.clientPhone && { text: `${t.phone} ${proposal.clientPhone}` },
+    proposal.clientPhone && { text: `${t.phone} ${fmtPhone(proposal.clientPhone)}` },
     proposal.clientAddress && { text: proposal.clientAddress },
     proposal.projectName && { text: `${t.project}: ${proposal.projectName}` },
   ].filter(Boolean);
@@ -233,7 +236,7 @@ function drawInfoCards(doc, { proposal, settings, responsible, t, accent }) {
   const preparedLines = [
     responsible?.name && { bold: true, size: 11, text: responsible.name },
     settings?.companyName && { text: settings.companyName },
-    responsible?.phone && { text: `${t.phone} ${responsible.phone}` },
+    responsible?.phone && { text: `${t.phone} ${fmtPhone(responsible.phone)}` },
   ].filter(Boolean);
 
   // Measure both columns first so the two cards share one height.
@@ -312,10 +315,13 @@ function drawBrands(doc, { brands, t, brandLogos }) {
 
 // Column geometry is shared between the header row and every item card so
 // the photo/name/qty/price/sum stay aligned across page breaks.
-function itemColumns(doc) {
+// Without a single photo in the proposal the «Фото» column is dropped and the
+// name/description column takes its width (it used to print an empty column
+// under a «Фото» heading).
+function itemColumns(doc, hasPhotos = true) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
-  const photo = 92;
+  const photo = hasPhotos ? 92 : -14;
   const qty = 56;
   const price = 76;
   const sum = 82;
@@ -335,11 +341,11 @@ function itemColumns(doc) {
   };
 }
 
-function drawItemsHeader(doc, { t, accent }) {
-  const c = itemColumns(doc);
+function drawItemsHeader(doc, { t, accent, hasPhotos = true }) {
+  const c = itemColumns(doc, hasPhotos);
   const y = doc.y;
   doc.font('bold').fontSize(7.5).fillColor(accent);
-  doc.text(t.colPhoto, c.photoX, y, { width: c.photoW, characterSpacing: 0.5 });
+  if (hasPhotos) doc.text(t.colPhoto, c.photoX, y, { width: c.photoW, characterSpacing: 0.5 });
   doc.text(t.colName, c.nameX, y, { width: c.nameW, characterSpacing: 0.5 });
   doc.text(t.colQty, c.qtyX, y, { width: c.qtyW, align: 'center', characterSpacing: 0.5 });
   doc.text(t.colPrice, c.priceX, y, { width: c.priceW, align: 'right', characterSpacing: 0.5 });
@@ -350,8 +356,8 @@ function drawItemsHeader(doc, { t, accent }) {
   doc.x = c.left;
 }
 
-function drawItemCard(doc, { item, image, currency, t, accent }) {
-  const c = itemColumns(doc);
+function drawItemCard(doc, { item, image, currency, t, accent, hasPhotos = true }) {
+  const c = itemColumns(doc, hasPhotos);
 
   // Work out the card height before drawing anything, so the row can be
   // moved to a fresh page whole rather than split across the break.
@@ -366,7 +372,7 @@ function drawItemCard(doc, { item, image, currency, t, accent }) {
 
   if (doc.y + rowH > bottomLimit(doc)) {
     doc.addPage();
-    drawItemsHeader(doc, { t, accent });
+    drawItemsHeader(doc, { t, accent, hasPhotos });
   }
 
   const top = doc.y;
@@ -537,13 +543,14 @@ export async function renderProposalPdf(res, { proposal, settings, responsible, 
   drawInfoCards(doc, { proposal, settings, responsible, t, accent });
   drawBrands(doc, { brands, t, brandLogos });
 
-  drawItemsHeader(doc, { t, accent });
+  const hasPhotos = itemImages.some(Boolean);
+  drawItemsHeader(doc, { t, accent, hasPhotos });
   if (!proposal.items.length) {
     doc.font('regular').fontSize(9).fillColor(MUTED).text(t.empty, doc.page.margins.left, doc.y);
     doc.y += 16;
   }
   proposal.items.forEach((item, i) => {
-    drawItemCard(doc, { item, image: itemImages[i], currency, t, accent });
+    drawItemCard(doc, { item, image: itemImages[i], currency, t, accent, hasPhotos });
   });
 
   drawTotals(doc, { proposal, t, accent, currency });

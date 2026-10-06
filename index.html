@@ -7,8 +7,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>MebelFlow — управление мебельным производством</title>
     <meta name="description" content="Заказы, производство, склад, финансы и коммерческие предложения мебельной компании." />
-    <meta name="theme-color" content="#2563EB" />
-    <meta name="color-scheme" content="light" />
+    <!-- Browser chrome matches the top bar in each theme (src/theme.js keeps
+         these in sync when a theme is forced from the profile menu). -->
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#161A21" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Apply a saved light/dark choice before the first paint (no flash).
+      try {
+        var t = localStorage.getItem('mebelflow_theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* storage blocked — follow the device setting */ }
+    </script>
 
     <!-- Icons (sources: public/favicon/src) -->
     <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />

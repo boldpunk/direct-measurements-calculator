@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS = {
   companyPhone: '',
   companyInstagram: '',
   companyWebsite: '',
+  brandColor: null,
   enableProductType: true,
   enableWeight: true,
   enableStages: true,

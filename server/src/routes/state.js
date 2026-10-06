@@ -90,7 +90,7 @@ router.get('/', ah(async (req, res) => {
       enableCustomOrderStatuses: settingsRow.enableCustomOrderStatuses,
       companySlogan: settingsRow.companySlogan, companyAddress: settingsRow.companyAddress,
       companyPhone: settingsRow.companyPhone, companyInstagram: settingsRow.companyInstagram,
-      companyWebsite: settingsRow.companyWebsite,
+      companyWebsite: settingsRow.companyWebsite, brandColor: settingsRow.brandColor,
     }
     : { ...DEFAULT_SETTINGS };
 

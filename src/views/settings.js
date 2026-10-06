@@ -4,8 +4,13 @@ import { can } from '../permissions.js';
 import { refreshLogo, applyFavicon } from '../ui.js';
 import { showToast } from '../toast.js';
 
+// Same family of colours the КП editor offers, so a company's documents and
+// its proposals can match.
+const BRAND_PRESETS = ['#2563EB', '#E8913A', '#16A34A', '#9333EA', '#DC2626', '#0F172A', '#B45309'];
+
 const TONE_LABELS = {
-  neutral: 'Серый', info: 'Синий', warning: 'Жёлтый', success: 'Зелёный', danger: 'Красный',
+  neutral: 'Серый', info: 'Синий', teal: 'Бирюзовый', violet: 'Фиолетовый', indigo: 'Индиго',
+  pink: 'Розовый', orange: 'Оранжевый', warning: 'Жёлтый', success: 'Зелёный', muted: 'Бледный', danger: 'Красный',
 };
 
 export function renderSettings() {
@@ -33,6 +38,23 @@ export function renderSettings() {
               <input name="stageBufferDays" type="number" min="1" max="30" value="${settings.stageBufferDays}" ${canEdit ? '' : 'disabled'} />
             </label>
             <p class="form-hint">Буфер используется при создании нового заказа для расчёта дедлайна каждого из 11 этапов пайплайна.</p>
+
+            <div class="settings-subhead">
+              <b>Фирменный цвет</b>
+              <span>Акцент во всех PDF: расчёт заказа, отчёты, заявки. Новые КП тоже начинаются с этого цвета.</span>
+            </div>
+            <div class="proposal-theme__swatches" id="brand-color-swatches">
+              <button type="button" class="proposal-theme__swatch proposal-theme__swatch--none ${settings.brandColor ? '' : 'is-active'}"
+                data-brand-color="" title="Не задан — синий в отчётах, оранжевый в КП" ${canEdit ? '' : 'disabled'}>
+                <i class="fa-solid fa-ban"></i>
+              </button>
+              ${BRAND_PRESETS.map((c) => `
+                <button type="button" class="proposal-theme__swatch ${String(settings.brandColor || '').toLowerCase() === c.toLowerCase() ? 'is-active' : ''}"
+                  data-brand-color="${c}" style="background:${c}" title="${c}" ${canEdit ? '' : 'disabled'}></button>
+              `).join('')}
+              <input type="color" id="brand-color-custom" value="${escapeHtml(settings.brandColor || '#2563EB')}" title="Свой цвет" ${canEdit ? '' : 'disabled'} />
+            </div>
+            <input type="hidden" name="brandColor" value="${escapeHtml(settings.brandColor || '')}" />
 
             <div class="settings-subhead">
               <b>Реквизиты для коммерческих предложений</b>
@@ -149,12 +171,28 @@ export function attachSettingsHandlers(root, rerender) {
         companyPhone: (fd.get('companyPhone') || '').trim(),
         companyInstagram: (fd.get('companyInstagram') || '').trim(),
         companyWebsite: (fd.get('companyWebsite') || '').trim(),
+        brandColor: fd.get('brandColor') || null,
       });
       rerender();
       // A failed save already shows its own error toast from the store.
       if (saved) showToast('Настройки сохранены');
     });
   }
+
+  // Swatches only stage the choice in the hidden field; «Сохранить» commits it
+  // together with the rest of the form.
+  const brandHidden = root.querySelector('input[name="brandColor"]');
+  const markBrand = (value) => {
+    brandHidden.value = value;
+    root.querySelectorAll('[data-brand-color]').forEach((b) => {
+      b.classList.toggle('is-active', (b.getAttribute('data-brand-color') || '').toLowerCase() === value.toLowerCase());
+    });
+  };
+  root.querySelectorAll('[data-brand-color]').forEach((btn) => {
+    btn.addEventListener('click', () => markBrand(btn.getAttribute('data-brand-color') || ''));
+  });
+  const brandCustom = root.querySelector('#brand-color-custom');
+  if (brandCustom) brandCustom.addEventListener('input', () => markBrand(brandCustom.value.toUpperCase()));
 
   root.querySelectorAll('[data-action="status-color"]').forEach((select) => {
     select.addEventListener('change', () => {

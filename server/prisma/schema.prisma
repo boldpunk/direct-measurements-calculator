@@ -27,6 +27,11 @@ model Settings {
   companyInstagram  String @default("")
   companyWebsite    String @default("")
   proposalSeq       Int    @default(3000)
+  // Accent colour for every generated PDF (order, reports) and the default
+  // theme of a new commercial proposal — each company's documents in its own
+  // colour. Null until a company picks one: reports then use the app blue and
+  // proposals keep their established orange, so nothing changes by itself.
+  brandColor        String?
 
   // Per-instance feature toggles — every instance shares the same codebase,
   // but a company can turn off features it doesn't use (e.g. sps.mebelflow.uz

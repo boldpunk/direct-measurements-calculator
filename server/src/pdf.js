@@ -1,336 +1,293 @@
-import PDFDocument from 'pdfkit';
-import path from 'path';
-import { fileURLToPath } from 'url';
+// Order calculation and report PDFs. Layout primitives (header with logo,
+// footer with company details and page numbers, tables, total card) live in
+// pdf-theme.js and are shared with every document except the commercial
+// proposal, which has its own presentation layout.
+import {
+  createDoc, drawHeader, drawFooters, sectionTitle, drawInfoCards, drawTable,
+  drawTotalCard, drawStatTiles, drawSignatures, loadImage, accentFor,
+  fmtMoney, fmtDate, fmtPhone, MUTED, INK,
+} from './pdf-theme.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FONT_REGULAR = path.join(__dirname, '../assets/fonts/DejaVuSans.ttf');
-const FONT_BOLD = path.join(__dirname, '../assets/fonts/DejaVuSans-Bold.ttf');
+const SUCCESS = '#16A34A';
+const DANGER = '#DC2626';
 
-function fmtMoney(n, currency) {
-  return `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ${currency}`;
+function fmtQty(n) {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  return v.toLocaleString('ru-RU');
 }
 
-function fmtDate(value) {
-  return new Date(value).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+// Shared start of every document: fetch the logo (PDFKit draws synchronously,
+// so images must be loaded first), open the doc, draw the header.
+async function startDoc(res, { settings, title, number, date }) {
+  const accent = accentFor(settings);
+  const logo = await loadImage(settings?.logoUrl);
+  const doc = createDoc(res, { title, settings });
+  drawHeader(doc, { settings, logo, title, number, date, accent });
+  return { doc, accent };
 }
 
-function bottomLimit(doc) {
-  return doc.page.height - doc.page.margins.bottom;
-}
-
-// A small Excel-style grid table: bold header row, then data rows each with a
-// light horizontal rule underneath and vertical rules between columns. Rows
-// that don't fit on the current page start a fresh page and repeat the
-// header — without this, PDFKit's own auto-pagination would split a single
-// row's cells across two pages (each landing on its own near-blank page).
-function drawGridTable(doc, { cols, rows, emptyLabel }) {
-  const left = doc.page.margins.left;
-  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const GAP = 8;
-
-  function colX(i) {
-    return left + cols.slice(0, i).reduce((s, c) => s + c.slot, 0);
-  }
-  const textWidth = (c) => c.slot - GAP;
-
-  function drawHeader() {
-    doc.font(FONT_BOLD).fontSize(9);
-    const headerY = doc.y;
-    let maxHeight = 0;
-    cols.forEach((c, i) => {
-      doc.text(c.label, colX(i), headerY, { width: textWidth(c), align: c.align || 'left' });
-      maxHeight = Math.max(maxHeight, doc.heightOfString(c.label, { width: textWidth(c), align: c.align || 'left' }));
-    });
-    const lineY = headerY + maxHeight + 4;
-    doc.strokeColor('#999999').lineWidth(1);
-    doc.moveTo(left, headerY - 2).lineTo(left + usableWidth, headerY - 2).stroke();
-    doc.moveTo(left, lineY).lineTo(left + usableWidth, lineY).stroke();
-    cols.forEach((c, i) => {
-      const x = colX(i);
-      doc.moveTo(x, headerY - 2).lineTo(x, lineY).stroke();
-    });
-    doc.moveTo(left + usableWidth, headerY - 2).lineTo(left + usableWidth, lineY).stroke();
-    doc.strokeColor('#000000').lineWidth(1);
-    doc.x = left;
-    doc.y = lineY + 4;
-  }
-
-  function drawRow(values, { bold = false } = {}) {
-    doc.font(bold ? FONT_BOLD : FONT_REGULAR).fontSize(9);
-    let maxHeight = 0;
-    cols.forEach((c, i) => {
-      const h = doc.heightOfString(values[i], { width: textWidth(c), align: c.align || 'left' });
-      maxHeight = Math.max(maxHeight, h);
-    });
-    const rowHeight = maxHeight + 8;
-
-    if (doc.y + rowHeight > bottomLimit(doc)) {
-      doc.addPage();
-      drawHeader();
-      doc.font(bold ? FONT_BOLD : FONT_REGULAR).fontSize(9);
-    }
-
-    const rowY = doc.y;
-    cols.forEach((c, i) => doc.text(values[i], colX(i), rowY, { width: textWidth(c), align: c.align || 'left' }));
-
-    const lineY = rowY + maxHeight + 4;
-    doc.strokeColor('#dddddd').lineWidth(0.5);
-    doc.moveTo(left, lineY).lineTo(left + usableWidth, lineY).stroke();
-    cols.forEach((c, i) => {
-      const x = colX(i);
-      doc.moveTo(x, rowY - 2).lineTo(x, lineY).stroke();
-    });
-    doc.moveTo(left + usableWidth, rowY - 2).lineTo(left + usableWidth, lineY).stroke();
-    doc.strokeColor('#000000').lineWidth(1);
-
-    doc.x = left;
-    doc.y = lineY + 4;
-  }
-
-  drawHeader();
-  if (!rows.length) {
-    doc.font(FONT_REGULAR).fontSize(9).fillColor('#888888').text(emptyLabel, left, doc.y, { width: usableWidth });
-    doc.fillColor('#000000');
-    doc.x = left;
-    doc.moveDown(0.5);
-    return;
-  }
-  rows.forEach((values) => drawRow(values));
-  return drawRow;
-}
-
-// Builds the full order PDF and pipes it into `res` (an Express response
-// with Content-Type already set to application/pdf by the caller).
-export function renderOrderPdf(res, { order, materials, services, stages, manufacturing, client, manager, settings }) {
+// ---- Расчёт заказа ----
+//
+// Goes to the client, so it ends with what the client actually needs: what
+// the order costs, what has been paid and what is still owed. (It used to end
+// at the materials subtotal, with no order total or balance at all.)
+export async function renderOrderPdf(res, { order, materials, services, payments = [], stages, manufacturing, manager, settings }) {
   const currency = settings?.currency || '$';
-  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-  doc.registerFont('regular', FONT_REGULAR);
-  doc.registerFont('bold', FONT_BOLD);
-  doc.pipe(res);
+  const orderLabel = `${order.productType ? `${order.productType} ` : ''}#${order.number}`;
+  const { doc, accent } = await startDoc(res, {
+    settings,
+    title: 'Расчёт заказа',
+    number: orderLabel,
+    date: fmtDate(order.createdAt),
+  });
 
-  doc.font('bold').fontSize(20).text((settings?.companyName || 'MEBELFLOW').toUpperCase());
-  doc.font('bold').fontSize(13).fillColor('#444444').text('РАСЧЁТ ЗАКАЗА');
-  doc.fillColor('#000000');
-  doc.moveDown(0.5);
-  doc.font('regular').fontSize(10);
-  if (settings?.enablePdfExtras) {
-    doc.text('№ заказа: ', { continued: true });
-    if (order.productType) doc.text(`${order.productType} `, { continued: true });
-    doc.font('bold').fontSize(12).text(`#${order.number}`);
-    doc.font('regular').fontSize(10).text(`Дата оформления заказа: ${fmtDate(order.createdAt)}`);
-  } else {
-    doc.text(`№ заказа: ${order.productType ? `${order.productType} ` : ''}#${order.number}`);
-    doc.text(`Дата: ${fmtDate(order.createdAt)}`);
-  }
-  doc.moveDown(0.8);
+  drawInfoCards(doc, [
+    {
+      label: 'Заказчик',
+      title: order.clientName || '—',
+      lines: [
+        order.clientPhone && `Тел. ${fmtPhone(order.clientPhone)}`,
+        order.address,
+        order.productType && `Изделие: ${order.productType}`,
+      ],
+    },
+    {
+      label: 'Ответственный',
+      title: manager?.name || '—',
+      lines: [
+        settings?.companyName,
+        manager?.phone && `Тел. ${fmtPhone(manager.phone)}`,
+        order.deadline && `Срок сдачи: ${fmtDate(order.deadline)}`,
+      ],
+    },
+  ], { accent });
 
-  const clientLines = [];
-  if (order.clientName) clientLines.push(['Клиент:', order.clientName]);
-  if (order.clientPhone) clientLines.push(['Телефон:', order.clientPhone]);
-  if (order.productType) clientLines.push(['Проект:', order.productType]);
-  if (order.address) clientLines.push(['Адрес:', order.address]);
-  if (manager?.name) clientLines.push(['Ответственный:', manager.name]);
-  if (clientLines.length) {
-    clientLines.forEach(([label, value]) => {
-      doc.font('bold').text(label, { continued: true }).font('regular').text(` ${value}`);
-    });
-    doc.moveDown(0.8);
-  }
-
-  doc.font('bold').fontSize(12).text('МАТЕРИАЛЫ И УСЛУГИ');
-  doc.moveDown(0.3);
+  // ---- Materials & services
   const items = [
     ...materials.map((m) => ({ sku: m.sku, name: m.name, qty: m.qty, unit: m.unit, unitPrice: m.unitPrice, weight: m.weight })),
     ...services.map((s) => ({ sku: '', name: s.name, qty: s.qty, unit: s.unit, unitPrice: s.unitPrice, weight: s.weight })),
   ];
-  const total = items.reduce((s, r) => s + r.qty * r.unitPrice, 0);
+  const itemsTotal = items.reduce((sum, r) => sum + (Number(r.qty) || 0) * (Number(r.unitPrice) || 0), 0);
+  // Columns that would be blank on every row are left out rather than printed empty.
+  const showSku = items.some((r) => r.sku);
+  const showWeight = settings?.enableWeight !== false && items.some((r) => Number(r.weight) > 0);
 
-  const itemsUsableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const itemCols = [
-    { key: 'n', label: '№', slot: 20 },
-    { key: 'sku', label: 'Артикул', slot: 65 },
-    { key: 'name', label: 'Наименование', slot: itemsUsableWidth - 20 - 65 - 45 - 35 - 45 - 85 - 85 },
-    { key: 'qty', label: 'Кол-во', slot: 45, align: 'right' },
-    { key: 'unit', label: 'Ед.', slot: 35 },
-    { key: 'weight', label: 'Вес, кг', slot: 45, align: 'right' },
-    { key: 'price', label: 'Цена', slot: 85, align: 'right' },
-    { key: 'sum', label: 'Сумма', slot: 85, align: 'right' },
+  sectionTitle(doc, 'Материалы и услуги', { accent: MUTED });
+  const columns = [
+    { label: '№', width: 26 },
+    ...(showSku ? [{ label: 'Артикул', width: 70 }] : []),
+    { label: 'Наименование' },
+    { label: 'Кол-во', width: 64, align: 'right' },
+    ...(showWeight ? [{ label: 'Вес, кг', width: 52, align: 'right' }] : []),
+    { label: 'Цена', width: 78, align: 'right' },
+    { label: 'Сумма', width: 86, align: 'right' },
   ];
-  const itemRows = items.map((r, idx) => [
-    String(idx + 1), r.sku || '', r.name, String(r.qty), r.unit,
-    r.weight ? String(r.weight) : '', fmtMoney(r.unitPrice, currency), fmtMoney(r.qty * r.unitPrice, currency),
+  const rows = items.map((r, i) => [
+    { text: String(i + 1), color: MUTED },
+    ...(showSku ? [{ text: r.sku || '', color: MUTED }] : []),
+    r.name,
+    `${fmtQty(r.qty)} ${r.unit || ''}`.trim(),
+    ...(showWeight ? [r.weight ? fmtQty(r.weight) : ''] : []),
+    { text: fmtMoney(r.unitPrice, currency), color: MUTED },
+    { text: fmtMoney((Number(r.qty) || 0) * (Number(r.unitPrice) || 0), currency), bold: true },
   ]);
-  const drawItemRow = drawGridTable(doc, { cols: itemCols, rows: itemRows, emptyLabel: 'Материалы и услуги не добавлены' });
-  if (items.length && drawItemRow) {
-    drawItemRow(['', '', 'ИТОГО', '', '', '', '', fmtMoney(total, currency)], { bold: true });
-  }
-  doc.moveDown(0.5);
+  const totalRow = columns.map((_, i) => (i === columns.length - 1 ? fmtMoney(itemsTotal, currency) : ''));
+  totalRow[showSku ? 2 : 1] = 'Итого по позициям';
+  drawTable(doc, {
+    columns, rows, accent,
+    total: items.length ? totalRow : null,
+    emptyLabel: 'Материалы и услуги не добавлены',
+  });
 
+  // ---- Payments
+  if (payments.length) {
+    sectionTitle(doc, 'Оплаты', { accent: MUTED });
+    drawTable(doc, {
+      accent,
+      columns: [
+        { label: 'Дата', width: 90 },
+        { label: 'Комментарий' },
+        { label: 'Сумма', width: 110, align: 'right' },
+      ],
+      rows: payments.map((p) => [fmtDate(p.date), p.comment || '—', { text: fmtMoney(p.amount, currency), bold: true }]),
+    });
+  }
+
+  // ---- What is owed
+  const paid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const remaining = (Number(order.amount) || 0) - paid;
+  drawTotalCard(doc, {
+    accent,
+    lines: [
+      ['Стоимость заказа', fmtMoney(order.amount, currency)],
+      ['Оплачено', fmtMoney(paid, currency)],
+    ],
+    totalLabel: remaining > 0 ? 'К оплате' : 'Оплачено полностью',
+    totalValue: fmtMoney(Math.max(0, remaining), currency),
+  });
+
+  // ---- Schedule
   if (stages && stages.length) {
-    doc.font('bold').fontSize(12).text('ГРАФИК ПРОИЗВОДСТВА');
-    doc.moveDown(0.3);
-    const stagesUsableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const stageCols = [
-      { key: 'n', label: '№', slot: 24 },
-      { key: 'name', label: 'Этап производства', slot: stagesUsableWidth - 24 - 120 },
-      { key: 'deadline', label: 'Срок', slot: 120, align: 'right' },
-    ];
-    const stageRows = stages.map((st, idx) => [String(idx + 1), st.name, st.deadline ? fmtDate(st.deadline) : '—']);
-    drawGridTable(doc, { cols: stageCols, rows: stageRows, emptyLabel: '' });
-    doc.moveDown(0.5);
+    sectionTitle(doc, 'График производства', { accent: MUTED });
+    drawTable(doc, {
+      accent,
+      columns: [{ label: '№', width: 26 }, { label: 'Этап' }, { label: 'Срок', width: 110, align: 'right' }],
+      rows: stages.map((st, i) => [{ text: String(i + 1), color: MUTED }, st.name, st.deadline ? fmtDate(st.deadline) : '—']),
+    });
   }
 
   if (manufacturing && manufacturing.length) {
-    doc.font('bold').fontSize(12).text('ДАТА ИЗГОТОВЛЕНИЯ');
-    doc.moveDown(0.3);
-    const mfgUsableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const mfgCols = [
-      { key: 'n', label: '№', slot: 24 },
-      { key: 'name', label: 'Услуга', slot: mfgUsableWidth - 24 - 120 },
-      { key: 'date', label: 'Дата', slot: 120, align: 'right' },
-    ];
-    const mfgRows = manufacturing.map((m, idx) => [String(idx + 1), m.name, m.date ? fmtDate(m.date) : '—']);
-    drawGridTable(doc, { cols: mfgCols, rows: mfgRows, emptyLabel: '' });
-    doc.moveDown(0.5);
+    sectionTitle(doc, 'Дата изготовления', { accent: MUTED });
+    drawTable(doc, {
+      accent,
+      columns: [{ label: '№', width: 26 }, { label: 'Услуга' }, { label: 'Дата', width: 110, align: 'right' }],
+      rows: manufacturing.map((m, i) => [{ text: String(i + 1), color: MUTED }, m.name, m.date ? fmtDate(m.date) : '—']),
+    });
   }
 
-  doc.moveDown(1);
-  doc.font('regular').fontSize(10);
-  doc.text('Комментарий: _____________________________________________');
-  doc.moveDown(1.5);
-  doc.text('Подпись клиента: _______________________');
-  doc.moveDown(1.2);
-  const managerLine = settings?.enablePdfExtras && manager?.name
-    ? `Ответственный: ${manager.name}${manager.phone ? ` · ${manager.phone}` : ''}`
-    : 'Ответственный: _______________________';
-  doc.text(managerLine);
-
-  doc.end();
-}
-
-// "Заявки на закупку" — a daily shopping list of manually-entered materials
-// across every active order, aggregated by supplier + name + unit.
-export function renderPurchaseListPdf(res, { rows, settings }) {
-  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-  doc.registerFont('regular', FONT_REGULAR);
-  doc.registerFont('bold', FONT_BOLD);
-  doc.pipe(res);
-
-  doc.font('bold').fontSize(20).text((settings?.companyName || 'MEBELFLOW').toUpperCase());
-  doc.font('bold').fontSize(13).fillColor('#444444').text('ЗАЯВКИ НА ЗАКУПКУ');
-  doc.fillColor('#000000');
-  doc.moveDown(0.5);
-  doc.font('regular').fontSize(10).text(`Дата: ${fmtDate(Date.now())}`);
-  doc.moveDown(0.8);
-
-  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const cols = [
-    { key: 'n', label: '№', slot: 24 },
-    { key: 'supplier', label: 'Поставщик', slot: 150 },
-    { key: 'name', label: 'Наименование', slot: usableWidth - 24 - 150 - 60 - 60 },
-    { key: 'qty', label: 'Кол-во', slot: 60, align: 'right' },
-    { key: 'unit', label: 'Ед.', slot: 60 },
-  ];
-  const tableRows = rows.map((r, idx) => [String(idx + 1), r.supplier, r.name, String(r.qty), r.unit]);
-  drawGridTable(doc, { cols, rows: tableRows, emptyLabel: 'Нет материалов, ожидающих закупки' });
-
-  doc.end();
-}
-
-// "Заработная плата" — every salary accrual with its paid/remaining state.
-export function renderSalaryAccrualReportPdf(res, { rows, settings }) {
-  const currency = settings?.currency || '$';
-  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-  doc.registerFont('regular', FONT_REGULAR);
-  doc.registerFont('bold', FONT_BOLD);
-  doc.pipe(res);
-
-  doc.font('bold').fontSize(20).text((settings?.companyName || 'MEBELFLOW').toUpperCase());
-  doc.font('bold').fontSize(13).fillColor('#444444').text('ОТЧЁТ ПО ЗАРАБОТНОЙ ПЛАТЕ');
-  doc.fillColor('#000000');
-  doc.moveDown(0.5);
-  doc.font('regular').fontSize(10).text(`Дата: ${fmtDate(Date.now())}`);
-  doc.moveDown(0.8);
-
-  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const cols = [
-    { key: 'n', label: '№', slot: 24 },
-    { key: 'name', label: 'Сотрудник', slot: usableWidth - 24 - 90 - 90 - 90 - 90 },
-    { key: 'amount', label: 'Начислено', slot: 90, align: 'right' },
-    { key: 'paid', label: 'Выплачено', slot: 90, align: 'right' },
-    { key: 'remaining', label: 'К выплате', slot: 90, align: 'right' },
-    { key: 'status', label: 'Статус', slot: 90 },
-  ];
-  const tableRows = rows.map((r, idx) => [
-    String(idx + 1), r.employeeName, fmtMoney(r.amount, currency), fmtMoney(r.paid, currency), fmtMoney(r.remaining, currency), r.status,
+  drawSignatures(doc, [
+    'Подпись клиента',
+    settings?.enablePdfExtras && manager?.name ? `Ответственный: ${manager.name}` : 'Ответственный',
   ]);
+
+  drawFooters(doc, { settings, accent });
+  doc.end();
+}
+
+// ---- Заявки на закупку ----
+// A daily shopping list of manually-entered materials across every active
+// order, aggregated by supplier + name + unit; one section per supplier.
+export async function renderPurchaseListPdf(res, { rows, settings }) {
+  const today = fmtDate(Date.now());
+  const { doc, accent } = await startDoc(res, { settings, title: 'Заявка на закупку', date: today });
+
+  const suppliers = [...new Set(rows.map((r) => r.supplier))];
+  drawStatTiles(doc, [
+    { label: 'Позиций', value: String(rows.length) },
+    { label: 'Поставщиков', value: String(suppliers.length) },
+  ], { accent });
+
+  if (!rows.length) {
+    drawTable(doc, {
+      accent,
+      columns: [{ label: 'Наименование' }, { label: 'Кол-во', width: 100, align: 'right' }],
+      rows: [],
+      emptyLabel: 'Нет материалов, ожидающих закупки',
+    });
+  }
+  suppliers.forEach((supplier) => {
+    const list = rows.filter((r) => r.supplier === supplier);
+    sectionTitle(doc, supplier, { accent });
+    drawTable(doc, {
+      accent,
+      columns: [
+        { label: '№', width: 26 },
+        { label: 'Наименование' },
+        { label: 'Кол-во', width: 80, align: 'right' },
+        { label: 'Ед.', width: 70 },
+        { label: 'Куплено', width: 60, align: 'center' },
+      ],
+      // The last column is a box to tick off by hand in the shop.
+      rows: list.map((r, i) => [{ text: String(i + 1), color: MUTED }, r.name, { text: fmtQty(r.qty), bold: true }, r.unit, { text: '□', color: MUTED }]),
+    });
+  });
+
+  drawFooters(doc, { settings, accent });
+  doc.end();
+}
+
+// ---- Отчёт по заработной плате ----
+export async function renderSalaryAccrualReportPdf(res, { rows, settings }) {
+  const currency = settings?.currency || '$';
+  const { doc, accent } = await startDoc(res, { settings, title: 'Отчёт по зарплате', date: fmtDate(Date.now()) });
+
   const totalAccrued = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const totalPaid = rows.reduce((s, r) => s + (Number(r.paid) || 0), 0);
   const totalRemaining = rows.reduce((s, r) => s + (Number(r.remaining) || 0), 0);
-  const drawRow = drawGridTable(doc, { cols, rows: tableRows, emptyLabel: 'Начислений нет' });
-  if (rows.length && drawRow) {
-    drawRow(['', 'ИТОГО', fmtMoney(totalAccrued, currency), fmtMoney(totalPaid, currency), fmtMoney(totalRemaining, currency), ''], { bold: true });
-  }
+  // Shown even when there's nothing yet, so an empty report still reads as a
+  // report (all zeros) instead of a blank page with one grey line.
+  drawStatTiles(doc, [
+    { label: 'Начислено', value: fmtMoney(totalAccrued, currency) },
+    { label: 'Выплачено', value: fmtMoney(totalPaid, currency), color: totalPaid > 0 ? SUCCESS : INK },
+    { label: 'К выплате', value: fmtMoney(totalRemaining, currency), color: totalRemaining > 0 ? DANGER : INK },
+    { label: 'Начислений', value: String(rows.length) },
+  ], { accent });
 
+  const statusColor = (st) => (st === 'Выплачено' ? SUCCESS : st === 'Не выплачено' ? DANGER : '#B45309');
+  drawTable(doc, {
+    accent,
+    columns: [
+      { label: '№', width: 26 },
+      { label: 'Сотрудник' },
+      { label: 'Начислено', width: 82, align: 'right' },
+      { label: 'Выплачено', width: 82, align: 'right' },
+      { label: 'К выплате', width: 82, align: 'right' },
+      { label: 'Статус', width: 98 },
+    ],
+    rows: rows.map((r, i) => [
+      { text: String(i + 1), color: MUTED },
+      r.employeeName,
+      fmtMoney(r.amount, currency),
+      fmtMoney(r.paid, currency),
+      { text: fmtMoney(r.remaining, currency), bold: true },
+      { text: r.status, color: statusColor(r.status) },
+    ]),
+    total: rows.length ? ['', 'Итого', fmtMoney(totalAccrued, currency), fmtMoney(totalPaid, currency), fmtMoney(totalRemaining, currency), ''] : null,
+    emptyLabel: 'Начислений пока нет',
+  });
+
+  drawFooters(doc, { settings, accent });
   doc.end();
 }
 
-// Отчёт «Партнёры: долг / кредит» — one row per partner for a single
-// currency (balances in different currencies are separate ledgers and are
-// never summed), plus the company-wide totals underneath.
-export function renderPartnerBalanceReportPdf(res, { rows, currency, settings, period }) {
-  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
-  doc.registerFont('regular', FONT_REGULAR);
-  doc.registerFont('bold', FONT_BOLD);
-  doc.pipe(res);
+// ---- Взаиморасчёты с партнёрами ----
+// One currency per report: balances in different currencies are separate
+// ledgers and are never added together.
+export async function renderPartnerBalanceReportPdf(res, { rows, currency, settings, period }) {
+  const { doc, accent } = await startDoc(res, {
+    settings,
+    title: 'Взаиморасчёты с партнёрами',
+    number: period ? `Период: ${period}` : `Валюта: ${currency}`,
+    date: fmtDate(Date.now()),
+  });
 
-  doc.font('bold').fontSize(20).text((settings?.companyName || 'MEBELFLOW').toUpperCase());
-  doc.font('bold').fontSize(13).fillColor('#444444').text('ВЗАИМОРАСЧЁТЫ С ПАРТНЁРАМИ');
-  doc.fillColor('#000000');
-  doc.moveDown(0.5);
-  doc.font('regular').fontSize(10).text(`Дата: ${fmtDate(Date.now())}`);
-  doc.text(`Валюта: ${currency}`);
-  if (period) doc.text(`Период: ${period}`);
-  doc.moveDown(0.8);
-
-  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const cols = [
-    { key: 'n', label: '№', slot: 24 },
-    { key: 'name', label: 'Партнёр', slot: usableWidth - 24 - 95 - 95 - 100 - 85 },
-    { key: 'debit', label: 'Дебит', slot: 95, align: 'right' },
-    { key: 'credit', label: 'Кредит', slot: 95, align: 'right' },
-    { key: 'balance', label: 'Баланс', slot: 100, align: 'right' },
-    { key: 'status', label: 'Статус', slot: 85 },
-  ];
-
-  const tableRows = rows.map((r, idx) => [
-    String(idx + 1),
-    r.name,
-    fmtMoney(r.debit, currency),
-    fmtMoney(r.credit, currency),
-    // The sign carries the meaning here: + «нам должны», − «мы должны».
-    `${r.balance > 0 ? '+' : ''}${fmtMoney(r.balance, currency)}`,
-    r.status,
-  ]);
-
-  const totalDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
-  const totalCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
   const owedToUs = rows.filter((r) => r.balance > 0).reduce((s, r) => s + r.balance, 0);
   const owedByUs = rows.filter((r) => r.balance < 0).reduce((s, r) => s + Math.abs(r.balance), 0);
+  const net = owedToUs - owedByUs;
+  const signed = (v) => `${v > 0 ? '+' : ''}${fmtMoney(v, currency)}`;
 
-  const drawRow = drawGridTable(doc, { cols, rows: tableRows, emptyLabel: 'Операций нет' });
-  if (rows.length && drawRow) {
-    drawRow(['', 'ИТОГО', fmtMoney(totalDebit, currency), fmtMoney(totalCredit, currency), `${owedToUs - owedByUs > 0 ? '+' : ''}${fmtMoney(owedToUs - owedByUs, currency)}`, ''], { bold: true });
-  }
+  drawStatTiles(doc, [
+    { label: 'Нам должны', value: fmtMoney(owedToUs, currency), color: owedToUs > 0 ? SUCCESS : INK },
+    { label: 'Мы должны', value: fmtMoney(owedByUs, currency), color: owedByUs > 0 ? DANGER : INK },
+    { label: 'Чистый баланс', value: signed(net), color: net > 0 ? SUCCESS : net < 0 ? DANGER : INK },
+    { label: 'Активные / закрытые', value: `${rows.filter((r) => r.balance !== 0).length} / ${rows.filter((r) => r.balance === 0).length}` },
+  ], { accent });
 
-  doc.moveDown(1);
-  doc.font('bold').fontSize(11).text('ИТОГОВЫЕ ПОКАЗАТЕЛИ');
-  doc.font('regular').fontSize(10);
-  doc.text(`Всего нам должны: ${fmtMoney(owedToUs, currency)}`);
-  doc.text(`Всего мы должны: ${fmtMoney(owedByUs, currency)}`);
-  doc.text(`Чистый баланс: ${owedToUs - owedByUs > 0 ? '+' : ''}${fmtMoney(owedToUs - owedByUs, currency)}`);
-  doc.text(`Закрытых взаиморасчётов: ${rows.filter((r) => r.balance === 0).length}`);
-  doc.text(`Активных взаиморасчётов: ${rows.filter((r) => r.balance !== 0).length}`);
+  const statusColor = (st) => (st === 'Нам должны' ? SUCCESS : st === 'Мы должны' ? DANGER : MUTED);
+  const totalDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
+  const totalCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
+  drawTable(doc, {
+    accent,
+    columns: [
+      { label: '№', width: 26 },
+      { label: 'Партнёр' },
+      { label: 'Дебит', width: 88, align: 'right' },
+      { label: 'Кредит', width: 88, align: 'right' },
+      { label: 'Баланс', width: 96, align: 'right' },
+      { label: 'Статус', width: 80 },
+    ],
+    rows: rows.map((r, i) => [
+      { text: String(i + 1), color: MUTED },
+      r.name,
+      fmtMoney(r.debit, currency),
+      fmtMoney(r.credit, currency),
+      { text: signed(r.balance), bold: true, color: r.balance > 0 ? SUCCESS : r.balance < 0 ? DANGER : INK },
+      { text: r.status, color: statusColor(r.status) },
+    ]),
+    total: rows.length ? ['', 'Итого', fmtMoney(totalDebit, currency), fmtMoney(totalCredit, currency), signed(net), ''] : null,
+    emptyLabel: 'Операций нет',
+  });
 
+  drawFooters(doc, { settings, accent });
   doc.end();
 }

@@ -117,7 +117,7 @@ router.get('/:id', requirePermission('proposals', 'view'), ah(async (req, res) =
 router.post('/', requirePermission('proposals', 'create'), ah(async (req, res) => {
   const body = req.body || {};
   const proposal = await prisma.$transaction(async (tx) => {
-    const { number } = await nextNumber(tx);
+    const { number, settings } = await nextNumber(tx);
     const client = body.clientId ? await tx.client.findUnique({ where: { id: body.clientId } }) : null;
     return tx.commercialProposal.create({
       data: {
@@ -131,7 +131,8 @@ router.post('/', requirePermission('proposals', 'create'), ah(async (req, res) =
         projectName: body.projectName || '',
         language: body.language === 'uz' ? 'uz' : 'ru',
         currency: body.currency || undefined,
-        themeColor: body.themeColor || undefined,
+        // Falls back to the company's brand colour, then to the schema default.
+        themeColor: body.themeColor || settings?.brandColor || undefined,
         responsibleId: body.responsibleId || req.employee?.id || null,
         deadline: body.deadline || '',
         brandIds: Array.isArray(body.brandIds) ? body.brandIds : [],
@@ -247,6 +248,7 @@ router.post('/from-order/:orderId', requirePermission('proposals', 'create'), ah
         clientId: order.clientId, clientName: order.clientName, clientPhone: order.clientPhone,
         clientAddress: order.address, projectName: order.productType || '',
         currency: settings?.currency || '$',
+        themeColor: settings?.brandColor || undefined,
         responsibleId: order.managerId || req.employee?.id || null,
         orderId: order.id, status: 'Черновик',
         createdById: req.employee?.id || null, createdAt: Date.now(), updatedAt: Date.now(),

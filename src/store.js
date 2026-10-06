@@ -53,17 +53,21 @@ export const KANBAN_COLUMNS = [
   { status: 'Установка', label: 'Установка' },
   { status: 'Готов', label: 'Готов' },
 ];
+// Defaults only — a company can override any status in Настройки. Each stage
+// of the pipeline gets its own hue now: with only five tones, Замер / Дизайн /
+// Согласование were the same blue and four production stages the same amber,
+// so the production board couldn't be read at a glance.
 const ORDER_STATUS_TONE = {
   'Новый': 'neutral',
-  'Замер': 'info',
-  'Дизайн': 'info',
+  'Замер': 'teal',
+  'Дизайн': 'violet',
   'Согласование': 'info',
-  'Закупка материалов': 'warning',
+  'Закупка материалов': 'orange',
   'Производство': 'warning',
-  'Сборка': 'warning',
-  'Установка': 'warning',
+  'Сборка': 'indigo',
+  'Установка': 'pink',
   'Готов': 'success',
-  'Завершён': 'success',
+  'Завершён': 'muted',
   'Отменён': 'danger',
 };
 
@@ -83,15 +87,15 @@ export const CUSTOM_KANBAN_COLUMNS = [
   { status: 'Овальная кромка', label: 'Овальная кромка' },
 ];
 const CUSTOM_ORDER_STATUS_TONE = {
-  'Закупка материалов': 'warning',
+  'Закупка материалов': 'orange',
   'Распил': 'warning',
-  'Кромка': 'warning',
-  'Присадка': 'warning',
-  'Ровер': 'warning',
-  'Овальная кромка': 'warning',
+  'Кромка': 'teal',
+  'Присадка': 'indigo',
+  'Ровер': 'violet',
+  'Овальная кромка': 'pink',
   'Готово': 'success',
 };
-export const BADGE_TONES = ['neutral', 'info', 'warning', 'success', 'danger'];
+export const BADGE_TONES = ['neutral', 'info', 'teal', 'violet', 'indigo', 'pink', 'orange', 'warning', 'success', 'muted', 'danger'];
 
 export function getOrderStatuses() {
   return getSettings()?.enableCustomOrderStatuses ? CUSTOM_ORDER_STATUSES : ORDER_STATUSES;

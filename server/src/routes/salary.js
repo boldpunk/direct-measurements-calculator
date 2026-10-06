@@ -144,7 +144,7 @@ router.get('/report/pdf', requirePermission('salaryPayments', 'view'), ah(async 
   });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline; filename="salary-report.pdf"');
-  renderSalaryAccrualReportPdf(res, { rows, settings });
+  await renderSalaryAccrualReportPdf(res, { rows, settings });
 }));
 
 export default router;

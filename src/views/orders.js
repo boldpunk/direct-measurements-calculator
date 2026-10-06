@@ -181,7 +181,7 @@ function orderListCard(o, fin) {
       <div class="row-item__sub">${escapeHtml(o.clientName)}</div>
       <div class="order-list-card__row">
         <span>${money(o.amount)}</span>
-        <span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span>
+        ${deadlineInfo.text && deadlineInfo.text !== o.status ? `<span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span>` : ''}
       </div>
       <div class="order-list-card__row">
         <span class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? `Остаток ${money(fin.remainingAmount)}` : 'Оплачено'}</span>

@@ -7,7 +7,8 @@ import { logAudit } from '../audit.js';
 
 const router = Router();
 
-const BADGE_TONES = ['neutral', 'info', 'warning', 'success', 'danger'];
+// Mirrors BADGE_TONES in src/store.js.
+const BADGE_TONES = ['neutral', 'info', 'teal', 'violet', 'indigo', 'pink', 'orange', 'warning', 'success', 'muted', 'danger'];
 
 router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => {
   const body = req.body || {};
@@ -26,6 +27,10 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   if (body.faviconUrl !== undefined) data.faviconUrl = body.faviconUrl || null;
   for (const field of ['companySlogan', 'companyAddress', 'companyPhone', 'companyInstagram', 'companyWebsite']) {
     if (body[field] !== undefined) data[field] = body[field] || '';
+  }
+  if (body.brandColor !== undefined) {
+    // Only a #RRGGBB value or nothing — the PDFs feed this straight to PDFKit.
+    data.brandColor = /^#[0-9a-f]{6}$/i.test(String(body.brandColor || '')) ? String(body.brandColor).toUpperCase() : null;
   }
   if (body.enableProductType !== undefined) data.enableProductType = !!body.enableProductType;
   if (body.enableWeight !== undefined) data.enableWeight = !!body.enableWeight;
@@ -60,7 +65,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     enableCustomOrderStatuses: settings.enableCustomOrderStatuses,
     companySlogan: settings.companySlogan, companyAddress: settings.companyAddress,
     companyPhone: settings.companyPhone, companyInstagram: settings.companyInstagram,
-    companyWebsite: settings.companyWebsite,
+    companyWebsite: settings.companyWebsite, brandColor: settings.brandColor,
   });
 }));
 

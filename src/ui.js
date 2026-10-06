@@ -2,6 +2,7 @@ import { escapeHtml } from './format.js';
 import { can, canAny } from './permissions.js';
 import { getSettings } from './store.js';
 import { brandLogo } from './brand.js';
+import { getThemePreference, setThemePreference } from './theme.js';
 
 let defaultFaviconHTML = null;
 const OVERRIDE_IDS = ['dynamic-favicon', 'dynamic-apple-touch-icon'];
@@ -126,6 +127,13 @@ export function renderShell(currentRoute) {
         <div class="profile-menu" id="profile-menu" hidden>
           ${canAny('settings') ? '<a href="#/settings" class="profile-menu__item"><i class="fa-solid fa-gear"></i> Настройки</a>' : ''}
           ${canAny('employees') ? '<a href="#/employees" class="profile-menu__item"><i class="fa-solid fa-users"></i> Сотрудники</a>' : ''}
+          <div class="profile-menu__theme" role="group" aria-label="Тема оформления">
+            ${[['auto', 'fa-circle-half-stroke', 'Авто'], ['light', 'fa-sun', 'Светлая'], ['dark', 'fa-moon', 'Тёмная']].map(([key, icon, label]) => `
+              <button type="button" class="profile-menu__theme-btn ${getThemePreference() === key ? 'is-active' : ''}" data-theme-pref="${key}" title="${label}">
+                <i class="fa-solid ${icon}"></i><span>${label}</span>
+              </button>
+            `).join('')}
+          </div>
           <button type="button" class="profile-menu__item" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Выйти</button>
         </div>
       </div>
@@ -267,6 +275,12 @@ export function initProfileMenu() {
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
     menu.hidden = !menu.hidden;
+  });
+  menu.querySelectorAll('[data-theme-pref]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setThemePreference(btn.getAttribute('data-theme-pref'));
+      menu.querySelectorAll('[data-theme-pref]').forEach((b) => b.classList.toggle('is-active', b === btn));
+    });
   });
   menu.addEventListener('click', () => { menu.hidden = true; });
   document.addEventListener('click', (e) => {

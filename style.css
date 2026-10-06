@@ -13,10 +13,99 @@
   --success: #16a34a;
   --success-light: #e6f7ec;
   --info-light: #e6f0ff;
+  --teal: #0d9488;
+  --teal-light: #e0f5f2;
+  --violet: #7c3aed;
+  --violet-light: #f1eafe;
+  --indigo: #4f46e5;
+  --indigo-light: #ebeafd;
+  --pink: #db2777;
+  --pink-light: #fde8f1;
+  --orange: #ea580c;
+  --orange-light: #fff0e6;
   --radius: 14px;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
   --shadow-hover: 0 6px 16px rgba(16, 24, 40, 0.08), 0 2px 6px rgba(16, 24, 40, 0.06);
   --ease: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --avatar-hover: #dbe8ff;
+  --field-border-hover: #cdd5e3;
+  /* Fill for blue surfaces that carry white text (buttons, badges). In the
+     dark theme --primary is lifted for text on dark panels, which would make
+     white-on-blue too pale; this stays a deep blue in both themes. */
+  --primary-solid: #2563eb;
+  --primary-solid-hover: #1d4ed8;
+  color-scheme: light;
+}
+
+/* ---- Dark theme ----
+   Same variables, darker values. Follows the device setting unless the user
+   picked a theme in the profile menu (stored per browser, applied by the
+   inline script in index.html before first paint so there's no white flash).
+   The block is repeated because CSS can't share one rule between a media
+   query and an attribute selector. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --bg: #0e1116;
+  --panel: #161a21;
+  --border: #262c36;
+  --text: #e6e9ef;
+  --text-muted: #9aa3b2;
+  --primary: #5b9bff;
+  --primary-light: #1b2a45;
+  --danger: #f87171;
+  --danger-light: #3b1d21;
+  --warning: #fbbf24;
+  --warning-light: #3a2e12;
+  --success: #4ade80;
+  --success-light: #15301f;
+  --info-light: #1b2a45;
+  --teal: #2dd4bf;
+  --teal-light: #12302d;
+  --violet: #a78bfa;
+  --violet-light: #2a2142;
+  --indigo: #818cf8;
+  --indigo-light: #232546;
+  --pink: #f472b6;
+  --pink-light: #3b1b2d;
+  --orange: #fb923c;
+  --orange-light: #3b2415;
+  --field-border-hover: #3a4250;
+  --avatar-hover: #24365a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116;
+  --panel: #161a21;
+  --border: #262c36;
+  --text: #e6e9ef;
+  --text-muted: #9aa3b2;
+  --primary: #5b9bff;
+  --primary-light: #1b2a45;
+  --danger: #f87171;
+  --danger-light: #3b1d21;
+  --warning: #fbbf24;
+  --warning-light: #3a2e12;
+  --success: #4ade80;
+  --success-light: #15301f;
+  --info-light: #1b2a45;
+  --teal: #2dd4bf;
+  --teal-light: #12302d;
+  --violet: #a78bfa;
+  --violet-light: #2a2142;
+  --indigo: #818cf8;
+  --indigo-light: #232546;
+  --pink: #f472b6;
+  --pink-light: #3b1b2d;
+  --orange: #fb923c;
+  --orange-light: #3b2415;
+  --field-border-hover: #3a4250;
+  --avatar-hover: #24365a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -53,7 +142,6 @@ input, select, textarea, .btn, .sidebar__link, .kpi, .badge a, a.badge { transit
    something. Before this, a field outside those contexts — a filter in a
    section toolbar, the image-picker URL box — fell back to the raw browser
    look with a black border. */
-:root { --field-border-hover: #cdd5e3; }
 :where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]):not([type="range"]), select, textarea) {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -145,7 +233,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .logo__icon {
   width: 34px; height: 34px;
-  background: var(--primary);
+  background: var(--primary-solid);
   color: #fff;
   border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
@@ -261,7 +349,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 .notif-item i { margin-top: 2px; flex-shrink: 0; }
 .notif-item--danger i { color: var(--danger); }
 .notif-item--warning i { color: var(--warning); }
-.topbar__avatar:hover { background: #dbe8ff; }
+.topbar__avatar:hover { background: var(--avatar-hover); }
 
 .profile-menu {
   position: absolute;
@@ -291,6 +379,18 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 }
 .profile-menu__item:hover { background: var(--bg); }
 .profile-menu__item i { width: 16px; text-align: center; color: var(--text-muted); }
+.profile-menu__theme {
+  display: flex; gap: 2px; margin: 4px 0; padding: 3px;
+  background: var(--bg); border-radius: 9px;
+}
+.profile-menu__theme-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 4px; border: none; border-radius: 7px; background: transparent;
+  color: var(--text-muted); font-size: 11px; font-weight: 600;
+}
+.profile-menu__theme-btn i { font-size: 13px; }
+.profile-menu__theme-btn:hover { color: var(--text); }
+.profile-menu__theme-btn.is-active { background: var(--panel); color: var(--primary); box-shadow: var(--shadow); }
 
 /* Layout */
 
@@ -431,8 +531,8 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
 }
 .btn:hover { background: var(--bg); }
 .btn:active { transform: scale(0.97); }
-.btn--primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-.btn--primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
+.btn--primary { background: var(--primary-solid); border-color: var(--primary-solid); color: #fff; }
+.btn--primary:hover { background: var(--primary-solid-hover); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
 .btn--sm { padding: 5px 10px; font-size: 12.5px; border-radius: 8px; }
 .btn--danger-ghost { color: var(--danger); border-color: transparent; background: transparent; }
 .btn--danger-ghost:hover { background: var(--danger-light); }
@@ -488,7 +588,7 @@ a.kpi:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .panel__badge {
   width: 24px; height: 24px;
   border-radius: 7px;
-  background: var(--primary);
+  background: var(--primary-solid);
   color: #fff;
   font-size: 12px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
@@ -571,6 +671,11 @@ a.kpi:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .badge--tone-success { background: var(--success-light); color: var(--success); }
 .badge--tone-danger { background: var(--danger-light); color: var(--danger); }
 .badge--tone-muted { background: var(--bg); color: var(--text-muted); }
+.badge--tone-teal { background: var(--teal-light); color: var(--teal); }
+.badge--tone-violet { background: var(--violet-light); color: var(--violet); }
+.badge--tone-indigo { background: var(--indigo-light); color: var(--indigo); }
+.badge--tone-pink { background: var(--pink-light); color: var(--pink); }
+.badge--tone-orange { background: var(--orange-light); color: var(--orange); }
 a.badge:hover { background: var(--primary-light); color: var(--primary); }
 
 /* Orders */
@@ -622,7 +727,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .proposal-theme__swatches { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .proposal-theme__swatch {
   width: 30px; height: 30px; border-radius: 8px; border: 2px solid transparent;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+  box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.35);
 }
 .proposal-theme__swatch.is-active { border-color: var(--text); }
 .proposal-theme__swatches input[type="color"] {
@@ -743,7 +848,7 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .orders-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .chip { border: 1px solid var(--border); background: var(--panel); border-radius: 999px; padding: 6px 14px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); }
 .chip:hover { background: var(--bg); }
-.chip.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.chip.is-active { background: var(--primary-solid); border-color: var(--primary-solid); color: #fff; }
 
 /* Orders: desktop table vs mobile cards */
 
@@ -1573,3 +1678,34 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .tabs__tab.is-active { background: var(--primary-light); color: var(--primary); }
 /* Sections inside a tab already carry their own title — drop the extra top gap. */
 .tab-panel > .panel > .order-detail__section-title:first-child { margin-top: 18px; }
+/* "No brand colour" swatch in Настройки. */
+.proposal-theme__swatch--none { display: inline-flex; align-items: center; justify-content: center; background: var(--bg); color: var(--text-muted); font-size: 13px; }
+
+/* Numbers that sit in columns (tables, totals, KPI values) use Inter's
+   tabular figures, so amounts line up digit under digit. */
+.data-table td, .kpi__value, .finance-summary, .mat-row__sum, .mat-row__calc,
+.pay-row__amount, .section-totals, .pb-total__value, .pb-balance, .proposal-total,
+.order-detail__stats b, .cell-nowrap { font-variant-numeric: tabular-nums; }
+
+/* Inside a .form the generic field rule (width: 100%, padding) would stretch
+   the colour picker into a full-width bar. */
+.form .proposal-theme__swatches input[type="color"] { width: 38px; height: 30px; padding: 2px; flex: none; }
+
+/* Status colour dot (production board column heads) — same hue as the badge. */
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; background: var(--text-muted); }
+.status-dot--info { background: var(--primary); }
+.status-dot--teal { background: var(--teal); }
+.status-dot--violet { background: var(--violet); }
+.status-dot--indigo { background: var(--indigo); }
+.status-dot--pink { background: var(--pink); }
+.status-dot--orange { background: var(--orange); }
+.status-dot--warning { background: var(--warning); }
+.status-dot--success { background: var(--success); }
+.status-dot--danger { background: var(--danger); }
+
+/* Phones: filter dropdowns share rows instead of each taking a full line
+   (they grew with the 16px phone font size). */
+@media (max-width: 640px) {
+  .orders-toolbar select { flex: 1 1 140px; min-width: 0; }
+  .orders-toolbar__search { flex-basis: 100%; }
+}

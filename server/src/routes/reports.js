@@ -36,7 +36,7 @@ router.get('/purchase-list/pdf', requirePermission('finance', 'view'), ah(async 
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline; filename="purchase-list.pdf"');
-  renderPurchaseListPdf(res, { rows, settings });
+  await renderPurchaseListPdf(res, { rows, settings });
 }));
 
 export default router;
