@@ -76,17 +76,29 @@ node prisma/seed.js
 
 ## 7. Nightly backups
 
+Nothing to do by hand: every `deploy.sh` run installs
+`/etc/cron.d/mebelflow-backup` (03:00 daily). `backup-db.sh` dumps **every**
+MebelFlow database it finds (`mebelflow`, `mebelflow_sobirov`,
+`mebelflow_sps`, …) into `/opt/mebelflow/backups/`, keeping 14 days.
+
+**Off-server copy** — a backup on the same disk dies with the server. Create
+`/etc/mebelflow/backup.env` with one of:
+
 ```
-sudo cp deploy/backup-db.sh /opt/mebelflow/deploy/backup-db.sh   # already there after deploy.sh's clone
-sudo tee /etc/cron.d/mebelflow-backup <<'EOF'
-0 3 * * * root /opt/mebelflow/deploy/backup-db.sh >> /var/log/mebelflow-backup.log 2>&1
-EOF
+OFFSITE_RSYNC="u123456@u123456.your-storagebox.de:mebelflow"   # Hetzner Storage Box / any SSH host
+OFFSITE_RCLONE="s3remote:bucket/mebelflow"                     # anything rclone supports
 ```
 
-Dumps land in `/opt/mebelflow/backups/`, gzip'd, with the last 14 days kept.
-Copy them off the server periodically (e.g. `scp` to your laptop, or sync to
-object storage) — a backup that only lives on the same disk as the database
-doesn't protect against the server itself failing.
+(for the SSH variant, add root's public key to the storage box first).
+
+**Check that backups restore** (loads the latest dump of each database into a
+throw-away database and counts orders; production is never touched):
+
+```
+sudo /opt/mebelflow/deploy/check-backups.sh
+```
+
+Run a backup now: `sudo /opt/mebelflow/deploy/backup-db.sh`.
 
 ## Adding a second company on the same server
 
@@ -123,7 +135,7 @@ from day one. Every future update to *this* instance re-uses the same
 
 - **Logs**: `sudo journalctl -u mebelflow-api -f`
 - **Restart API only**: `sudo systemctl restart mebelflow-api`
-- **Restore a backup**: `gunzip -c backups/mebelflow-*.sql.gz | sudo -u postgres psql mebelflow`
+- **Restore a backup** (into an empty database): `gunzip -c /opt/mebelflow/backups/<db>-<date>.sql.gz | sudo -u postgres psql <db>`
 - **Update the app**: `sudo bash deploy/deploy.sh` (safe to re-run anytime; only
   migrates the schema forward, never touches existing rows)
 

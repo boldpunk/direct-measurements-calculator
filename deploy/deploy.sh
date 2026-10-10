@@ -40,6 +40,14 @@ source "$ENV_FILE"
 set +a
 npx prisma migrate deploy
 
+echo "==> Server-wide setup (idempotent): nightly backups of every DB + nginx upload limit"
+# Every instance runs the same deploy, so these are simply rewritten each time.
+sudo tee /etc/cron.d/mebelflow-backup >/dev/null <<'CRON'
+0 3 * * * root /opt/mebelflow/deploy/backup-db.sh >> /var/log/mebelflow-backup.log 2>&1
+CRON
+sudo install -m 644 "$APP_DIR/deploy/nginx/upload-limit.conf" /etc/nginx/conf.d/mebelflow-upload-limit.conf
+sudo nginx -t
+
 echo "==> Restarting API"
 sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl reload nginx
