@@ -1,5 +1,5 @@
 import {
-  getState, createOrder, updateOrder, updateOrderStatus, deleteOrder, restoreOrder,
+  getState, createOrder, updateOrder, updateOrderStatus, deleteOrder, restoreOrder, loadOrderActivity,
   getOrderStages, completeStage, setStageAssignment, isOverdue, STAGE_DEFS,
   PRODUCT_TYPES, getOrderStatuses, getOrderDeadlineInfo,
   getFinance, computeOrderFinance,
@@ -616,24 +616,40 @@ function renderStagePipeline(orderId, state) {
   }).join('');
 }
 
-function renderActivity(order) {
+function activityRows(order) {
+  if (!order.activityLoaded && can('orders', 'view')) return '<div class="empty-state empty-state--sm">Загрузка…</div>';
   const items = order.activity || [];
-  const rows = items.slice(0, 15).map((a) => `
+  return items.slice(0, 15).map((a) => `
     <div class="activity-row">
       <div class="activity-row__time">${new Date(a.timestamp).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
       <div class="activity-row__text">${escapeHtml(a.text)}</div>
     </div>
   `).join('') || '<div class="empty-state empty-state--sm">Пока нет истории</div>';
+}
 
+function renderActivity(order) {
   return `
     <div class="order-detail__section-title">История</div>
-    <div class="activity-list">${rows}</div>
+    <div class="activity-list" data-activity-list="${order.id}">${activityRows(order)}</div>
   `;
+}
+
+// Fills the История block once the order's activity arrives. Patches just that
+// block instead of re-rendering, so a half-typed payment isn't wiped.
+function hydrateActivity(root) {
+  const el = root.querySelector('[data-activity-list]');
+  if (!el || !can('orders', 'view')) return;
+  const order = getState().orders.find((o) => o.id === el.dataset.activityList);
+  if (!order || order.activityLoaded) return;
+  loadOrderActivity(order.id).then((o) => {
+    if (o && el.isConnected) el.innerHTML = activityRows(o);
+  });
 }
 
 // ---- Handlers ----
 
 export function attachOrderHandlers(root, rerender) {
+  hydrateActivity(root);
   root.querySelectorAll('[data-order-row]').forEach((row) => {
     row.addEventListener('click', () => {
       selectedOrderId = row.getAttribute('data-order-row');

@@ -4,6 +4,7 @@ import { ah } from '../util.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { requirePermission } from '../middleware/auth.js';
 import { logAudit } from '../audit.js';
+import { brandingAssetUrl, isBrandingAssetUrl } from '../branding-assets.js';
 
 const router = Router();
 
@@ -23,8 +24,8 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     }
     data.orderStatusColors = clean;
   }
-  if (body.logoUrl !== undefined) data.logoUrl = body.logoUrl || null;
-  if (body.faviconUrl !== undefined) data.faviconUrl = body.faviconUrl || null;
+  if (body.logoUrl !== undefined && !isBrandingAssetUrl(body.logoUrl)) data.logoUrl = body.logoUrl || null;
+  if (body.faviconUrl !== undefined && !isBrandingAssetUrl(body.faviconUrl)) data.faviconUrl = body.faviconUrl || null;
   for (const field of ['companySlogan', 'companyAddress', 'companyPhone', 'companyInstagram', 'companyWebsite']) {
     if (body[field] !== undefined) data[field] = body[field] || '';
   }
@@ -57,7 +58,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   res.json({
     companyName: settings.companyName, currency: settings.currency,
     stageBufferDays: settings.stageBufferDays, orderStatusColors: settings.orderStatusColors,
-    logoUrl: settings.logoUrl, faviconUrl: settings.faviconUrl,
+    logoUrl: brandingAssetUrl('logo', settings.logoUrl), faviconUrl: brandingAssetUrl('favicon', settings.faviconUrl),
     enableProductType: settings.enableProductType, enableWeight: settings.enableWeight, enableStages: settings.enableStages,
     enableExpenses: settings.enableExpenses, enableManufacturingDates: settings.enableManufacturingDates,
     enableServicesFinanceReport: settings.enableServicesFinanceReport, enablePurchaseSaleSplit: settings.enablePurchaseSaleSplit,

@@ -173,6 +173,22 @@ function pushActivity(order, text) {
   if (order.activity.length > 50) order.activity.length = 50;
 }
 
+// Order history isn't in /api/state (it grew with every order); it's fetched
+// when an order card opens. Entries added locally before that are superseded
+// by the server's list, which logs the same events.
+export async function loadOrderActivity(orderId) {
+  const order = _state?.orders.find((o) => o.id === orderId);
+  if (!order) return null;
+  try {
+    order.activity = await api.getOrderActivity(orderId);
+  } catch (e) {
+    console.warn('Не удалось загрузить историю заказа', e);
+    order.activity = order.activity || [];
+  }
+  order.activityLoaded = true;
+  return order;
+}
+
 function fmtMoney(n) {
   const currency = _state.settings?.currency || '$';
   return `${(Number(n) || 0).toLocaleString('ru-RU')} ${currency}`;

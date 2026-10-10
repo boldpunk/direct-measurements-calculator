@@ -8,6 +8,16 @@ const API_BASE = import.meta.env.VITE_API_URL ?? 'https://mebelflow-api.onrender
 const TOKEN_KEY = 'mebelflow_token';
 const EMPLOYEE_KEY = 'mebelflow_employee';
 
+// Logo/favicon come back as "/api/branding/logo?v=…" (served and cached
+// separately, not inlined in the JSON). Make them absolute for <img src>.
+function withAssetUrls(obj) {
+  if (!obj) return obj;
+  for (const key of ['logoUrl', 'faviconUrl']) {
+    if (typeof obj[key] === 'string' && obj[key].startsWith('/api/')) obj[key] = `${API_BASE}${obj[key]}`;
+  }
+  return obj;
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -88,7 +98,7 @@ export const api = {
     setSession(data.token);
     return data.token;
   },
-  getState: () => request('/api/state'),
+  getState: () => request('/api/state').then((st) => { withAssetUrls(st?.settings); return st; }),
 
   // Bypasses request()'s JSON-only assumption — the PDF endpoint returns a
   // binary application/pdf body, so this does its own authenticated fetch
@@ -126,6 +136,7 @@ export const api = {
   updateOrderStatus: (id, status) => request(`/api/orders/${id}/status`, { method: 'PATCH', body: { status } }),
   deleteOrder: (id) => request(`/api/orders/${id}`, { method: 'DELETE' }),
   getArchivedOrders: () => request('/api/orders/archived'),
+  getOrderActivity: (id) => request(`/api/orders/${id}/activity`),
   restoreOrder: (id) => request(`/api/orders/${id}/restore`, { method: 'POST' }),
 
   completeStage: (orderId, stageId) => request(`/api/orders/${orderId}/stages/${stageId}/complete`, { method: 'POST' }),
@@ -239,7 +250,7 @@ export const api = {
   getRolePresets: () => request('/api/employees/roles'),
 
   updateSettings: (patch) => request('/api/settings', { method: 'PATCH', body: patch }),
-  getBranding: () => request('/api/branding'),
+  getBranding: () => request('/api/branding').then(withAssetUrls),
 
   getAuditLog: (params = {}) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== ''));

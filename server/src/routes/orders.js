@@ -5,6 +5,7 @@ import { STAGE_DEFS, DEFAULT_SETTINGS, CUSTOM_ORDER_STATUSES } from '../constant
 import { requirePermission } from '../middleware/auth.js';
 import { logAudit } from '../audit.js';
 import { renderOrderPdf } from '../pdf.js';
+import { accessFor, orderVisibleTo } from '../visibility.js';
 
 const router = Router();
 
@@ -224,6 +225,27 @@ router.get('/archived', requirePermission('orders', 'view'), ah(async (req, res)
     select: { id: true, number: true, productType: true, clientName: true, amount: true, status: true, archivedAt: true },
   });
   res.json(orders);
+}));
+
+// An order's history, loaded when its card opens rather than for every order
+// at login. Same visibility as /api/state: orders.view, and "own orders only"
+// staff just for orders they manage or have a stage/task in.
+router.get('/:id/activity', requirePermission('orders', 'view'), ah(async (req, res) => {
+  const order = await prisma.order.findUnique({ where: { id: req.params.id }, select: { id: true, managerId: true } });
+  if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+  if (accessFor(req.employee).ownOrdersOnly) {
+    const [stages, tasks] = await Promise.all([
+      prisma.stage.findMany({ where: { orderId: order.id }, select: { assigneeId: true } }),
+      prisma.task.findMany({ where: { orderId: order.id }, select: { assigneeId: true } }),
+    ]);
+    const assigneeIds = [...stages, ...tasks].map((x) => x.assigneeId).filter(Boolean);
+    if (!orderVisibleTo(req.employee, order, assigneeIds)) return res.status(404).json({ error: 'Заказ не найден' });
+  }
+  const items = await prisma.activity.findMany({
+    where: { orderId: order.id }, orderBy: { timestamp: 'desc' },
+    select: { id: true, timestamp: true, text: true },
+  });
+  res.json(items);
 }));
 
 router.delete('/:id', requirePermission('orders', 'delete'), ah(async (req, res) => {

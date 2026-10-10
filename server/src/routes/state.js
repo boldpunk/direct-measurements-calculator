@@ -3,6 +3,7 @@ import { prisma } from '../prisma.js';
 import { ah } from '../util.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { scopeState } from '../visibility.js';
+import { brandingAssetUrl } from '../branding-assets.js';
 
 const router = Router();
 
@@ -17,10 +18,9 @@ const fullEmployee = (e) => ({
 // so the frontend can hydrate its local cache in one round trip.
 router.get('/', ah(async (req, res) => {
   const seesPayroll = !!req.employee?.permissions?.salaryPayments?.view;
-  const [orders, activity, stages, tasks, rework, partners, employees, clients, payments, materials, orderServices, outsourcing, salaries, otherExpenses, manufacturingEntries, settingsRow, salaryAccruals, salaryPayouts] =
+  const [orders, stages, tasks, rework, partners, employees, clients, payments, materials, orderServices, outsourcing, salaries, otherExpenses, manufacturingEntries, settingsRow, salaryAccruals, salaryPayouts] =
     await Promise.all([
       prisma.order.findMany({ where: { archivedAt: null } }), // archived orders are listed separately
-      prisma.activity.findMany({ orderBy: { timestamp: 'desc' } }),
       prisma.stage.findMany({ orderBy: { position: 'asc' } }),
       prisma.task.findMany(),
       prisma.rework.findMany(),
@@ -41,11 +41,6 @@ router.get('/', ah(async (req, res) => {
       seesPayroll ? prisma.salaryPayout.findMany({ orderBy: { paymentDate: 'desc' } }) : Promise.resolve([]),
     ]);
 
-  const activityByOrder = new Map();
-  activity.forEach((a) => {
-    if (!activityByOrder.has(a.orderId)) activityByOrder.set(a.orderId, []);
-    activityByOrder.get(a.orderId).push({ id: a.id, timestamp: a.timestamp, text: a.text });
-  });
 
   const financeByOrder = {};
   const ensure = (orderId) => {
@@ -79,7 +74,7 @@ router.get('/', ah(async (req, res) => {
   const settings = settingsRow
     ? {
       companyName: settingsRow.companyName, currency: settingsRow.currency, stageBufferDays: settingsRow.stageBufferDays,
-      orderStatusColors: settingsRow.orderStatusColors, logoUrl: settingsRow.logoUrl, faviconUrl: settingsRow.faviconUrl,
+      orderStatusColors: settingsRow.orderStatusColors, logoUrl: brandingAssetUrl('logo', settingsRow.logoUrl), faviconUrl: brandingAssetUrl('favicon', settingsRow.faviconUrl),
       enableProductType: settingsRow.enableProductType, enableWeight: settingsRow.enableWeight, enableStages: settingsRow.enableStages,
       enableExpenses: settingsRow.enableExpenses, enableManufacturingDates: settingsRow.enableManufacturingDates,
       enableServicesFinanceReport: settingsRow.enableServicesFinanceReport, enablePurchaseSaleSplit: settingsRow.enablePurchaseSaleSplit,
@@ -94,7 +89,7 @@ router.get('/', ah(async (req, res) => {
   // Cut the data down to what this employee may see — see visibility.js.
   const scoped = scopeState({
     orders, stages: shapedStages, tasks, rework, partners, clients,
-    finance: financeByOrder, activityByOrder,
+    finance: financeByOrder,
   }, req.employee);
 
   res.json({

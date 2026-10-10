@@ -46,6 +46,16 @@ export function accessFor(employee) {
   };
 }
 
+// Single-order version of the "which orders" rule, for endpoints that serve
+// one order's data on demand (e.g. its activity log). assigneeIds: employee
+// ids of the order's stages and tasks.
+export function orderVisibleTo(employee, order, assigneeIds = []) {
+  const a = accessFor(employee);
+  if (!a.seesOrders || !order) return false;
+  if (!a.ownOrdersOnly) return true;
+  return order.managerId === a.id || assigneeIds.includes(a.id);
+}
+
 // raw: { orders, stages, tasks, rework, partners, clients, finance, activityByOrder }
 // finance: { [orderId]: { payments, materials, services, outsourcing, salaries, otherExpenses, manufacturing } }
 export function scopeState(raw, employee) {
@@ -66,7 +76,9 @@ export function scopeState(raw, employee) {
   const shapedOrders = orders.map((o) => ({
     ...o,
     amount: a.seesRevenue ? o.amount : 0,
-    activity: a.seesActivity ? (raw.activityByOrder.get(o.id) || []) : [],
+    // Activity isn't part of the login payload any more (it grew with every
+    // order); the order card fetches it from /api/orders/:id/activity.
+    activity: a.seesActivity && raw.activityByOrder ? (raw.activityByOrder.get(o.id) || []) : [],
   }));
 
   // ---- Per-order finance
