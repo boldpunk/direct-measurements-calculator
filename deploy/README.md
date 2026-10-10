@@ -100,6 +100,42 @@ sudo /opt/mebelflow/deploy/check-backups.sh
 
 Run a backup now: `sudo /opt/mebelflow/deploy/backup-db.sh`.
 
+`deploy.sh` also takes a dump of the instance's database right before
+`prisma migrate deploy`, so every release has an exact "before" copy in the
+same folder.
+
+## 8. Health monitoring
+
+`deploy.sh` installs `/etc/cron.d/mebelflow-healthcheck` (every 5 minutes).
+`healthcheck.sh` checks that each instance's API answers `/health` (which
+also queries its database), that the disk is below 90%, and that every
+database has a backup younger than 26 hours. Results go to
+`/var/log/mebelflow-health.log`.
+
+To get a Telegram message when something breaks (and once more when it
+recovers), create `/etc/mebelflow/alerts.env`:
+
+```
+TELEGRAM_BOT_TOKEN="123456:ABC..."   # create a bot with @BotFather
+TELEGRAM_CHAT_ID="123456789"         # your id, e.g. from @userinfobot; write to the bot once first
+```
+
+Test it: `sudo /opt/mebelflow/deploy/healthcheck.sh`.
+
+## 9. Safety net for changes
+
+- **CI** (`.github/workflows/ci.yml`) builds the frontend and runs the API
+  tests (`server/test`) against a fresh Postgres with the seed data on every
+  push. Deploy only commits with a green run. Locally: `cd server && npm test`.
+- **Deploy** builds the frontend into `dist-next` and swaps it in only when
+  the build succeeds (the previous build is kept as `dist-prev`), dumps the
+  database before migrating, and fails loudly if the API isn't healthy
+  within 30 s of the restart.
+- **Data-migration endpoints** (`/api/migration/*`, used once for the
+  Render → Hetzner move; `/import` wipes every table) are off. Set
+  `ENABLE_MIGRATION_ROUTES=1` in the instance's env file only for the
+  duration of a transfer.
+
 ## Adding a second company on the same server
 
 Each company gets its own app directory, database, systemd service and
@@ -135,6 +171,7 @@ from day one. Every future update to *this* instance re-uses the same
 
 - **Logs**: `sudo journalctl -u mebelflow-api -f`
 - **Restart API only**: `sudo systemctl restart mebelflow-api`
+- **Roll back the frontend**: `cd /opt/mebelflow && sudo rm -rf dist && sudo mv dist-prev dist`
 - **Restore a backup** (into an empty database): `gunzip -c /opt/mebelflow/backups/<db>-<date>.sql.gz | sudo -u postgres psql <db>`
 - **Update the app**: `sudo bash deploy/deploy.sh` (safe to re-run anytime; only
   migrates the schema forward, never touches existing rows)

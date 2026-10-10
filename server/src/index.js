@@ -21,6 +21,7 @@ import salaryRoutes from './routes/salary.js';
 import proposalsRoutes from './routes/proposals.js';
 import partnerBalanceRoutes from './routes/partnerBalance.js';
 import { requireAuth } from './middleware/auth.js';
+import { prisma } from './prisma.js';
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map((s) => s.trim()).filter(Boolean);
 
@@ -37,7 +38,16 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '20mb' }));
 
-app.get('/health', (req, res) => res.json({ ok: true }));
+// Used by deploy.sh after a restart and by deploy/healthcheck.sh. Touches the
+// database so "API up, Postgres down" reports as unhealthy.
+app.get('/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(503).json({ ok: false, error: 'database' });
+  }
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/state', requireAuth, stateRoutes);
@@ -51,8 +61,10 @@ app.use('/api/settings', requireAuth, settingsRoutes);
 app.use('/api/audit-log', requireAuth, auditLogRoutes);
 app.use('/api/stock', requireAuth, stockRoutes);
 app.use('/api/services', requireAuth, servicesRoutes);
-app.use('/api/migration', migrationRoutes);
 app.use('/api/branding', brandingRoutes);
+// One-off Render → Hetzner transfer. /import TRUNCATEs every table, so it is
+// off unless explicitly switched on for the duration of a migration.
+if (process.env.ENABLE_MIGRATION_ROUTES === '1') app.use('/api/migration', migrationRoutes);
 app.use('/api/reports', requireAuth, reportsRoutes);
 app.use('/api/salary', requireAuth, salaryRoutes);
 app.use('/api/proposals', requireAuth, proposalsRoutes);
