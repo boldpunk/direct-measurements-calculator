@@ -383,7 +383,15 @@ export function deleteOrder(orderId) {
   _state.tasks = _state.tasks.filter((t) => t.orderId !== orderId);
   _state.rework = _state.rework.filter((r) => r.orderId !== orderId);
   delete _state.finance[orderId];
-  api.deleteOrder(orderId).catch((e) => logSyncError('удаление заказа', e));
+  // The server archives rather than deletes (see routes/orders.js).
+  api.deleteOrder(orderId).catch((e) => logSyncError('архивирование заказа', e));
+}
+
+// Restore re-reads the whole state: the order comes back with its stages,
+// tasks, rework and finance rows, which the client no longer holds.
+export async function restoreOrder(orderId) {
+  await api.restoreOrder(orderId);
+  _state = await api.getState();
 }
 
 function stagesOf(state, orderId) {

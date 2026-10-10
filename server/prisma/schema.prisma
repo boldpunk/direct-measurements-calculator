@@ -146,6 +146,11 @@ model Order {
   needsCarpentry Boolean @default(true)
   notes         String   @default("")
   createdAt     Float    @default(0)
+  // «Удалить» archives instead of deleting: payments, materials, salaries and
+  // expenses all cascade-delete with an order, so a mistaken delete used to
+  // wipe its financial history for good. Archived orders are hidden from
+  // every list and report but can be restored.
+  archivedAt    Float?
 
   stages         Stage[]
   tasks          Task[]

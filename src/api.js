@@ -125,6 +125,8 @@ export const api = {
   updateOrder: (id, patch) => request(`/api/orders/${id}`, { method: 'PATCH', body: patch }),
   updateOrderStatus: (id, status) => request(`/api/orders/${id}/status`, { method: 'PATCH', body: { status } }),
   deleteOrder: (id) => request(`/api/orders/${id}`, { method: 'DELETE' }),
+  getArchivedOrders: () => request('/api/orders/archived'),
+  restoreOrder: (id) => request(`/api/orders/${id}/restore`, { method: 'POST' }),
 
   completeStage: (orderId, stageId) => request(`/api/orders/${orderId}/stages/${stageId}/complete`, { method: 'POST' }),
   setStageAssignment: (orderId, stageId, data) => request(`/api/orders/${orderId}/stages/${stageId}`, { method: 'PATCH', body: data }),

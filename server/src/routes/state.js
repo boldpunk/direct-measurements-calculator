@@ -19,7 +19,7 @@ router.get('/', ah(async (req, res) => {
   const seesPayroll = !!req.employee?.permissions?.salaryPayments?.view;
   const [orders, activity, stages, tasks, rework, partners, employees, clients, payments, materials, orderServices, outsourcing, salaries, otherExpenses, manufacturingEntries, settingsRow, salaryAccruals, salaryPayouts] =
     await Promise.all([
-      prisma.order.findMany(),
+      prisma.order.findMany({ where: { archivedAt: null } }), // archived orders are listed separately
       prisma.activity.findMany({ orderBy: { timestamp: 'desc' } }),
       prisma.stage.findMany({ orderBy: { position: 'asc' } }),
       prisma.task.findMany(),

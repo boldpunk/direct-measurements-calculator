@@ -210,25 +210,76 @@ router.patch('/:id/status', ah(async (req, res) => {
   res.json(order);
 }));
 
+// ---- Archive (instead of delete) ----
+//
+// Payments, materials, salaries and expenses cascade-delete with an order, so
+// a real DELETE wiped the order's whole financial history. «Удалить» now
+// archives: the order disappears from every list, board and report but keeps
+// all of its rows and can be restored. Stock reservations are released, as a
+// delete did, so the warehouse doesn't stay blocked by an archived order.
+router.get('/archived', requirePermission('orders', 'view'), ah(async (req, res) => {
+  const orders = await prisma.order.findMany({
+    where: { archivedAt: { not: null } },
+    orderBy: { archivedAt: 'desc' },
+    select: { id: true, number: true, productType: true, clientName: true, amount: true, status: true, archivedAt: true },
+  });
+  res.json(orders);
+}));
+
 router.delete('/:id', requirePermission('orders', 'delete'), ah(async (req, res) => {
   const before = await prisma.order.findUnique({ where: { id: req.params.id } });
-  if (before) {
-    // Release any active stock reservations first — Material/StockReservation
-    // rows cascade-delete with the order, but ProductSpec.reserved wouldn't
-    // unwind on its own and would leak forever.
+  if (before && !before.archivedAt) {
+    // One timestamp for the archive mark and its 'unreserve' movements: restore
+    // finds exactly these movements by createdAt >= archivedAt.
+    const archivedAt = Date.now();
     await prisma.$transaction(async (tx) => {
       const reservations = await tx.stockReservation.findMany({ where: { orderId: before.id } });
       for (const r of reservations) {
         await tx.productSpec.update({ where: { id: r.specId }, data: { reserved: { decrement: r.qty } } });
         await tx.stockMovement.create({
-          data: { id: uid('mov'), specId: r.specId, type: 'unreserve', qty: r.qty, orderId: before.id, comment: `Заказ №${before.number} удалён`, createdAt: Date.now() },
+          data: { id: uid('mov'), specId: r.specId, type: 'unreserve', qty: r.qty, orderId: before.id, comment: `Заказ №${before.number} в архиве`, createdAt: archivedAt },
         });
+        await tx.stockReservation.delete({ where: { id: r.id } });
       }
-      await tx.order.delete({ where: { id: before.id } });
+      await tx.order.update({ where: { id: before.id }, data: { archivedAt } });
+      await pushActivity(tx, before.id, 'Заказ перемещён в архив');
     });
     await logAudit(req, {
-      action: 'order.delete', entityType: 'order', entityId: before.id,
+      action: 'order.archive', entityType: 'order', entityId: before.id,
       oldValue: { number: before.number, clientName: before.clientName, amount: before.amount },
+    });
+  }
+  res.status(204).end();
+}));
+
+router.post('/:id/restore', requirePermission('orders', 'delete'), ah(async (req, res) => {
+  const before = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!before) return res.status(404).json({ error: 'Заказ не найден' });
+  if (before.archivedAt) {
+    await prisma.$transaction(async (tx) => {
+      // Put back the stock reservations the archive released (exactly those
+      // — found by the 'unreserve' movements written at archive time — so a
+      // closed order whose stock was already written off isn't re-reserved).
+      const released = await tx.stockMovement.findMany({
+        where: { orderId: before.id, type: 'unreserve', createdAt: { gte: before.archivedAt } },
+      });
+      for (const mv of released) {
+        const material = await tx.material.findFirst({
+          where: { orderId: before.id, specId: mv.specId, source: 'stock', reservation: null },
+        });
+        if (!material) continue;
+        await tx.productSpec.update({ where: { id: mv.specId }, data: { reserved: { increment: mv.qty } } });
+        await tx.stockReservation.create({ data: { id: uid('rsv'), specId: mv.specId, orderId: before.id, materialId: material.id, qty: mv.qty, createdAt: Date.now() } });
+        await tx.stockMovement.create({
+          data: { id: uid('mov'), specId: mv.specId, type: 'reserve', qty: mv.qty, employeeId: req.employee?.id || null, orderId: before.id, comment: `Заказ №${before.number} восстановлен из архива`, createdAt: Date.now() },
+        });
+      }
+      await tx.order.update({ where: { id: before.id }, data: { archivedAt: null } });
+      await pushActivity(tx, before.id, 'Заказ восстановлен из архива');
+    });
+    await logAudit(req, {
+      action: 'order.restore', entityType: 'order', entityId: before.id,
+      newValue: { number: before.number, clientName: before.clientName },
     });
   }
   res.status(204).end();

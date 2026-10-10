@@ -65,6 +65,10 @@ function describe(entry) {
   switch (entry.action) {
     case 'order.create':
       return `${who} создал заказ №${entry.newValue?.number ?? ''} (${escapeHtml(entry.newValue?.clientName || '')})`;
+    case 'order.archive':
+      return `${who} отправил в архив заказ №${entry.oldValue?.number ?? ''}`;
+    case 'order.restore':
+      return `${who} восстановил из архива заказ №${entry.newValue?.number ?? ''}`;
     case 'order.delete':
       return `${who} удалил заказ №${entry.oldValue?.number ?? ''}`;
     case 'order.status_change':

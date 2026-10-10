@@ -1709,3 +1709,4 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   .orders-toolbar select { flex: 1 1 140px; min-width: 0; }
   .orders-toolbar__search { flex-basis: 100%; }
 }
+.page-header__actions { display: flex; gap: 10px; flex-wrap: wrap; }

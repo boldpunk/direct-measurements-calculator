@@ -1,5 +1,5 @@
 import {
-  getState, createOrder, updateOrder, updateOrderStatus, deleteOrder,
+  getState, createOrder, updateOrder, updateOrderStatus, deleteOrder, restoreOrder,
   getOrderStages, completeStage, setStageAssignment, isOverdue, STAGE_DEFS,
   PRODUCT_TYPES, getOrderStatuses, getOrderDeadlineInfo,
   getFinance, computeOrderFinance,
@@ -17,6 +17,7 @@ import { can, sees, maskUnless, isOwnScopeOnly, currentEmployeeId } from '../per
 import { api } from '../api.js';
 import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
 import { openProposal } from './proposals.js';
+import { showToast } from '../toast.js';
 
 let selectedOrderId = null;
 let currentQuery = '';
@@ -109,7 +110,10 @@ export function renderOrders() {
   return `
     <div class="page-header">
       <h1>Заказы</h1>
-      ${can('orders', 'create') ? '<button class="btn btn--primary" data-action="new-order"><i class="fa-solid fa-plus"></i> Новый заказ</button>' : ''}
+      <div class="page-header__actions">
+        ${can('orders', 'delete') ? '<button class="btn" data-action="order-archive"><i class="fa-solid fa-box-archive"></i> Архив</button>' : ''}
+        ${can('orders', 'create') ? '<button class="btn btn--primary" data-action="new-order"><i class="fa-solid fa-plus"></i> Новый заказ</button>' : ''}
+      </div>
     </div>
 
     <div class="orders-toolbar">
@@ -231,7 +235,7 @@ function renderOrderDetail(orderId) {
         <button type="button" class="btn btn--sm" data-action="order-pdf" data-id="${order.id}"><i class="fa-solid fa-file-pdf"></i> PDF</button>
         ${can('proposals', 'create') ? `<button type="button" class="btn btn--sm" data-action="order-to-proposal" data-id="${order.id}" title="Создать коммерческое предложение из заказа"><i class="fa-solid fa-file-contract"></i> КП</button>` : ''}
         ${can('orders', 'edit') ? `<button type="button" class="btn btn--sm" data-action="edit-order" data-id="${order.id}"><i class="fa-solid fa-pen"></i></button>` : ''}
-        ${can('orders', 'delete') ? `<button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-order" data-id="${order.id}"><i class="fa-solid fa-trash"></i></button>` : ''}
+        ${can('orders', 'delete') ? `<button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-order" data-id="${order.id}" title="В архив"><i class="fa-solid fa-box-archive"></i></button>` : ''}
       </div>
     </div>
     <div class="order-detail__stats">
@@ -680,16 +684,20 @@ export function attachOrderHandlers(root, rerender) {
   const editBtn = root.querySelector('[data-action="edit-order"]');
   if (editBtn) editBtn.addEventListener('click', () => openEditOrderModal(editBtn.getAttribute('data-id'), rerender));
 
+  const archiveBtn = root.querySelector('[data-action="order-archive"]');
+  if (archiveBtn) archiveBtn.addEventListener('click', () => openArchiveModal(rerender));
+
   const deleteBtn = root.querySelector('[data-action="delete-order"]');
   if (deleteBtn) {
     deleteBtn.addEventListener('click', () => {
       const state = getState();
       const order = state.orders.find((o) => o.id === deleteBtn.getAttribute('data-id'));
       if (!order) return;
-      if (window.confirm(`Удалить заказ ${orderLabel(order)}? Все связанные этапы, задачи, переделки и финансы будут удалены.`)) {
+      if (window.confirm(`Отправить заказ ${orderLabel(order)} в архив?\n\nОн исчезнет из списков и отчётов, но все оплаты и расходы сохранятся — восстановить можно через «Архив».`)) {
         deleteOrder(order.id);
         selectedOrderId = null;
         rerender();
+        showToast('Заказ перемещён в архив');
       }
     });
   }
@@ -1114,5 +1122,44 @@ function openEditOrderModal(orderId, rerender) {
     });
     closeModal();
     rerender();
+  });
+}
+
+// ---- Archive ----
+async function openArchiveModal(rerender) {
+  openModal('Архив заказов', '<div class="empty-state empty-state--sm">Загрузка...</div>');
+  let list;
+  try {
+    list = await api.getArchivedOrders();
+  } catch (e) {
+    openModal('Архив заказов', `<div class="empty-state empty-state--sm">${escapeHtml(e.message || 'Не удалось загрузить архив')}</div>`);
+    return;
+  }
+  const rows = list.map((o) => `
+    <div class="mat-row">
+      <span class="mat-row__name">
+        <b>${escapeHtml(o.productType || 'Заказ')} #${o.number}</b> · ${escapeHtml(o.clientName || '—')}
+        <div class="row-item__sub">${money(o.amount)} · ${escapeHtml(o.status)} · в архиве с ${new Date(o.archivedAt).toLocaleDateString('ru-RU')}</div>
+      </span>
+      <button type="button" class="btn btn--sm" data-restore="${o.id}"><i class="fa-solid fa-rotate-left"></i> Восстановить</button>
+    </div>
+  `).join('') || '<div class="empty-state empty-state--sm">Архив пуст</div>';
+  openModal('Архив заказов', `
+    <p class="form-hint" style="margin:0 0 10px">Заказы из архива не видны в списках, на доске и в отчётах. Все их оплаты и расходы сохранены.</p>
+    <div class="mat-rows">${rows}</div>
+  `);
+  document.querySelectorAll('#modal-body [data-restore]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await restoreOrder(btn.getAttribute('data-restore'));
+        closeModal();
+        rerender();
+        showToast('Заказ восстановлен');
+      } catch (e) {
+        showToast(e.message || 'Не удалось восстановить заказ', { tone: 'error' });
+        btn.disabled = false;
+      }
+    });
   });
 }

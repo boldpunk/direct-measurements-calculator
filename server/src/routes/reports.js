@@ -18,7 +18,7 @@ const CUSTOM_CLOSED_STATUSES = [CUSTOM_ORDER_STATUSES[CUSTOM_ORDER_STATUSES.leng
 router.get('/purchase-list/pdf', requirePermission('finance', 'view'), ah(async (req, res) => {
   const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
   const closedStatuses = settings?.enableCustomOrderStatuses ? CUSTOM_CLOSED_STATUSES : CLOSED_STATUSES;
-  const orders = await prisma.order.findMany({ where: { status: { notIn: closedStatuses } } });
+  const orders = await prisma.order.findMany({ where: { status: { notIn: closedStatuses }, archivedAt: null } });
   const orderIds = orders.map((o) => o.id);
   const materials = orderIds.length
     ? await prisma.material.findMany({ where: { orderId: { in: orderIds }, source: 'manual' } })
