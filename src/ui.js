@@ -3,6 +3,7 @@ import { can, canAny } from './permissions.js';
 import { getSettings } from './store.js';
 import { brandLogo } from './brand.js';
 import { getThemePreference, setThemePreference } from './theme.js';
+import { showToast } from './toast.js';
 
 let defaultFaviconHTML = null;
 const OVERRIDE_IDS = ['dynamic-favicon', 'dynamic-apple-touch-icon'];
@@ -113,6 +114,9 @@ export function renderShell(currentRoute) {
         <input type="search" id="global-search" placeholder="Поиск заказа, задачи, партнёра..." autocomplete="off" />
         <div class="search-results" id="search-results" hidden></div>
       </div>
+      <button type="button" class="topbar__avatar" id="theme-toggle" aria-label="Тема оформления">
+        <i class="fa-solid ${THEME_ICONS[getThemePreference()]}"></i>
+      </button>
       <div class="notif-wrap">
         <button type="button" class="topbar__avatar" id="notif-toggle" title="Уведомления" aria-haspopup="true">
           <i class="fa-solid fa-bell"></i>
@@ -267,6 +271,34 @@ export function initSidebarToggle() {
   if (moreBtn) moreBtn.addEventListener('click', open);
 }
 
+// Top-bar theme button: one tap cycles Авто → Светлая → Тёмная. The same
+// choice is also offered in the profile menu.
+const THEME_ICONS = { auto: 'fa-circle-half-stroke', light: 'fa-sun', dark: 'fa-moon' };
+const THEME_NAMES = { auto: 'Тема: как на устройстве', light: 'Тема: светлая', dark: 'Тема: тёмная' };
+const THEME_ORDER = ['auto', 'light', 'dark'];
+
+function syncThemeControls() {
+  const pref = getThemePreference();
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.innerHTML = `<i class="fa-solid ${THEME_ICONS[pref]}"></i>`;
+    btn.title = THEME_NAMES[pref];
+  }
+  document.querySelectorAll('[data-theme-pref]').forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-theme-pref') === pref));
+}
+
+export function initThemeToggle() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  syncThemeControls();
+  btn.addEventListener('click', () => {
+    const next = THEME_ORDER[(THEME_ORDER.indexOf(getThemePreference()) + 1) % THEME_ORDER.length];
+    setThemePreference(next);
+    syncThemeControls();
+    showToast(THEME_NAMES[next]);
+  });
+}
+
 export function initProfileMenu() {
   const toggle = document.getElementById('profile-toggle');
   const menu = document.getElementById('profile-menu');
@@ -279,7 +311,7 @@ export function initProfileMenu() {
   menu.querySelectorAll('[data-theme-pref]').forEach((btn) => {
     btn.addEventListener('click', () => {
       setThemePreference(btn.getAttribute('data-theme-pref'));
-      menu.querySelectorAll('[data-theme-pref]').forEach((b) => b.classList.toggle('is-active', b === btn));
+      syncThemeControls();
     });
   });
   menu.addEventListener('click', () => { menu.hidden = true; });

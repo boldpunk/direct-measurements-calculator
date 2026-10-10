@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ah } from '../util.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
+import { scopeState } from '../visibility.js';
 
 const router = Router();
 
@@ -59,10 +60,6 @@ router.get('/', ah(async (req, res) => {
   otherExpenses.forEach((e) => ensure(e.orderId).otherExpenses.push(e));
   manufacturingEntries.forEach((m) => ensure(m.orderId).manufacturing.push(m));
 
-  const shapedOrders = orders.map((o) => ({
-    ...o,
-    activity: activityByOrder.get(o.id) || [],
-  }));
 
   const shapedStages = stages.map((s) => ({
     id: s.id,
@@ -94,17 +91,23 @@ router.get('/', ah(async (req, res) => {
     }
     : { ...DEFAULT_SETTINGS };
 
+  // Cut the data down to what this employee may see — see visibility.js.
+  const scoped = scopeState({
+    orders, stages: shapedStages, tasks, rework, partners, clients,
+    finance: financeByOrder, activityByOrder,
+  }, req.employee);
+
   res.json({
-    orders: shapedOrders,
-    stages: shapedStages,
-    tasks,
-    rework,
-    partners,
+    orders: scoped.orders,
+    stages: scoped.stages,
+    tasks: scoped.tasks,
+    rework: scoped.rework,
+    partners: scoped.partners,
     employees: req.employee?.permissions?.employees?.edit
       ? employees.map(fullEmployee)
       : employees.map((e) => (e.id === req.employee?.id ? fullEmployee(e) : basicEmployee(e))),
-    clients,
-    finance: financeByOrder,
+    clients: scoped.clients,
+    finance: scoped.finance,
     orderSeq: settingsRow ? settingsRow.orderSeq : 100,
     settings,
     salaryAccruals,

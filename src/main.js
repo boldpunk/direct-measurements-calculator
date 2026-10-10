@@ -12,7 +12,7 @@ import 'flag-icons/css/flag-icons.min.css';
 // Last, so the app's own rules keep precedence over the library CSS above
 // (the order these were in when the libraries came from <link> tags).
 import '../style.css';
-import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, applyFavicon, enhanceFields, NAV_ITEMS } from './ui.js';
+import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, initThemeToggle, applyFavicon, enhanceFields, NAV_ITEMS } from './ui.js';
 import { initSearch } from './search.js';
 import { brandLogo } from './brand.js';
 import { initNotifications } from './notifications.js';
@@ -136,6 +136,7 @@ function renderApp() {
     initModalHandlers();
     initSearch(renderApp);
     initProfileMenu();
+    initThemeToggle();
     initSidebarToggle();
     initNotifications(renderApp);
     const logoutBtn = document.getElementById('logout-btn');

@@ -5,7 +5,7 @@ import {
 } from '../store.js';
 import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { kpiCard, card } from '../ui.js';
-import { maskUnless, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
+import { maskUnless, isOwnScopeOnly, currentEmployeeId, can } from '../permissions.js';
 import { selectOrder } from './orders.js';
 
 export function renderDashboard() {
@@ -22,10 +22,13 @@ export function renderDashboard() {
   const totalProfit = liveOrders.reduce((sum, o) => sum + computeOrderFinance(o.id).profit, 0);
   const monthlyProfit = computeMonthlyProfit();
 
+  const seesRevenue = can('orders', 'view') || can('finance', 'view');
   const kpis = [
     kpiCard('fa-layer-group', 'info', 'Активные заказы', `${activeOrders.length}`, '#/orders'),
     kpiCard('fa-fire', 'danger', 'С просрочкой', `${overdueOrders.length}`, '#/orders'),
-    kpiCard('fa-hand-holding-dollar', 'warning', 'К оплате', money(toReceive), '#/orders'),
+    // Order sums only reach employees with Заказы/Финансы view (see
+    // server/src/visibility.js) — everyone else would just see a false 0.
+    kpiCard('fa-hand-holding-dollar', 'warning', 'К оплате', seesRevenue ? money(toReceive) : '<span class="masked-value">••••</span>', '#/orders'),
     kpiCard('fa-file-invoice-dollar', 'neutral', 'Выручка', maskUnless('seesFinanceAnalytics', money(revenue)), '#/orders'),
     kpiCard('fa-sack-dollar', totalProfit >= 0 ? 'success' : 'danger', 'Прибыль', maskUnless('seesProfit', money(totalProfit)), '#/orders'),
   ];
