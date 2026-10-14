@@ -1,7 +1,7 @@
 import {
   getState, createOrder, updateOrder, updateOrderStatus, deleteOrder, restoreOrder, loadOrderActivity,
   getOrderStages, completeStage, setStageAssignment, isOverdue, STAGE_DEFS,
-  PRODUCT_TYPES, getOrderStatuses, getOrderDeadlineInfo,
+  PRODUCT_TYPES, getOrderStatuses, getClosedStatuses, getOrderStatusTone, getOrderDeadlineInfo,
   getFinance, computeOrderFinance,
   addPayment, removePayment, addMaterial, removeMaterial,
   addStockMaterial, updateStockMaterialQty,
@@ -27,6 +27,15 @@ let currentSort = 'new';
 let currentPeriod = '';
 let currentPeriodFrom = '';
 let currentPeriodTo = '';
+let currentView = readView();
+
+function readView() {
+  try { return localStorage.getItem('mebelflow_orders_view') === 'board' ? 'board' : 'list'; } catch { return 'list'; }
+}
+function saveView(v) {
+  currentView = v;
+  try { localStorage.setItem('mebelflow_orders_view', v); } catch { /* private mode */ }
+}
 
 export function selectOrder(orderId) {
   selectedOrderId = orderId;
@@ -112,6 +121,10 @@ export function renderOrders() {
     <div class="page-header">
       <h1>Заказы</h1>
       <div class="page-header__actions">
+        <div class="view-toggle" role="group" aria-label="Вид">
+          <button type="button" class="view-toggle__btn ${currentView === 'list' ? 'is-active' : ''}" data-view="list" title="Список"><i class="fa-solid fa-list"></i><span>Список</span></button>
+          <button type="button" class="view-toggle__btn ${currentView === 'board' ? 'is-active' : ''}" data-view="board" title="Доска"><i class="fa-solid fa-table-columns"></i><span>Доска</span></button>
+        </div>
         ${can('orders', 'delete') ? '<button class="btn" data-action="order-archive"><i class="fa-solid fa-box-archive"></i> Архив</button>' : ''}
         ${can('orders', 'create') ? '<button class="btn btn--primary" data-action="new-order"><i class="fa-solid fa-plus"></i> Новый заказ</button>' : ''}
       </div>
@@ -135,6 +148,7 @@ export function renderOrders() {
       ${FILTERS.map((f) => `<button type="button" class="chip ${f.key === currentFilter ? 'is-active' : ''}" data-filter="${f.key}">${f.label}</button>`).join('')}
     </div>
 
+    ${currentView === 'board' ? renderOrdersBoard(rows) : `
     <div class="orders-layout">
       <div class="panel orders-table-panel">
         <div class="panel__body" style="padding:0; overflow-x:auto">
@@ -152,7 +166,90 @@ export function renderOrders() {
         ${selectedOrderId ? renderOrderDetail(selectedOrderId) : '<div class="empty-state">Выберите заказ</div>'}
       </div>
     </div>
+    `}
   `;
+}
+
+// ---- Board view: one column per status, cards move by drag-and-drop ----
+const BOARD_CLOSED_LIMIT = 12;
+
+function renderOrdersBoard(rows) {
+  const closed = getClosedStatuses();
+  const cols = getOrderStatuses().map((status) => {
+    const inCol = rows.filter(({ o }) => o.status === status);
+    const shown = closed.includes(status) ? inCol.slice(0, BOARD_CLOSED_LIMIT) : inCol;
+    const total = inCol.reduce((sum, { o }) => sum + (Number(o.amount) || 0), 0);
+    return `
+      <div class="prod-col orders-board__col">
+        <div class="prod-col__title">
+          <span class="status-dot status-dot--${getOrderStatusTone(status)}" aria-hidden="true"></span>
+          ${escapeHtml(status)} <span class="kanban-col__count">${inCol.length}</span>
+        </div>
+        ${inCol.length && sees('seesFinanceAnalytics') ? `<div class="orders-board__sum">${money(total)}</div>` : ''}
+        <div class="prod-col__body" data-drop-status="${escapeHtml(status)}">
+          ${shown.map(({ o, fin }) => boardCard(o, fin)).join('') || '<div class="empty-state empty-state--sm">пусто</div>'}
+          ${inCol.length > shown.length ? `<div class="row-item__sub" style="text-align:center">и ещё ${inCol.length - shown.length} — см. «Список»</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+  return `<div class="prod-board orders-board">${cols}</div>`;
+}
+
+function boardCard(o, fin) {
+  const deadlineInfo = getOrderDeadlineInfo(o);
+  const manager = getState().employees.find((e) => e.id === o.managerId);
+  return `
+    <div class="prod-card orders-board__card" data-board-order="${o.id}" draggable="${can('orders', 'edit')}">
+      <div class="prod-card__title" data-open-order="${o.id}">${escapeHtml(orderLabel(o))}</div>
+      <div class="prod-card__sub" data-open-order="${o.id}">${escapeHtml(o.clientName)}</div>
+      <div class="orders-board__money">
+        <b>${money(o.amount)}</b>
+        <span class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? `−${money(fin.remainingAmount)}` : 'Оплачено'}${quickPayButton(o, fin)}</span>
+      </div>
+      <div class="prod-card__footer" style="margin-bottom:0">
+        <span>${manager ? escapeHtml(manager.name) : '—'}</span>
+        ${deadlineInfo.text && deadlineInfo.text !== o.status ? `<span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function attachBoardHandlers(root, rerender) {
+  root.querySelectorAll('[data-open-order]').forEach((el) => el.addEventListener('click', () => {
+    selectedOrderId = el.getAttribute('data-open-order');
+    saveView('list');
+    rerender();
+  }));
+  if (!can('orders', 'edit')) return;
+  let draggedId = null;
+  root.querySelectorAll('[data-board-order]').forEach((card) => {
+    card.addEventListener('dragstart', (e) => {
+      draggedId = card.getAttribute('data-board-order');
+      card.classList.add('is-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
+  });
+  root.querySelectorAll('.orders-board [data-drop-status]').forEach((col) => {
+    col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('is-drop-target'); });
+    col.addEventListener('dragleave', () => col.classList.remove('is-drop-target'));
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('is-drop-target');
+      const order = getState().orders.find((o) => o.id === draggedId);
+      draggedId = null;
+      const status = col.getAttribute('data-drop-status');
+      if (!order || order.status === status) return;
+      if (!allowedStatuses(order).includes(status)) {
+        showToast(`Нет прав ставить статус «${status}»`, { tone: 'error' });
+        return;
+      }
+      updateOrderStatus(order.id, status);
+      rerender();
+      showToast(`${orderLabel(order)}: ${status}`);
+    });
+  });
 }
 
 function orderRow(o, fin) {
@@ -721,6 +818,11 @@ function hydrateActivity(root) {
 export function attachOrderHandlers(root, rerender) {
   hydrateActivity(root);
   attachQuickActions(root, rerender);
+  attachBoardHandlers(root, rerender);
+  root.querySelectorAll('[data-view]').forEach((btn) => btn.addEventListener('click', () => {
+    saveView(btn.getAttribute('data-view'));
+    rerender();
+  }));
   root.querySelectorAll('[data-order-row]').forEach((row) => {
     row.addEventListener('click', () => {
       selectedOrderId = row.getAttribute('data-order-row');
