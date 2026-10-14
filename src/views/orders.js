@@ -10,7 +10,7 @@ import {
   addOtherExpense, removeOtherExpense, addManufacturingEntry, removeManufacturingEntry, UNITS, todayISO, getSettings,
 } from '../store.js';
 import { money, moneyWrap, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
-import { openModal, closeModal, selectOptions } from '../ui.js';
+import { openModal, closeModal, selectOptions, guardModalForm } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { renderMoneyField, attachMoneyFields } from '../money-field.js';
 import { can, sees, maskUnless, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
@@ -1300,7 +1300,11 @@ function attachAddFormHandlers(root, rerender) {
 function orderFormFields(order) {
   const state = getState();
   return `
-    <label>Клиент<input name="clientName" required placeholder="Имя клиента" value="${order ? escapeHtml(order.clientName) : ''}" /></label>
+    <div class="client-suggest-wrap">
+      <label>Клиент<input name="clientName" required placeholder="Имя или телефон клиента" autocomplete="off" value="${order ? escapeHtml(order.clientName) : ''}" /></label>
+      <div class="client-suggest" role="listbox" hidden></div>
+      <input type="hidden" name="clientId" value="${order?.clientId ? escapeHtml(order.clientId) : ''}" />
+    </div>
     ${renderPhoneField({ name: 'clientPhone', value: order ? order.clientPhone : '' })}
     <label>Адрес<input name="address" placeholder="Город, улица, дом" value="${order ? escapeHtml(order.address || '') : ''}" /></label>
     ${getSettings().enableProductType !== false ? `
@@ -1321,6 +1325,79 @@ function orderFormFields(order) {
   `;
 }
 
+// ---- Client suggestions in the new-order form ----
+// Typing a name or part of a phone number offers known clients (the client
+// book, plus clients of earlier orders); picking one fills name, phone and
+// address and links the order to that client.
+function knownClients() {
+  const state = getState();
+  const seen = new Set();
+  const out = [];
+  const add = (c) => {
+    const key = (c.phone || '').replace(/\D/g, '') || c.name.trim().toLowerCase();
+    if (!c.name || seen.has(key)) return;
+    seen.add(key);
+    out.push(c);
+  };
+  (state.clients || []).forEach((c) => add({ id: c.id, name: c.name, phone: c.phone || '', address: c.address || '' }));
+  [...state.orders].reverse().forEach((o) => add({ id: o.clientId || '', name: o.clientName, phone: o.clientPhone || '', address: o.address || '' }));
+  return out;
+}
+
+function attachClientSuggest(form) {
+  const nameInput = form.querySelector('[name="clientName"]');
+  const box = form.querySelector('.client-suggest');
+  const idInput = form.querySelector('[name="clientId"]');
+  if (!nameInput || !box) return;
+  const clients = knownClients();
+  let matches = [];
+
+  const phoneInput = () => form.querySelector('.phone-field__input');
+  const hide = () => { box.hidden = true; };
+  const show = (query) => {
+    const q = query.trim().toLowerCase();
+    const digits = q.replace(/\D/g, '');
+    matches = q.length < 2 ? [] : clients.filter((c) => c.name.toLowerCase().includes(q)
+      || (digits.length >= 3 && c.phone.replace(/\D/g, '').includes(digits))).slice(0, 6);
+    if (!matches.length) { hide(); return; }
+    box.innerHTML = matches.map((c, i) => `
+      <button type="button" class="client-suggest__item" data-suggest="${i}" role="option">
+        <b>${escapeHtml(c.name)}</b>
+        <span>${escapeHtml([c.phone ? formatPhone(c.phone) : '', c.address].filter(Boolean).join(' · ') || 'без телефона')}</span>
+      </button>`).join('');
+    box.hidden = false;
+  };
+  const pick = (c) => {
+    nameInput.value = c.name;
+    idInput.value = c.id || '';
+    const address = form.querySelector('[name="address"]');
+    if (address && c.address) address.value = c.address;
+    if (c.phone) {
+      // Re-render the phone widget with the number (it keeps country + mask state).
+      const oldLabel = form.querySelector('[data-phone-field]').closest('label');
+      const tpl = document.createElement('template');
+      tpl.innerHTML = renderPhoneField({ name: 'clientPhone', value: c.phone }).trim();
+      const newLabel = tpl.content.firstElementChild;
+      oldLabel.replaceWith(newLabel);
+      attachPhoneFields(newLabel);
+      phoneInput()?.addEventListener('input', (e) => show(e.target.value));
+    }
+    hide();
+    form.querySelector('[name="productType"], [name="managerId"]')?.focus();
+  };
+
+  nameInput.addEventListener('input', () => { idInput.value = ''; show(nameInput.value); });
+  phoneInput()?.addEventListener('input', (e) => show(e.target.value));
+  box.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus while clicking
+  box.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-suggest]');
+    if (btn) pick(matches[Number(btn.getAttribute('data-suggest'))]);
+  });
+  form.addEventListener('focusout', () => setTimeout(() => {
+    if (!form.contains(document.activeElement) || !document.activeElement.closest('.client-suggest-wrap, .phone-field')) hide();
+  }, 0));
+}
+
 function openNewOrderModal(rerender) {
   openModal('Новый заказ', `
     <form id="order-form" class="form">
@@ -1333,11 +1410,14 @@ function openNewOrderModal(rerender) {
   `);
   attachPhoneFields(document.getElementById('order-form'));
   attachMoneyFields(document.getElementById('order-form'));
+  attachClientSuggest(document.getElementById('order-form'));
+  guardModalForm(document.getElementById('order-form'));
 
   document.getElementById('order-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const order = createOrder({
+      clientId: fd.get('clientId') || undefined,
       clientName: fd.get('clientName'),
       clientPhone: fd.get('clientPhone'),
       address: fd.get('address'),
@@ -1369,6 +1449,7 @@ function openEditOrderModal(orderId, rerender) {
   `);
   attachPhoneFields(document.getElementById('order-edit-form'));
   attachMoneyFields(document.getElementById('order-edit-form'));
+  guardModalForm(document.getElementById('order-edit-form'));
 
   document.getElementById('order-edit-form').addEventListener('submit', (e) => {
     e.preventDefault();

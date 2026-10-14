@@ -206,7 +206,24 @@ export function enhanceFields(root) {
 
 // `wide` widens the dialog for content that's really a table (the partner
 // взаиморасчёты ledger) — the default 460px is sized for forms.
+// Unsaved-changes guard: a form registers itself with guardModalForm(); the
+// user-initiated ways out (✕, Отмена, backdrop, Esc) then ask before
+// throwing typed data away. Programmatic closeModal() after a save skips it.
+let modalGuard = null;
+
+export function guardModalForm(form) {
+  const snapshot = () => JSON.stringify([...new FormData(form).entries()]);
+  const initial = snapshot();
+  modalGuard = () => form.isConnected && snapshot() !== initial;
+}
+
+function requestCloseModal() {
+  if (modalGuard?.() && !window.confirm('Закрыть без сохранения? Введённые данные пропадут.')) return;
+  closeModal();
+}
+
 export function openModal(titleHtml, bodyHtml, { wide = false } = {}) {
+  modalGuard = null;
   const overlay = document.getElementById('modal-overlay');
   const body = document.getElementById('modal-body');
   body.className = wide ? 'modal modal--wide' : 'modal';
@@ -226,6 +243,7 @@ export function openModal(titleHtml, bodyHtml, { wide = false } = {}) {
 }
 
 export function closeModal() {
+  modalGuard = null;
   const overlay = document.getElementById('modal-overlay');
   overlay.hidden = true;
   document.body.classList.remove('has-modal');
@@ -235,11 +253,11 @@ export function initModalHandlers() {
   const overlay = document.getElementById('modal-overlay');
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay || e.target.closest('[data-action="close-modal"]')) {
-      closeModal();
+      requestCloseModal();
     }
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !overlay.hidden) closeModal();
+    if (e.key === 'Escape' && !overlay.hidden) requestCloseModal();
   });
 }
 
