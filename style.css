@@ -1,6 +1,8 @@
 :root {
   --bg: #eef1f7;
   --panel: #ffffff;
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
   --border: #e4e8f1;
   --text: #1f2937;
   --text-muted: #6b7280;
@@ -47,6 +49,8 @@
   :root:not([data-theme="light"]) {
   --bg: #0e1116;
   --panel: #161a21;
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
   --border: #262c36;
   --text: #e6e9ef;
   --text-muted: #9aa3b2;
@@ -79,6 +83,8 @@
 :root[data-theme="dark"] {
   --bg: #0e1116;
   --panel: #161a21;
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
   --border: #262c36;
   --text: #e6e9ef;
   --text-muted: #9aa3b2;
@@ -1772,3 +1778,29 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .page-header__actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .nowrap { white-space: nowrap; }
+
+/* Финансы → Динамика */
+.trends__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 18px 10px; flex-wrap: wrap; }
+.trends__legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; font-size: 12.5px; color: var(--text-muted); }
+.trends__legend b { color: var(--text); font-variant-numeric: tabular-nums; }
+.trends__key { display: inline-flex; align-items: center; gap: 6px; }
+.trends__swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.trends__swatch.viz-1 { background: var(--viz-1); }
+.trends__swatch.viz-2 { background: var(--viz-2); }
+.trends__chart { position: relative; padding: 0 12px 12px; }
+.trends__chart svg { display: block; max-width: 100%; }
+.trends__chart path.viz-1 { fill: var(--viz-1); }
+.trends__chart path.viz-2 { fill: var(--viz-2); }
+.viz-grid { stroke: var(--border); stroke-width: 1; }
+.viz-zero { stroke: var(--text-muted); stroke-width: 1; opacity: .6; }
+.viz-tick { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.viz-hit { fill: transparent; cursor: default; outline: none; }
+.viz-hit.is-hover { fill: var(--text); fill-opacity: .05; }
+.viz-tooltip {
+  position: absolute; top: 0; z-index: 2; pointer-events: none;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow-hover); padding: 8px 10px; font-size: 12.5px; white-space: nowrap;
+}
+.viz-tooltip__title { color: var(--text-muted); margin-bottom: 4px; }
+.viz-tooltip__row { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.row-item[data-debtor] { cursor: pointer; }

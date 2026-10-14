@@ -10,6 +10,7 @@ import { renderSalaryReportSection, renderPayrollLedgerSection } from './salary-
 import { renderOutsourceReportSection } from './outsource-report.js';
 import { renderPartnerBalanceSection, attachPartnerBalanceHandlers } from './partner-balance.js';
 import { exportFinanceWorkbook } from '../export.js';
+import { renderTrendsSection, attachTrendsHandlers } from './finance-trends.js';
 import { api } from '../api.js';
 
 let currentPeriod = '';
@@ -23,6 +24,7 @@ let currentPeriodTo = '';
 // with its feature switched off).
 const TABS = [
   { key: 'orders', label: 'Заказы', icon: 'fa-box-open' },
+  { key: 'trends', label: 'Динамика', icon: 'fa-chart-column' },
   { key: 'services', label: 'Услуги', icon: 'fa-screwdriver-wrench' },
   { key: 'salary', label: 'Зарплаты', icon: 'fa-money-check-dollar' },
   { key: 'outsource', label: 'Аутсорс', icon: 'fa-layer-group' },
@@ -94,6 +96,7 @@ export function renderFinance() {
   `;
   const sections = {
     orders: ordersTable,
+    trends: renderTrendsSection(),
     services: renderServicesReportSection(periodOrders),
     salary: `${renderPayrollLedgerSection(range)}${renderSalaryReportSection(periodOrders)}`,
     outsource: renderOutsourceReportSection(periodOrders),
@@ -185,6 +188,7 @@ export function attachFinanceHandlers(root, rerender) {
 
   // Only the visible report is wired (and, for the ones that fetch their own
   // data, loaded) — opening Финансы no longer pulls every report up front.
+  if (activeTab === 'trends') attachTrendsHandlers(root, rerender);
   if (activeTab === 'fittings') attachFittingsHandlers(root, rerender);
   if (activeTab === 'services') attachServicesReportHandlers(root, rerender);
   if (activeTab === 'partners') attachPartnerBalanceHandlers(root, rerender, getPeriodRange(currentPeriod, currentPeriodFrom, currentPeriodTo));
