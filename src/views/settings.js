@@ -33,6 +33,7 @@ export function renderSettings() {
                 ${CURRENCIES.map((c) => `<option value="${escapeHtml(c)}" ${c === settings.currency ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
               </select>
             </label>
+            ${renderFxFields(settings, canEdit)}
             <label>
               Буфер между этапами, дней
               <input name="stageBufferDays" type="number" min="1" max="30" value="${settings.stageBufferDays}" ${canEdit ? '' : 'disabled'} />
@@ -155,6 +156,7 @@ export function renderSettings() {
 }
 
 export function attachSettingsHandlers(root, rerender) {
+  attachFxFieldLabel(root);
   const form = root.querySelector('#settings-form');
   if (form) {
     form.addEventListener('submit', async (e) => {
@@ -172,6 +174,7 @@ export function attachSettingsHandlers(root, rerender) {
         companyInstagram: (fd.get('companyInstagram') || '').trim(),
         companyWebsite: (fd.get('companyWebsite') || '').trim(),
         brandColor: fd.get('brandColor') || null,
+        fxRate: readFxFields(fd),
       });
       rerender();
       // A failed save already shows its own error toast from the store.
@@ -258,4 +261,58 @@ export function attachSettingsHandlers(root, rerender) {
       rerender();
     });
   }
+}
+
+// ---- Exchange rate for the «Показывать суммы в» switch (display only) ----
+// Written strongest currency first so the rate reads naturally:
+// «1 $ = 12 700 so'm», never «1 so'm = 0,0000787 $».
+const STRENGTH = ['€', '$', '₽', "so'm"];
+
+function fxPair(base, alt) {
+  return STRENGTH.indexOf(alt) < STRENGTH.indexOf(base) ? [alt, base] : [base, alt];
+}
+
+function renderFxFields(settings, canEdit) {
+  const fx = settings.fxRate;
+  const alt = fx ? (fx.from === settings.currency ? fx.to : fx.from) : '';
+  const [from, to] = alt ? fxPair(settings.currency, alt) : ['', ''];
+  return `
+    <div class="form-row">
+      <label>Вторая валюта (для просмотра)
+        <select name="fxAlt" ${canEdit ? '' : 'disabled'}>
+          <option value="">— нет —</option>
+          ${CURRENCIES.filter((c) => c !== settings.currency).map((c) => `<option value="${escapeHtml(c)}" ${c === alt ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
+        </select>
+      </label>
+      <label><span data-fx-label>${alt ? `Курс: 1 ${escapeHtml(from)} = … ${escapeHtml(to)}` : 'Курс'}</span>
+        <input name="fxRate" type="number" min="0" step="any" inputmode="decimal" value="${fx ? fx.rate : ''}" placeholder="например, 12700" ${canEdit ? '' : 'disabled'} />
+      </label>
+    </div>
+    <p class="form-hint">Каждый сотрудник сможет смотреть суммы во второй валюте (меню профиля). Ввод, сохранение и PDF остаются в основной валюте.</p>
+  `;
+}
+
+function readFxFields(fd) {
+  const base = fd.get('currency');
+  const alt = fd.get('fxAlt');
+  const rate = Number(fd.get('fxRate'));
+  if (!alt || alt === base || !(rate > 0)) return null;
+  const [from, to] = fxPair(base, alt);
+  return { from, to, rate };
+}
+
+export function attachFxFieldLabel(root) {
+  const form = root.querySelector('#settings-form');
+  if (!form) return;
+  const update = () => {
+    const label = form.querySelector('[data-fx-label]');
+    const base = form.querySelector('[name="currency"]').value;
+    const alt = form.querySelector('[name="fxAlt"]').value;
+    if (!label) return;
+    if (!alt || alt === base) { label.textContent = 'Курс'; return; }
+    const [from, to] = fxPair(base, alt);
+    label.textContent = `Курс: 1 ${from} = … ${to}`;
+  };
+  form.querySelector('[name="fxAlt"]')?.addEventListener('change', update);
+  form.querySelector('[name="currency"]')?.addEventListener('change', update);
 }

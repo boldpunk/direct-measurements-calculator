@@ -1,30 +1,65 @@
 import { getState, getOrderStatusTone } from './store.js';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
+// ---- Display currency ----
+// Settings.fxRate ({from, to, rate}: 1 `from` = rate `to`) lets each viewer
+// see sums in the company's second currency (Профиль → Валюта). Display
+// only: inputs, saved values and PDFs stay in the company currency.
+const DISPLAY_KEY = 'mebelflow_display_currency';
+
+export function getDisplayCurrency() {
+  try { return localStorage.getItem(DISPLAY_KEY) || ''; } catch { return ''; }
+}
+export function setDisplayCurrency(currency) {
+  try { localStorage.setItem(DISPLAY_KEY, currency || ''); } catch { /* private mode */ }
+}
+
+// The second currency this company can be shown in, or null.
+export function altCurrency() {
+  const settings = getState()?.settings;
+  const fx = settings?.fxRate;
+  if (!fx || !(fx.rate > 0)) return null;
+  if (fx.from === settings.currency) return fx.to;
+  if (fx.to === settings.currency) return fx.from;
+  return null;
+}
+
+// { value, currency } as the viewer wants to see it.
+export function displayAmount(n, currencyOverride) {
+  const settings = getState()?.settings;
+  const base = settings?.currency || '$';
+  const v = Number(n) || 0;
+  if (currencyOverride) return { value: v, currency: currencyOverride };
+  const want = getDisplayCurrency();
+  const fx = settings?.fxRate;
+  if (!want || want === base || !fx || !(fx.rate > 0) || altCurrency() !== want) return { value: v, currency: base };
+  const converted = fx.from === base ? v * fx.rate : v / fx.rate;
+  // Whole units for anything sizeable, cents for small amounts.
+  const value = Math.abs(converted) >= 100 ? Math.round(converted) : Math.round(converted * 100) / 100;
+  return { value, currency: want };
+}
+
 // currencyOverride is used by commercial proposals, which each carry their
 // own currency rather than the instance-wide one.
 export function money(n, currencyOverride) {
-  const v = Number(n) || 0;
-  const currency = currencyOverride || getState().settings?.currency || '$';
+  const { value, currency } = displayAmount(n, currencyOverride);
   // No-break space before the currency: in a narrow table cell "4 200 $"
   // otherwise wraps into "4 200" / "$" on two lines.
-  return `${v.toLocaleString('ru-RU')}\u00A0${currency}`;
+  return `${value.toLocaleString('ru-RU')}\u00A0${currency}`;
 }
 
 // Like money(), but the currency may drop to the next line in a narrow box
 // (the figure itself never splits).
 export function moneyWrap(n, currencyOverride) {
-  const v = Number(n) || 0;
-  const currency = currencyOverride || getState().settings?.currency || '$';
-  return `<span class="nowrap">${v.toLocaleString('ru-RU')}</span> ${currency}`;
+  const { value, currency } = displayAmount(n, currencyOverride);
+  return `<span class="nowrap">${value.toLocaleString('ru-RU')}</span> ${currency}`;
 }
 
 // KPI tiles: so'm totals run to 10+ digits ("2 761 141 000 so'm") and didn't
 // fit a tile. From 10 million up, show "2,76 млрд so'm" / "56,6 млн so'm";
 // the exact amount stays in the tooltip.
 export function moneyKpi(n, currencyOverride) {
-  const v = Number(n) || 0;
-  const currency = currencyOverride || getState().settings?.currency || '$';
+  const { value: v, currency } = displayAmount(n, currencyOverride);
   const abs = Math.abs(v);
   let figure = v.toLocaleString('ru-RU');
   if (abs >= 1e7) {
@@ -33,7 +68,7 @@ export function moneyKpi(n, currencyOverride) {
   }
   // Currency in smaller type so the figure gets the room; in a really narrow
   // tile it drops under the figure instead of spilling out of the card.
-  return `<span class="kpi__money" title="${money(v, currencyOverride)}"><span class="kpi__figure">${figure}</span> <small>${currency}</small></span>`;
+  return `<span class="kpi__money" title="${v.toLocaleString('ru-RU')}\u00A0${currency}"><span class="kpi__figure">${figure}</span> <small>${currency}</small></span>`;
 }
 
 // Mirrors bundledBrandLogo() in server/src/pdf-proposal.js: the same key rule

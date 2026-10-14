@@ -32,6 +32,10 @@ model Settings {
   // colour. Null until a company picks one: reports then use the app blue and
   // proposals keep their established orange, so nothing changes by itself.
   brandColor        String?
+  // Exchange rate for showing sums in a second currency, e.g.
+  // {"from":"$","to":"so'm","rate":12700} = 1 $ is 12 700 so'm. Display
+  // only: every amount is still stored and entered in `currency`.
+  fxRate            Json?
 
   // Per-instance feature toggles — every instance shares the same codebase,
   // but a company can turn off features it doesn't use (e.g. sps.mebelflow.uz

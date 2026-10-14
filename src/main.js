@@ -141,7 +141,7 @@ function renderApp() {
     app.innerHTML = renderShell(route);
     initModalHandlers();
     initSearch(renderApp);
-    initProfileMenu();
+    initProfileMenu(renderApp);
     initThemeToggle();
     initSidebarToggle();
     initNotifications(renderApp);

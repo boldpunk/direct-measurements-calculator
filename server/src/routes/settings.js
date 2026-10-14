@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma.js';
 import { ah } from '../util.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
@@ -7,6 +8,7 @@ import { logAudit } from '../audit.js';
 import { brandingAssetUrl, isBrandingAssetUrl } from '../branding-assets.js';
 
 const router = Router();
+const CURRENCY_CODES = ['$', '€', '₽', "so'm"];
 
 // Mirrors BADGE_TONES in src/store.js.
 const BADGE_TONES = ['neutral', 'info', 'teal', 'violet', 'indigo', 'pink', 'orange', 'warning', 'success', 'muted', 'danger'];
@@ -33,6 +35,13 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
     // Only a #RRGGBB value or nothing — the PDFs feed this straight to PDFKit.
     data.brandColor = /^#[0-9a-f]{6}$/i.test(String(body.brandColor || '')) ? String(body.brandColor).toUpperCase() : null;
   }
+  if (body.fxRate !== undefined) {
+    const fx = body.fxRate;
+    const rate = Number(fx?.rate);
+    data.fxRate = fx && CURRENCY_CODES.includes(fx.from) && CURRENCY_CODES.includes(fx.to) && fx.from !== fx.to && rate > 0 && Number.isFinite(rate)
+      ? { from: fx.from, to: fx.to, rate }
+      : Prisma.DbNull; // a Json column needs DbNull, not plain null
+  }
   if (body.enableProductType !== undefined) data.enableProductType = !!body.enableProductType;
   if (body.enableWeight !== undefined) data.enableWeight = !!body.enableWeight;
   if (body.enableStages !== undefined) data.enableStages = !!body.enableStages;
@@ -58,6 +67,7 @@ router.patch('/', requirePermission('settings', 'edit'), ah(async (req, res) => 
   res.json({
     companyName: settings.companyName, currency: settings.currency,
     stageBufferDays: settings.stageBufferDays, orderStatusColors: settings.orderStatusColors,
+    fxRate: settings.fxRate ?? null,
     logoUrl: brandingAssetUrl('logo', settings.logoUrl), faviconUrl: brandingAssetUrl('favicon', settings.faviconUrl),
     enableProductType: settings.enableProductType, enableWeight: settings.enableWeight, enableStages: settings.enableStages,
     enableExpenses: settings.enableExpenses, enableManufacturingDates: settings.enableManufacturingDates,

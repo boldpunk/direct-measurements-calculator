@@ -399,6 +399,8 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
   color: var(--text-muted); font-size: 11px; font-weight: 600;
 }
 .profile-menu__theme-btn i { font-size: 13px; }
+.profile-menu__theme-btn--row { font-size: 12.5px; padding: 7px 4px; }
+.profile-menu__label { font-size: 11.5px; color: var(--text-muted); padding: 6px 10px 0; }
 .profile-menu__theme-btn:hover { color: var(--text); }
 .profile-menu__theme-btn.is-active { background: var(--panel); color: var(--primary); box-shadow: var(--shadow); }
 

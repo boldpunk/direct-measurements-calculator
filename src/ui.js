@@ -1,4 +1,4 @@
-import { escapeHtml } from './format.js';
+import { escapeHtml, altCurrency, getDisplayCurrency, setDisplayCurrency } from './format.js';
 import { can, canAny } from './permissions.js';
 import { getSettings } from './store.js';
 import { brandLogo } from './brand.js';
@@ -138,6 +138,7 @@ export function renderShell(currentRoute) {
               </button>
             `).join('')}
           </div>
+          <div id="profile-currency"></div>
           <button type="button" class="profile-menu__item" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Выйти</button>
         </div>
       </div>
@@ -299,13 +300,36 @@ export function initThemeToggle() {
   });
 }
 
-export function initProfileMenu() {
+// «Показывать суммы в»: only when Настройки has an exchange rate. Rebuilt on
+// every open, since the rate can be set after the shell was drawn.
+function renderCurrencyChoice(rerender) {
+  const box = document.getElementById('profile-currency');
+  if (!box) return;
+  const alt = altCurrency();
+  if (!alt) { box.innerHTML = ''; return; }
+  const base = getSettings().currency;
+  const current = getDisplayCurrency() === alt ? alt : base;
+  box.innerHTML = `
+    <div class="profile-menu__label">Показывать суммы в</div>
+    <div class="profile-menu__theme" role="group" aria-label="Валюта отображения">
+      ${[base, alt].map((c) => `<button type="button" class="profile-menu__theme-btn profile-menu__theme-btn--row ${c === current ? 'is-active' : ''}" data-display-currency="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+    </div>`;
+  box.querySelectorAll('[data-display-currency]').forEach((btn) => btn.addEventListener('click', () => {
+    const c = btn.getAttribute('data-display-currency');
+    setDisplayCurrency(c === base ? '' : c);
+    rerender?.();
+    showToast(c === base ? `Суммы в ${base}` : `Суммы пересчитаны в ${c} по курсу из настроек`);
+  }));
+}
+
+export function initProfileMenu(rerender) {
   const toggle = document.getElementById('profile-toggle');
   const menu = document.getElementById('profile-menu');
   if (!toggle || !menu) return;
 
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (menu.hidden) renderCurrencyChoice(rerender);
     menu.hidden = !menu.hidden;
   });
   menu.querySelectorAll('[data-theme-pref]').forEach((btn) => {

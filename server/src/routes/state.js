@@ -82,7 +82,7 @@ router.get('/', ah(async (req, res) => {
       enableCustomOrderStatuses: settingsRow.enableCustomOrderStatuses,
       companySlogan: settingsRow.companySlogan, companyAddress: settingsRow.companyAddress,
       companyPhone: settingsRow.companyPhone, companyInstagram: settingsRow.companyInstagram,
-      companyWebsite: settingsRow.companyWebsite, brandColor: settingsRow.brandColor,
+      companyWebsite: settingsRow.companyWebsite, brandColor: settingsRow.brandColor, fxRate: settingsRow.fxRate ?? null,
     }
     : { ...DEFAULT_SETTINGS };
 

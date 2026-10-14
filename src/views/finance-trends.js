@@ -5,7 +5,7 @@
 // are left out. Series colours are the two first categorical slots, checked
 // for colour-blind separation on both the light and the dark panel.
 import { getState, computeOrderFinance } from '../store.js';
-import { money, escapeHtml } from '../format.js';
+import { money, escapeHtml, displayAmount } from '../format.js';
 import { sees } from '../permissions.js';
 
 const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -105,7 +105,8 @@ export function renderTrendsSection() {
   `;
 }
 
-function compactMoney(v) {
+function compactMoney(raw) {
+  const v = displayAmount(raw).value;
   const abs = Math.abs(v);
   if (abs >= 1e9) return `${(v / 1e9).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млрд`;
   if (abs >= 1e6) return `${(v / 1e6).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млн`;
