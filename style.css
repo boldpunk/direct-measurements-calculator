@@ -1245,6 +1245,28 @@ body.has-modal { overflow: hidden; }
 @media (max-width: 768px) {
   .orders-table-panel { display: none; }
   .orders-cards-panel { display: flex; }
+  #order-detail { scroll-margin-top: 70px; }
+}
+
+.contact-actions { display: none; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.contact-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); text-decoration: none;
+}
+.contact-btn--call { background: var(--success); border-color: var(--success); color: #fff; }
+.pay-fab { display: none; }
+@media (max-width: 768px) {
+  .contact-actions { display: flex; }
+  .contact-btn { flex: 1 1 auto; justify-content: center; }
+  .pay-fab {
+    display: inline-flex; align-items: center; gap: 8px;
+    position: fixed; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 35;
+    padding: 12px 18px; border: none; border-radius: 999px;
+    background: var(--primary-solid, var(--primary)); color: #fff; font-weight: 700; font-size: 14px;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, .35);
+  }
+  body.has-modal .pay-fab { display: none; }
 }
 
 @media (max-width: 640px) {

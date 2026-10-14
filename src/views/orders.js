@@ -437,6 +437,7 @@ function renderOrderDetail(orderId) {
         <h2>${escapeHtml(orderLabel(order))}</h2>
         <div class="row-item__sub">${escapeHtml(order.clientName)} · ${order.clientPhone ? `<a class="tel-link" href="tel:${escapeHtml(order.clientPhone.replace(/[^+\d]/g, ''))}">${escapeHtml(formatPhone(order.clientPhone))}</a>` : '—'}</div>
         ${order.address ? `<div class="row-item__sub"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(order.address)}</div>` : ''}
+        ${renderContactActions(order)}
       </div>
       <div class="order-detail__actions">
         ${renderStatusControl(order)}
@@ -472,7 +473,30 @@ function renderOrderDetail(orderId) {
     ` : ''}
 
     ${renderActivity(order)}
+    ${renderPayFab(order)}
   `;
+}
+
+// Phone-first shortcuts: on a phone the manager mostly needs to call the
+// client, message them, or get directions to the site.
+function renderContactActions(order) {
+  const digits = (order.clientPhone || '').replace(/[^+\d]/g, '');
+  const links = [];
+  if (digits) {
+    links.push(`<a class="contact-btn contact-btn--call" href="tel:${escapeHtml(digits)}"><i class="fa-solid fa-phone"></i> Позвонить</a>`);
+    links.push(`<a class="contact-btn" href="https://t.me/${escapeHtml(digits.startsWith('+') ? digits : `+${digits}`)}" target="_blank" rel="noopener"><i class="fa-solid fa-paper-plane"></i> Telegram</a>`);
+  }
+  if (order.address) {
+    links.push(`<a class="contact-btn" href="https://yandex.uz/maps/?text=${encodeURIComponent(order.address)}" target="_blank" rel="noopener"><i class="fa-solid fa-route"></i> Маршрут</a>`);
+  }
+  return links.length ? `<div class="contact-actions">${links.join('')}</div>` : '';
+}
+
+// Floating «+ Оплата» on phones, where the payment form is far down the card.
+function renderPayFab(order) {
+  const fin = computeOrderFinance(order.id);
+  if (!(fin.remainingAmount > 0) || !can('finance', 'addPayment')) return '';
+  return `<button type="button" class="pay-fab" data-quick-pay="${order.id}"><i class="fa-solid fa-plus"></i> Оплата</button>`;
 }
 
 function renderPaymentsSection(order, finance, fin) {
@@ -869,6 +893,10 @@ export function attachOrderHandlers(root, rerender) {
     row.addEventListener('click', () => {
       selectedOrderId = row.getAttribute('data-order-row');
       rerender();
+      // On a phone the card sits under the whole list — bring it into view.
+      if (window.matchMedia('(max-width: 768px)').matches) {
+        document.getElementById('order-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   });
 
