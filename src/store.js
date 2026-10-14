@@ -393,6 +393,53 @@ export function updateOrderStatus(orderId, status) {
   api.updateOrderStatus(orderId, status).catch((e) => logSyncError('статус заказа', e));
 }
 
+// ---- Undo window for removing an order's finance rows ----
+// The row disappears at once, but the DELETE is only sent after UNDO_MS, so
+// «Отменить» in the toast simply puts it back. Anything still pending is
+// sent when the tab is hidden or closed, and before the state is re-read.
+const UNDO_MS = 6000;
+const pendingRemovals = new Map();
+
+function deferRemoval(orderId, field, id, send) {
+  const f = ensureFinance(orderId);
+  const index = f[field].findIndex((r) => r.id === id);
+  if (index < 0) return () => false;
+  const row = f[field][index];
+  f[field] = f[field].filter((r) => r.id !== id);
+  const key = `${field}:${id}`;
+  pendingRemovals.set(key, { send, timer: setTimeout(() => sendRemoval(key), UNDO_MS) });
+  return function undo() {
+    const pending = pendingRemovals.get(key);
+    if (!pending) return false; // already sent
+    clearTimeout(pending.timer);
+    pendingRemovals.delete(key);
+    const fin = ensureFinance(orderId);
+    fin[field] = [...fin[field].slice(0, index), row, ...fin[field].slice(index)];
+    return true;
+  };
+}
+
+function sendRemoval(key) {
+  const pending = pendingRemovals.get(key);
+  if (!pending) return Promise.resolve();
+  clearTimeout(pending.timer);
+  pendingRemovals.delete(key);
+  return pending.send();
+}
+
+export function flushPendingRemovals() {
+  return Promise.all([...pendingRemovals.keys()].map(sendRemoval));
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => { flushPendingRemovals(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPendingRemovals();
+  });
+}
+
+// Returns a promise for the archive request, so an undo can wait for it
+// before asking the server to restore.
 export function deleteOrder(orderId) {
   _state.orders = _state.orders.filter((o) => o.id !== orderId);
   _state.stages = _state.stages.filter((st) => st.orderId !== orderId);
@@ -400,12 +447,13 @@ export function deleteOrder(orderId) {
   _state.rework = _state.rework.filter((r) => r.orderId !== orderId);
   delete _state.finance[orderId];
   // The server archives rather than deletes (see routes/orders.js).
-  api.deleteOrder(orderId).catch((e) => logSyncError('архивирование заказа', e));
+  return api.deleteOrder(orderId).catch((e) => logSyncError('архивирование заказа', e));
 }
 
 // Restore re-reads the whole state: the order comes back with its stages,
 // tasks, rework and finance rows, which the client no longer holds.
 export async function restoreOrder(orderId) {
+  await flushPendingRemovals();
   await api.restoreOrder(orderId);
   _state = await api.getState();
 }
@@ -642,10 +690,9 @@ export function addPayment(orderId, data) {
   if (order) pushActivity(order, `Добавлена оплата: ${fmtMoney(data.amount)}`);
   api.addPayment(orderId, { ...data, id: record.id }).catch((e) => logSyncError('оплата', e));
 }
+// Returns an undo function (see deferRemoval).
 export function removePayment(orderId, id) {
-  const f = ensureFinance(orderId);
-  f.payments = f.payments.filter((p) => p.id !== id);
-  api.removePayment(orderId, id).catch((e) => logSyncError('удаление оплаты', e));
+  return deferRemoval(orderId, 'payments', id, () => api.removePayment(orderId, id).catch((e) => logSyncError('удаление оплаты', e)));
 }
 
 export function addMaterial(orderId, data) {
@@ -676,10 +723,9 @@ export async function updateStockMaterialQty(orderId, materialId, qty) {
   return record;
 }
 
+// Returns an undo function (see deferRemoval).
 export function removeMaterial(orderId, id) {
-  const f = ensureFinance(orderId);
-  f.materials = f.materials.filter((m) => m.id !== id);
-  api.removeMaterial(orderId, id).catch((e) => logSyncError('удаление материала', e));
+  return deferRemoval(orderId, 'materials', id, () => api.removeMaterial(orderId, id).catch((e) => logSyncError('удаление материала', e)));
 }
 
 // Service line items always go through the awaited API (never optimistic) —
@@ -701,10 +747,9 @@ export async function updateOrderServiceQty(orderId, serviceLineId, qty) {
   return record;
 }
 
+// Returns an undo function (see deferRemoval).
 export function removeOrderService(orderId, id) {
-  const f = ensureFinance(orderId);
-  f.services = f.services.filter((s) => s.id !== id);
-  api.removeOrderService(orderId, id).catch((e) => logSyncError('удаление услуги', e));
+  return deferRemoval(orderId, 'services', id, () => api.removeOrderService(orderId, id).catch((e) => logSyncError('удаление услуги', e)));
 }
 
 export function addOutsourceExpense(orderId, data) {
@@ -724,10 +769,9 @@ export async function updateOutsourceExpense(orderId, id, patch) {
   if (i >= 0) f.outsourcing[i] = record;
   return record;
 }
+// Returns an undo function (see deferRemoval).
 export function removeOutsourceExpense(orderId, id) {
-  const f = ensureFinance(orderId);
-  f.outsourcing = f.outsourcing.filter((o) => o.id !== id);
-  api.removeOutsourceExpense(orderId, id).catch((e) => logSyncError('удаление аутсорса', e));
+  return deferRemoval(orderId, 'outsourcing', id, () => api.removeOutsourceExpense(orderId, id).catch((e) => logSyncError('удаление аутсорса', e)));
 }
 
 // Completed-order count + total paid for one partner, across all orders —
@@ -763,10 +807,9 @@ export async function updateSalaryExpense(orderId, id, patch) {
   if (i >= 0) f.salaries[i] = record;
   return record;
 }
+// Returns an undo function (see deferRemoval).
 export function removeSalaryExpense(orderId, id) {
-  const f = ensureFinance(orderId);
-  f.salaries = f.salaries.filter((sa) => sa.id !== id);
-  api.removeSalaryExpense(orderId, id).catch((e) => logSyncError('удаление зарплаты', e));
+  return deferRemoval(orderId, 'salaries', id, () => api.removeSalaryExpense(orderId, id).catch((e) => logSyncError('удаление зарплаты', e)));
 }
 
 // ---- Заработная плата (standalone payroll ledger, not tied to an Order) ----
@@ -818,10 +861,9 @@ export function addOtherExpense(orderId, data) {
   f.otherExpenses.push(record);
   api.addOtherExpense(orderId, { ...data, id: record.id }).catch((e) => logSyncError('расход', e));
 }
+// Returns an undo function (see deferRemoval).
 export function removeOtherExpense(orderId, id) {
-  const f = ensureFinance(orderId);
-  f.otherExpenses = f.otherExpenses.filter((e) => e.id !== id);
-  api.removeOtherExpense(orderId, id).catch((e) => logSyncError('удаление расхода', e));
+  return deferRemoval(orderId, 'otherExpenses', id, () => api.removeOtherExpense(orderId, id).catch((e) => logSyncError('удаление расхода', e)));
 }
 
 export function addManufacturingEntry(orderId, data) {
@@ -830,10 +872,9 @@ export function addManufacturingEntry(orderId, data) {
   f.manufacturing.push(record);
   api.addManufacturingEntry(orderId, { ...data, id: record.id }).catch((e) => logSyncError('дата изготовления', e));
 }
+// Returns an undo function (see deferRemoval).
 export function removeManufacturingEntry(orderId, id) {
-  const f = ensureFinance(orderId);
-  f.manufacturing = f.manufacturing.filter((m) => m.id !== id);
-  api.removeManufacturingEntry(orderId, id).catch((e) => logSyncError('удаление даты изготовления', e));
+  return deferRemoval(orderId, 'manufacturing', id, () => api.removeManufacturingEntry(orderId, id).catch((e) => logSyncError('удаление даты изготовления', e)));
 }
 
 export function computeOrderFinance(orderId) {

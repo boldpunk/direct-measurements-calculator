@@ -924,12 +924,25 @@ export function attachOrderHandlers(root, rerender) {
       const state = getState();
       const order = state.orders.find((o) => o.id === deleteBtn.getAttribute('data-id'));
       if (!order) return;
-      if (window.confirm(`Отправить заказ ${orderLabel(order)} в архив?\n\nОн исчезнет из списков и отчётов, но все оплаты и расходы сохранятся — восстановить можно через «Архив».`)) {
-        deleteOrder(order.id);
-        selectedOrderId = null;
-        rerender();
-        showToast('Заказ перемещён в архив');
-      }
+      const archived = deleteOrder(order.id);
+      selectedOrderId = null;
+      rerender();
+      showToast(`${orderLabel(order)} — в архиве`, {
+        action: {
+          label: 'Отменить',
+          onClick: async () => {
+            try {
+              await archived;
+              await restoreOrder(order.id);
+              selectedOrderId = order.id;
+              rerender();
+              showToast('Заказ восстановлен');
+            } catch (e) {
+              showToast(e.message || 'Не удалось восстановить — см. «Архив»', { tone: 'error' });
+            }
+          },
+        },
+      });
     });
   }
 
@@ -1163,35 +1176,26 @@ async function openServicePickerModal(orderId, rerender) {
   });
 }
 
+// Removing a row is instant and undoable from the toast (the server delete is
+// delayed — see deferRemoval in store.js), so there is no confirm dialog.
+const ROW_REMOVALS = [
+  ['data-remove-payment', removePayment, 'Оплата удалена'],
+  ['data-remove-material', removeMaterial, 'Материал удалён'],
+  ['data-remove-service', removeOrderService, 'Услуга удалена'],
+  ['data-remove-outsourcing', removeOutsourceExpense, 'Аутсорс удалён'],
+  ['data-remove-salary', removeSalaryExpense, 'Зарплата удалена'],
+  ['data-remove-expense', removeOtherExpense, 'Расход удалён'],
+  ['data-remove-manufacturing', removeManufacturingEntry, 'Дата удалена'],
+];
+
 function attachRowRemoveHandlers(root, rerender) {
-  root.querySelectorAll('[data-remove-payment]').forEach((btn) => btn.addEventListener('click', () => {
-    removePayment(btn.getAttribute('data-order'), btn.getAttribute('data-remove-payment'));
-    rerender();
-  }));
-  root.querySelectorAll('[data-remove-material]').forEach((btn) => btn.addEventListener('click', () => {
-    removeMaterial(btn.getAttribute('data-order'), btn.getAttribute('data-remove-material'));
-    rerender();
-  }));
-  root.querySelectorAll('[data-remove-service]').forEach((btn) => btn.addEventListener('click', () => {
-    removeOrderService(btn.getAttribute('data-order'), btn.getAttribute('data-remove-service'));
-    rerender();
-  }));
-  root.querySelectorAll('[data-remove-outsourcing]').forEach((btn) => btn.addEventListener('click', () => {
-    removeOutsourceExpense(btn.getAttribute('data-order'), btn.getAttribute('data-remove-outsourcing'));
-    rerender();
-  }));
-  root.querySelectorAll('[data-remove-salary]').forEach((btn) => btn.addEventListener('click', () => {
-    removeSalaryExpense(btn.getAttribute('data-order'), btn.getAttribute('data-remove-salary'));
-    rerender();
-  }));
-  root.querySelectorAll('[data-remove-expense]').forEach((btn) => btn.addEventListener('click', () => {
-    removeOtherExpense(btn.getAttribute('data-order'), btn.getAttribute('data-remove-expense'));
-    rerender();
-  }));
-  root.querySelectorAll('[data-remove-manufacturing]').forEach((btn) => btn.addEventListener('click', () => {
-    removeManufacturingEntry(btn.getAttribute('data-order'), btn.getAttribute('data-remove-manufacturing'));
-    rerender();
-  }));
+  for (const [attr, remove, message] of ROW_REMOVALS) {
+    root.querySelectorAll(`[${attr}]`).forEach((btn) => btn.addEventListener('click', () => {
+      const undo = remove(btn.getAttribute('data-order'), btn.getAttribute(attr));
+      rerender();
+      showToast(message, { action: { label: 'Отменить', onClick: () => { if (undo()) rerender(); } } });
+    }));
+  }
 }
 
 function attachAddFormHandlers(root, rerender) {

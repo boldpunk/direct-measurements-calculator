@@ -12,7 +12,8 @@ function escapeText(str) {
   }[c]));
 }
 
-export function showToast(message, { tone = 'success', duration } = {}) {
+// action: { label, onClick } adds a button (e.g. «Отменить») to the toast.
+export function showToast(message, { tone = 'success', duration, action } = {}) {
   let el = document.getElementById('app-toast');
   if (!el) {
     el = document.createElement('div');
@@ -24,9 +25,17 @@ export function showToast(message, { tone = 'success', duration } = {}) {
   }
   const icon = tone === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check';
   el.className = `toast toast--${tone}`;
-  el.innerHTML = `<i class="fa-solid ${icon}"></i><span>${escapeText(message)}</span>`;
+  el.innerHTML = `<i class="fa-solid ${icon}"></i><span>${escapeText(message)}</span>`
+    + (action ? `<button type="button" class="toast__action">${escapeText(action.label)}</button>` : '');
+  if (action) {
+    el.querySelector('.toast__action').addEventListener('click', (e) => {
+      e.stopPropagation();
+      el.classList.remove('is-visible');
+      action.onClick();
+    });
+  }
   // Next frame, so a toast replacing a visible one still animates in.
   requestAnimationFrame(() => el.classList.add('is-visible'));
   clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => el.classList.remove('is-visible'), duration ?? (tone === 'error' ? 6000 : 2600));
+  hideTimer = setTimeout(() => el.classList.remove('is-visible'), duration ?? (action ? 6000 : tone === 'error' ? 6000 : 2600));
 }

@@ -59,6 +59,8 @@ async function request(path, { method = 'GET', body } = {}) {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      // Lets a delayed DELETE (undo window) still go out while the tab closes.
+      keepalive: method === 'DELETE',
     });
   } catch (e) {
     throw new ApiError('Нет связи с сервером', 0);
