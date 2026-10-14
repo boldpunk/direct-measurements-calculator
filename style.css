@@ -1804,3 +1804,11 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .viz-tooltip__title { color: var(--text-muted); margin-bottom: 4px; }
 .viz-tooltip__row { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
 .row-item[data-debtor] { cursor: pointer; }
+
+.shortcut-list { display: flex; flex-direction: column; gap: 8px; }
+.shortcut-row { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.shortcut-row kbd {
+  min-width: 34px; text-align: center; padding: 3px 8px; border-radius: 6px;
+  border: 1px solid var(--border); border-bottom-width: 2px; background: var(--bg);
+  font: 600 12.5px/1.4 inherit; color: var(--text);
+}

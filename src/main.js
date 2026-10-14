@@ -12,8 +12,9 @@ import 'flag-icons/css/flag-icons.min.css';
 // Last, so the app's own rules keep precedence over the library CSS above
 // (the order these were in when the libraries came from <link> tags).
 import '../style.css';
-import { renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, initThemeToggle, applyFavicon, enhanceFields, NAV_ITEMS } from './ui.js';
+import { openModal, renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, initThemeToggle, applyFavicon, enhanceFields, NAV_ITEMS } from './ui.js';
 import { initSearch } from './search.js';
+import { can } from './permissions.js';
 import { brandLogo } from './brand.js';
 import { initNotifications } from './notifications.js';
 import { renderDashboard, attachDashboardHandlers } from './views/dashboard.js';
@@ -236,6 +237,50 @@ async function boot() {
     renderApp();
   }
 }
+
+// ---- Keyboard shortcuts ----
+//   /      focus the search          N   new order
+//   B / L  orders: board / list      ?   this list
+// Ignored while typing in a field, with a modal open, or with Ctrl/Alt/Cmd.
+const SHORTCUTS_HELP = [
+  ['/', 'Поиск'],
+  ['N', 'Новый заказ'],
+  ['B', 'Заказы — доска'],
+  ['L', 'Заказы — список'],
+  ['Esc', 'Закрыть окно'],
+  ['?', 'Эта подсказка'],
+];
+
+function isTyping(el) {
+  return el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+}
+
+document.addEventListener('keydown', (e) => {
+  if (!getToken() || !shellMounted || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (isTyping(e.target) || document.body.classList.contains('has-modal')) return;
+  // e.code, not e.key, so the shortcuts also work on a Russian layout.
+  const code = e.code;
+  if (e.key === '/' || code === 'Slash' && !e.shiftKey) {
+    const search = document.getElementById('global-search');
+    if (search) { e.preventDefault(); search.focus(); search.select(); }
+  } else if (code === 'KeyN' && routeAllowed('orders') && can('orders', 'create')) {
+    e.preventDefault();
+    const open = () => document.querySelector('[data-action="new-order"]')?.click();
+    if (currentRoute() === 'orders') open();
+    else {
+      window.addEventListener('hashchange', () => setTimeout(open, 0), { once: true });
+      window.location.hash = '#/orders';
+    }
+  } else if ((code === 'KeyB' || code === 'KeyL') && currentRoute() === 'orders') {
+    document.querySelector(`[data-view="${code === 'KeyB' ? 'board' : 'list'}"]`)?.click();
+  } else if (e.key === '?' || (code === 'Slash' && e.shiftKey)) {
+    e.preventDefault();
+    openModal('Горячие клавиши', `
+      <div class="shortcut-list">
+        ${SHORTCUTS_HELP.map(([k, label]) => `<div class="shortcut-row"><kbd>${k}</kbd><span>${label}</span></div>`).join('')}
+      </div>`);
+  }
+});
 
 window.addEventListener('hashchange', () => {
   if (!getToken()) {

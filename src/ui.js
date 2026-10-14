@@ -111,7 +111,7 @@ export function renderShell(currentRoute) {
       </a>
       <div class="topbar__search">
         <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="search" id="global-search" placeholder="Поиск заказа, задачи, партнёра..." autocomplete="off" />
+        <input type="search" id="global-search" placeholder="Поиск заказа, задачи, партнёра...  ( / )" autocomplete="off" />
         <div class="search-results" id="search-results" hidden></div>
       </div>
       <button type="button" class="topbar__avatar" id="theme-toggle" aria-label="Тема оформления">
