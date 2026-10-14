@@ -9,7 +9,7 @@ import {
   addOutsourceExpense, removeOutsourceExpense, addSalaryExpense, removeSalaryExpense,
   addOtherExpense, removeOtherExpense, addManufacturingEntry, removeManufacturingEntry, UNITS, todayISO, getSettings,
 } from '../store.js';
-import { money, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
+import { money, moneyWrap, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { renderMoneyField, attachMoneyFields } from '../money-field.js';
@@ -23,7 +23,7 @@ let selectedOrderId = null;
 let currentQuery = '';
 let currentFilter = 'all';
 let currentStatusFilter = '';
-let currentSort = 'deadline';
+let currentSort = 'new';
 let currentPeriod = '';
 let currentPeriodFrom = '';
 let currentPeriodTo = '';
@@ -50,8 +50,8 @@ const FILTERS = [
   { key: 'done', label: 'Завершённые' },
 ];
 const SORTS = [
-  { key: 'deadline', label: 'По сроку' },
   { key: 'new', label: 'Сначала новые' },
+  { key: 'deadline', label: 'По сроку' },
   { key: 'amount', label: 'По сумме' },
   { key: 'profit', label: 'По прибыли' },
 ];
@@ -89,10 +89,11 @@ function getFilteredOrders(state) {
 
   const withFin = list.map((o) => ({ o, fin: computeOrderFinance(o.id) }));
   switch (currentSort) {
-    case 'new': withFin.sort((a, b) => b.o.createdAt - a.o.createdAt); break;
+    // Imported orders can have createdAt 0, so the order number breaks ties.
+    case 'deadline': withFin.sort((a, b) => a.o.deadline.localeCompare(b.o.deadline)); break;
     case 'amount': withFin.sort((a, b) => b.o.amount - a.o.amount); break;
     case 'profit': withFin.sort((a, b) => b.fin.profit - a.fin.profit); break;
-    default: withFin.sort((a, b) => a.o.deadline.localeCompare(b.o.deadline));
+    default: withFin.sort((a, b) => (b.o.createdAt || 0) - (a.o.createdAt || 0) || b.o.number - a.o.number);
   }
   return withFin;
 }
@@ -239,7 +240,7 @@ function renderOrderDetail(orderId) {
       </div>
     </div>
     <div class="order-detail__stats">
-      <div><span>Сумма</span><b>${money(order.amount)}</b></div>
+      <div><span>Сумма</span><b>${moneyWrap(order.amount)}</b></div>
       <div><span>Начало</span><b>${shortDate(order.startDate)}</b></div>
       <div><span>Срок</span><b class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</b></div>
       <div><span>Ответственный</span><b>${manager ? escapeHtml(manager.name) : '—'}</b></div>

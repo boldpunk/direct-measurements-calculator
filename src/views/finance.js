@@ -1,5 +1,5 @@
 import { getState, computeOrderFinance, computeMonthlyProfit, getOrderDeadlineInfo, getSettings } from '../store.js';
-import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
+import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass, moneyKpi } from '../format.js';
 import { kpiCard } from '../ui.js';
 import { maskUnless } from '../permissions.js';
 import { selectOrder } from './orders.js';
@@ -51,11 +51,11 @@ export function renderFinance() {
   }, { revenue: 0, cost: 0, profit: 0, received: 0, remaining: 0 });
 
   const kpis = [
-    kpiCard('fa-file-invoice-dollar', 'info', 'Выручка (все заказы)', maskUnless('seesFinanceAnalytics', money(totals.revenue))),
-    kpiCard('fa-layer-group', 'warning', 'Себестоимость (все заказы)', maskUnless('seesCostPrice', money(totals.cost))),
-    kpiCard('fa-sack-dollar', totals.profit >= 0 ? 'success' : 'danger', 'Прибыль (все заказы)', maskUnless('seesProfit', money(totals.profit))),
-    kpiCard('fa-hand-holding-dollar', 'neutral', 'К получению', maskUnless('seesFinanceAnalytics', money(totals.remaining))),
-    kpiCard('fa-calendar-check', monthlyProfit >= 0 ? 'success' : 'danger', 'Прибыль за месяц', maskUnless('seesProfit', money(monthlyProfit))),
+    kpiCard('fa-file-invoice-dollar', 'info', 'Выручка (все заказы)', maskUnless('seesFinanceAnalytics', moneyKpi(totals.revenue))),
+    kpiCard('fa-layer-group', 'warning', 'Себестоимость (все заказы)', maskUnless('seesCostPrice', moneyKpi(totals.cost))),
+    kpiCard('fa-sack-dollar', totals.profit >= 0 ? 'success' : 'danger', 'Прибыль (все заказы)', maskUnless('seesProfit', moneyKpi(totals.profit))),
+    kpiCard('fa-hand-holding-dollar', 'neutral', 'К получению', maskUnless('seesFinanceAnalytics', moneyKpi(totals.remaining))),
+    kpiCard('fa-calendar-check', monthlyProfit >= 0 ? 'success' : 'danger', 'Прибыль за месяц', maskUnless('seesProfit', moneyKpi(monthlyProfit))),
   ];
 
   const rows = [...periodOrders].reverse().map((o) => {

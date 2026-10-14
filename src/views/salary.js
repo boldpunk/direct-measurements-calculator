@@ -11,7 +11,7 @@ import {
   getState, getFinance, getAccrualTotals, createSalaryAccrual, updateSalaryAccrual, deleteSalaryAccrual,
   paySalaryAccrual, deleteSalaryPayout, SALARY_ACCRUAL_TYPES,
 } from '../store.js';
-import { money, shortDate, escapeHtml } from '../format.js';
+import { money, shortDate, escapeHtml, moneyKpi } from '../format.js';
 import { can, maskUnless } from '../permissions.js';
 import { openModal, closeModal, selectOptions, kpiCard } from '../ui.js';
 import { selectOrder } from './orders.js';
@@ -97,9 +97,9 @@ function renderAccrualLedger(state) {
       ${canCreate ? '<button type="button" class="btn btn--primary" id="new-accrual-btn"><i class="fa-solid fa-plus"></i> Начислить зарплату</button>' : ''}
     </div>
     <div class="kpi-row">
-      ${kpiCard('fa-file-invoice-dollar', 'info', 'Начислено за период', maskUnless('seesSalaries', money(accruedInPeriod)))}
-      ${kpiCard('fa-hand-holding-dollar', 'success', 'Выплачено за период', maskUnless('seesSalaries', money(paidInPeriod)))}
-      ${kpiCard('fa-triangle-exclamation', totalDebt > 0 ? 'warning' : 'success', 'К выплате (всего)', maskUnless('seesSalaries', money(totalDebt)))}
+      ${kpiCard('fa-file-invoice-dollar', 'info', 'Начислено за период', maskUnless('seesSalaries', moneyKpi(accruedInPeriod)))}
+      ${kpiCard('fa-hand-holding-dollar', 'success', 'Выплачено за период', maskUnless('seesSalaries', moneyKpi(paidInPeriod)))}
+      ${kpiCard('fa-triangle-exclamation', totalDebt > 0 ? 'warning' : 'success', 'К выплате (всего)', maskUnless('seesSalaries', moneyKpi(totalDebt)))}
       ${kpiCard('fa-users', 'neutral', 'Сотрудников', `${employeeCount}`)}
     </div>
     <div class="panel">

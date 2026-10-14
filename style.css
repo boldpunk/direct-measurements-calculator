@@ -567,7 +567,12 @@ a.kpi:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .kpi--success .kpi__icon { background: var(--success-light); color: var(--success); }
 .kpi--neutral .kpi__icon { background: var(--bg); color: var(--text-muted); }
 .kpi__title { font-size: 13px; color: var(--text-muted); margin-bottom: 2px; }
-.kpi__value { font-size: 20px; font-weight: 700; }
+.kpi__body { min-width: 0; flex: 1; }
+/* Scale the figure with the tile, not the window: a long amount in a narrow
+   tile shrinks instead of spilling past the card edge. */
+.kpi { container-type: inline-size; }
+.kpi__value { font-size: clamp(14px, 8cqi, 20px); font-weight: 700; line-height: 1.25; }
+.kpi__figure, .kpi__money small { white-space: nowrap; }
 .kpi__value small { font-size: 12px; font-weight: 500; color: var(--text-muted); }
 
 /* Panels / cards */
@@ -810,9 +815,12 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .order-detail__header > div:first-child { flex: 1 1 220px; min-width: 0; }
 .order-detail__header h2 { margin: 0; font-size: 18px; }
 .order-detail__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.order-detail__stats { display: flex; gap: 22px; padding: 0 18px 16px; }
+/* Grid, not a flex row: in a narrow detail panel the fourth figure
+   («Ответственный») used to run past the card edge. */
+.order-detail__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px 18px; padding: 0 18px 16px; }
+.order-detail__stats div { min-width: 0; }
 .order-detail__stats div { display: flex; flex-direction: column; gap: 2px; }
-.order-detail__stats span { font-size: 11.5px; color: var(--text-muted); }
+.order-detail__stats > div > span { font-size: 11.5px; color: var(--text-muted); }
 .order-detail__stats b { font-size: 14px; }
 
 .order-detail__notes {
@@ -1221,7 +1229,6 @@ body.has-modal { overflow: hidden; }
   .topbar { padding: 10px 14px; gap: 12px; }
   .topbar .logo__text { display: none; }
   .page-header { flex-wrap: wrap; gap: 10px; }
-  .order-detail__stats { flex-wrap: wrap; gap: 14px 22px; }
   .finance-card__grid { grid-template-columns: 1fr 1fr; }
   .mini-board { grid-template-columns: repeat(2, 1fr); }
 
@@ -1246,7 +1253,7 @@ body.has-modal { overflow: hidden; }
   .kpi__icon { width: 32px; height: 32px; font-size: 14px; border-radius: 9px; }
   .kpi .kpi__chevron { display: none; } /* beat Font Awesome's own display rule, injected after this sheet */
   .kpi__title { font-size: 12px; }
-  .kpi__value { font-size: 17px; }
+  .kpi__value { font-size: clamp(13px, 11cqi, 17px); }
   /* An odd last tile spans the row rather than leaving a hole beside it. */
   .kpi-row > .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
@@ -1639,7 +1646,11 @@ body.has-modal { overflow: hidden; }
 .brand--stack .brand-icon { width: 60px; height: 60px; filter: drop-shadow(0 8px 18px rgba(37, 99, 235, 0.28)); }
 .brand--stack .brand-word { font-size: 22px; }
 /* Phones: icon only in the top bar, so the search box gets the room. */
-@media (max-width: 640px) { .topbar .brand-word { display: none; } }
+@media (max-width: 640px) {
+  .topbar .brand-word { display: none; }
+  /* On a phone the search needs the room; the theme stays in the profile menu. */
+  #theme-toggle { display: none; }
+}
 .sidebar__mobile-header .brand .brand-icon { width: 28px; height: 28px; }
 .sidebar__mobile-header .brand-word { font-size: 17px; }
 
@@ -1710,3 +1721,5 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   .orders-toolbar__search { flex-basis: 100%; }
 }
 .page-header__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.nowrap { white-space: nowrap; }

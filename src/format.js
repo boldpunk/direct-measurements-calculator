@@ -11,6 +11,31 @@ export function money(n, currencyOverride) {
   return `${v.toLocaleString('ru-RU')}\u00A0${currency}`;
 }
 
+// Like money(), but the currency may drop to the next line in a narrow box
+// (the figure itself never splits).
+export function moneyWrap(n, currencyOverride) {
+  const v = Number(n) || 0;
+  const currency = currencyOverride || getState().settings?.currency || '$';
+  return `<span class="nowrap">${v.toLocaleString('ru-RU')}</span> ${currency}`;
+}
+
+// KPI tiles: so'm totals run to 10+ digits ("2 761 141 000 so'm") and didn't
+// fit a tile. From 10 million up, show "2,76 млрд so'm" / "56,6 млн so'm";
+// the exact amount stays in the tooltip.
+export function moneyKpi(n, currencyOverride) {
+  const v = Number(n) || 0;
+  const currency = currencyOverride || getState().settings?.currency || '$';
+  const abs = Math.abs(v);
+  let figure = v.toLocaleString('ru-RU');
+  if (abs >= 1e7) {
+    const [div, unit, digits] = abs >= 1e9 ? [1e9, 'млрд', 2] : [1e6, 'млн', 1];
+    figure = `${(v / div).toLocaleString('ru-RU', { maximumFractionDigits: digits })}\u00A0${unit}`;
+  }
+  // Currency in smaller type so the figure gets the room; in a really narrow
+  // tile it drops under the figure instead of spilling out of the card.
+  return `<span class="kpi__money" title="${money(v, currencyOverride)}"><span class="kpi__figure">${figure}</span> <small>${currency}</small></span>`;
+}
+
 // Mirrors bundledBrandLogo() in server/src/pdf-proposal.js: the same key rule
 // over the same files in public/brand-logos, so what the editor previews is
 // what the КП PDF draws. Returns '' when the brand has no own logo and its
