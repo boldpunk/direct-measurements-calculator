@@ -332,6 +332,7 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
   display: flex; align-items: center; justify-content: center;
   border: 2px solid var(--panel);
 }
+.notif-badge[hidden] { display: none; }
 .notif-panel {
   position: absolute;
   top: calc(100% + 8px); right: 0;
@@ -352,6 +353,9 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; marg
   cursor: pointer;
 }
 .notif-item:hover { background: var(--bg); }
+.notif-item.is-seen { opacity: .55; }
+.notif-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; font-size: 13px; }
+.notif-head__btn { border: none; background: none; color: var(--primary); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 2px 4px; }
 .notif-item i { margin-top: 2px; flex-shrink: 0; }
 .notif-item--danger i { color: var(--danger); }
 .notif-item--warning i { color: var(--warning); }

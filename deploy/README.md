@@ -122,6 +122,19 @@ TELEGRAM_CHAT_ID="123456789"         # your id, e.g. from @userinfobot; write to
 
 Test it: `sudo /opt/mebelflow/deploy/healthcheck.sh`.
 
+### Morning digest per company
+
+Each instance can post a morning summary (overdue orders, due today/tomorrow,
+biggest unpaid balances) to a Telegram chat at 08:00 Tashkent time. Add to
+that instance's env file (e.g. `/etc/mebelflow/server-sobirov.env`):
+
+```
+DIGEST_TELEGRAM_BOT_TOKEN="123456:ABC..."
+DIGEST_TELEGRAM_CHAT_ID="123456789"     # a person, or a group with the bot in it
+```
+
+Preview the text: `cd /opt/mebelflow-sobirov/server && set -a && . /etc/mebelflow/server-sobirov.env && set +a && node scripts/daily-digest.js --print`.
+
 ## 9. Safety net for changes
 
 - **CI** (`.github/workflows/ci.yml`) builds the frontend and runs the API

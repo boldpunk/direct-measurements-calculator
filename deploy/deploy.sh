@@ -65,6 +65,11 @@ CRON
 sudo tee /etc/cron.d/mebelflow-healthcheck >/dev/null <<'CRON'
 */5 * * * * root /opt/mebelflow/deploy/healthcheck.sh >> /var/log/mebelflow-health.log 2>&1
 CRON
+# Per instance: morning Telegram digest (sends only if DIGEST_TELEGRAM_* are
+# set in this instance's env file; see server/scripts/daily-digest.js).
+sudo tee "/etc/cron.d/mebelflow-digest-${SERVICE_NAME}" >/dev/null <<CRON
+0 * * * * root cd $APP_DIR/server && set -a && . $ENV_FILE && set +a && node scripts/daily-digest.js --scheduled >> /var/log/mebelflow-digest.log 2>&1
+CRON
 sudo install -m 644 "$APP_DIR/deploy/nginx/upload-limit.conf" /etc/nginx/conf.d/mebelflow-upload-limit.conf
 sudo nginx -t
 
