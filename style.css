@@ -934,6 +934,15 @@ a.badge:hover { background: var(--primary-light); color: var(--primary); }
 .activity-row__text { color: var(--text); }
 
 .status-select { border: none; }
+/* Status picker inside a list row: looks like the badge, opens on click. */
+.status-select--quick { cursor: pointer; padding-right: 20px; width: auto; max-width: 100%; }
+.quick-pay {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin-left: 6px; vertical-align: middle;
+  border: 1px solid var(--border); border-radius: 7px;
+  background: var(--panel); color: var(--primary); font-size: 10px; cursor: pointer;
+}
+.quick-pay:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
 
 .stage-pipeline { padding: 4px 18px 18px; display: flex; flex-direction: column; }
 .stage-row { display: flex; align-items: center; gap: 12px; padding: 10px 8px; margin: 0 -8px; border-radius: 8px; border-bottom: 1px dashed var(--border); transition: background var(--ease); }

@@ -165,9 +165,9 @@ function orderRow(o, fin) {
         ${getSettings().enableProductType !== false && o.productType ? `<div class="cell-sub">${escapeHtml(o.productType)}</div>` : ''}
       </td>
       <td class="cell-nowrap">${money(o.amount)}</td>
-      <td class="cell-nowrap ${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : 'Оплачено'}</td>
+      <td class="cell-nowrap ${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? money(fin.remainingAmount) : 'Оплачено'}${quickPayButton(o, fin)}</td>
       <td>
-        <span class="${orderStatusBadgeClass(o.status)}">${o.status}</span>
+        ${quickStatus(o)}
         ${deadlineInfo.text && deadlineInfo.text !== o.status ? `<div class="cell-sub cell-sub--${deadlineInfo.tone}">${deadlineInfo.text}</div>` : ''}
       </td>
       <td class="cell-nowrap ${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">${maskUnless('seesProfit', money(fin.profit))}</td>
@@ -181,7 +181,7 @@ function orderListCard(o, fin) {
     <div class="order-list-card ${o.id === selectedOrderId ? 'is-selected' : ''}" data-order-row="${o.id}">
       <div class="order-list-card__top">
         <b>${escapeHtml(orderLabel(o))}</b>
-        <span class="${orderStatusBadgeClass(o.status)}">${o.status}</span>
+        ${quickStatus(o)}
       </div>
       <div class="row-item__sub">${escapeHtml(o.clientName)}</div>
       <div class="order-list-card__row">
@@ -189,27 +189,96 @@ function orderListCard(o, fin) {
         ${deadlineInfo.text && deadlineInfo.text !== o.status ? `<span class="${deadlineBadgeClass(deadlineInfo.tone)}">${deadlineInfo.text}</span>` : ''}
       </div>
       <div class="order-list-card__row">
-        <span class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? `Остаток ${money(fin.remainingAmount)}` : 'Оплачено'}</span>
+        <span class="${fin.remainingAmount > 0 ? 'text-neg' : 'text-pos'}">${fin.remainingAmount > 0 ? `Остаток ${money(fin.remainingAmount)}` : 'Оплачено'}${quickPayButton(o, fin)}</span>
         <span class="${fin.profit >= 0 ? 'text-pos' : 'text-neg'}">Прибыль ${maskUnless('seesProfit', money(fin.profit))}</span>
       </div>
     </div>
   `;
 }
 
-function renderStatusControl(order) {
-  if (!can('orders', 'edit')) {
-    return `<span class="${orderStatusBadgeClass(order.status)}">${order.status}</span>`;
-  }
-  const options = getOrderStatuses().filter((s) => {
+function allowedStatuses(order) {
+  return getOrderStatuses().filter((s) => {
     if (s === 'Завершён') return can('orders', 'close') || s === order.status;
     if (s === 'Отменён') return can('orders', 'cancel') || s === order.status;
     return true;
   });
+}
+
+function renderStatusControl(order) {
+  if (!can('orders', 'edit')) {
+    return `<span class="${orderStatusBadgeClass(order.status)}">${order.status}</span>`;
+  }
   return `
     <select class="${orderStatusBadgeClass(order.status)} status-select" data-order-status="${order.id}">
-      ${options.map((s) => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s}</option>`).join('')}
+      ${allowedStatuses(order).map((s) => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s}</option>`).join('')}
     </select>
   `;
+}
+
+// Quick actions right in the list row/card, without opening the order:
+// change the status, or record a payment (prefilled with what's left).
+function quickStatus(order) {
+  if (!can('orders', 'edit')) return `<span class="${orderStatusBadgeClass(order.status)}">${order.status}</span>`;
+  return `
+    <select class="${orderStatusBadgeClass(order.status)} status-select status-select--quick" data-quick-status="${order.id}" title="Сменить статус" aria-label="Статус заказа">
+      ${allowedStatuses(order).map((s) => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s}</option>`).join('')}
+    </select>
+  `;
+}
+
+function quickPayButton(order, fin) {
+  if (!(fin.remainingAmount > 0) || !can('finance', 'addPayment')) return '';
+  return `<button type="button" class="quick-pay" data-quick-pay="${order.id}" title="Добавить оплату" aria-label="Добавить оплату"><i class="fa-solid fa-plus"></i></button>`;
+}
+
+function openQuickPayModal(orderId, rerender) {
+  const order = getState().orders.find((o) => o.id === orderId);
+  if (!order) return;
+  const fin = computeOrderFinance(orderId);
+  openModal(`Оплата · ${escapeHtml(orderLabel(order))}`, `
+    <form class="form" id="quick-pay-form">
+      <p class="form-hint" style="margin:0">${escapeHtml(order.clientName)} · остаток <b>${money(fin.remainingAmount)}</b></p>
+      ${renderMoneyField({ name: 'amount', label: 'Сумма', value: fin.remainingAmount, required: true })}
+      <div class="form-row">
+        <label>Дата<input type="date" name="date" value="${todayISO()}" required /></label>
+        <label>Комментарий<input type="text" name="comment" placeholder="Предоплата, наличные…" /></label>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary"><i class="fa-solid fa-check"></i> Добавить оплату</button>
+      </div>
+    </form>
+  `);
+  const form = document.getElementById('quick-pay-form');
+  attachMoneyFields(form);
+  form.querySelector('.money-field__input')?.select();
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const amount = Number(fd.get('amount'));
+    if (!amount) return;
+    addPayment(orderId, { date: fd.get('date'), comment: fd.get('comment'), amount });
+    closeModal();
+    rerender();
+    showToast(`Оплата ${money(amount)} добавлена`);
+  });
+}
+
+function attachQuickActions(root, rerender) {
+  root.querySelectorAll('[data-quick-status]').forEach((sel) => {
+    sel.addEventListener('click', (e) => e.stopPropagation());
+    sel.addEventListener('change', () => {
+      updateOrderStatus(sel.getAttribute('data-quick-status'), sel.value);
+      rerender();
+      showToast(`Статус: ${sel.value}`);
+    });
+  });
+  root.querySelectorAll('[data-quick-pay]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openQuickPayModal(btn.getAttribute('data-quick-pay'), rerender);
+    });
+  });
 }
 
 // ---- Order detail ----
@@ -651,6 +720,7 @@ function hydrateActivity(root) {
 
 export function attachOrderHandlers(root, rerender) {
   hydrateActivity(root);
+  attachQuickActions(root, rerender);
   root.querySelectorAll('[data-order-row]').forEach((row) => {
     row.addEventListener('click', () => {
       selectedOrderId = row.getAttribute('data-order-row');
