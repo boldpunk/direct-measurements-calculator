@@ -1,14 +1,22 @@
 import {
   getState, getOverdueOrders, getInProgressOrders, getUnpaidOrders, getUpcomingDeadlines,
   getOrdersByStatusCounts, computeOrderFinance, computeMonthlyProfit, getOrderDeadlineInfo,
-  getOrderStatuses, getClosedStatuses, todayISO,
+  getOrderStatuses, getClosedStatuses, todayISO, completeStage,
 } from '../store.js';
 import { money, escapeHtml, orderStatusBadgeClass, deadlineBadgeClass, moneyKpi } from '../format.js';
 import { kpiCard, card } from '../ui.js';
-import { maskUnless, isOwnScopeOnly, currentEmployeeId, can } from '../permissions.js';
+import { maskUnless, isOwnScopeOnly, currentEmployeeId, can, sees } from '../permissions.js';
 import { selectOrder } from './orders.js';
 
+// Главная depends on the role: the workshop sees its own stages and tasks,
+// a manager sees what to chase (payments, deadlines), the owner the money.
 export function renderDashboard() {
+  const seesOrderMoney = can('orders', 'view') || can('finance', 'view');
+  if (!seesOrderMoney) return renderWorkshopDashboard();
+  return renderOfficeDashboard({ owner: sees('seesProfit') || sees('seesFinanceAnalytics') });
+}
+
+function renderOfficeDashboard({ owner }) {
   const state = getState();
   const ownOnly = isOwnScopeOnly('orders');
   const mine = (o) => !ownOnly || o.managerId === currentEmployeeId();
@@ -24,14 +32,34 @@ export function renderDashboard() {
 
   const seesRevenue = can('orders', 'view') || can('finance', 'view');
   const kpis = [
-    kpiCard('fa-layer-group', 'info', 'Активные заказы', `${activeOrders.length}`, '#/orders'),
-    kpiCard('fa-fire', 'danger', 'С просрочкой', `${overdueOrders.length}`, '#/orders'),
+    kpiCard('fa-layer-group', 'info', 'Активные заказы', `${activeOrders.length}`, '#/orders?filter=active'),
+    kpiCard('fa-fire', 'danger', 'С просрочкой', `${overdueOrders.length}`, '#/orders?filter=overdue'),
     // Order sums only reach employees with Заказы/Финансы view (see
     // server/src/visibility.js) — everyone else would just see a false 0.
-    kpiCard('fa-hand-holding-dollar', 'warning', 'К оплате', seesRevenue ? moneyKpi(toReceive) : '<span class="masked-value">••••</span>', '#/orders'),
-    kpiCard('fa-file-invoice-dollar', 'neutral', 'Выручка', maskUnless('seesFinanceAnalytics', moneyKpi(revenue)), '#/orders'),
-    kpiCard('fa-sack-dollar', totalProfit >= 0 ? 'success' : 'danger', 'Прибыль', maskUnless('seesProfit', moneyKpi(totalProfit)), '#/orders'),
+    kpiCard('fa-hand-holding-dollar', 'warning', 'К оплате', seesRevenue ? moneyKpi(toReceive) : '<span class="masked-value">••••</span>', '#/orders?filter=unpaid'),
+    ...(owner ? [
+      kpiCard('fa-file-invoice-dollar', 'neutral', 'Выручка', maskUnless('seesFinanceAnalytics', moneyKpi(revenue)), '#/finance'),
+      kpiCard('fa-sack-dollar', totalProfit >= 0 ? 'success' : 'danger', 'Прибыль', maskUnless('seesProfit', moneyKpi(totalProfit)), '#/finance'),
+    ] : [
+      kpiCard('fa-calendar-day', 'info', 'Сдать за 7 дней', `${getUpcomingDeadlines(7).filter(mine).length}`, '#/orders?sort=deadline'),
+    ]),
   ];
+
+  // Who owes the most — the list a manager calls through.
+  const debtorRows = unpaidOrders
+    .map((o) => ({ o, left: computeOrderFinance(o.id).remainingAmount }))
+    .filter((x) => x.left > 0)
+    .sort((a, b) => b.left - a.left)
+    .slice(0, 6)
+    .map(({ o, left }) => `
+      <div class="row-item order-item" data-order-id="${o.id}">
+        <div>
+          <div class="row-item__title">${escapeHtml(o.clientName || '—')}</div>
+          <div class="row-item__sub">#${o.number}${o.productType ? ` · ${escapeHtml(o.productType)}` : ''} · ${escapeHtml(o.status)}</div>
+        </div>
+        <b class="text-neg cell-nowrap">${money(left)}</b>
+      </div>
+    `).join('') || emptyState('Все заказы оплачены');
 
   const upcoming = getUpcomingDeadlines(7).filter(mine);
   const upcomingRows = upcoming.slice(0, 6).map((o) => `
@@ -88,19 +116,75 @@ export function renderDashboard() {
   return `
     <div class="page-header">
       <h1>Главная</h1>
-      <span class="row-item__sub">Прибыль за месяц: <b class="${monthlyProfit >= 0 ? 'text-pos' : 'text-neg'}">${maskUnless('seesProfit', money(monthlyProfit))}</b></span>
+      ${owner ? `<span class="row-item__sub">Прибыль за месяц: <b class="${monthlyProfit >= 0 ? 'text-pos' : 'text-neg'}">${maskUnless('seesProfit', money(monthlyProfit))}</b></span>` : ''}
     </div>
     <div class="kpi-row">${kpis.join('')}</div>
     <div class="dash-grid">
       ${card('1', 'Ближайшие сроки', `<div class="row-list">${upcomingRows}</div>`)}
-      ${card('2', 'Заказы по статусам', `<div class="status-count-list">${statusRows}</div><a class="link-more" href="#/production">Доска производства <i class="fa-solid fa-arrow-right"></i></a>`)}
+      ${card('2', 'Ждут оплаты', `<div class="row-list">${debtorRows}</div><a class="link-more" href="#/orders?filter=unpaid">Все неоплаченные <i class="fa-solid fa-arrow-right"></i></a>`)}
       ${card('3', 'Последние заказы', `<div class="row-list">${orderRows}</div><a class="link-more" href="#/orders">Все заказы <i class="fa-solid fa-arrow-right"></i></a>`)}
-      ${card('4', 'Переделки', `<div class="row-list">${reworkRows}</div>${reworkCost ? `<div class="finance-month">Влияние: <b class="text-neg">${money(reworkCost)}</b></div>` : ''}<a class="link-more" href="#/rework">Все переделки <i class="fa-solid fa-arrow-right"></i></a>`)}
+      ${card('4', 'Заказы по статусам', `<div class="status-count-list">${statusRows}</div><a class="link-more" href="#/orders?view=board">Доска заказов <i class="fa-solid fa-arrow-right"></i></a>`)}
+      ${owner ? card('5', 'Переделки', `<div class="row-list">${reworkRows}</div>${reworkCost ? `<div class="finance-month">Влияние: <b class="text-neg">${money(reworkCost)}</b></div>` : ''}<a class="link-more" href="#/rework">Все переделки <i class="fa-solid fa-arrow-right"></i></a>`) : ''}
+    </div>
+  `;
+}
+
+function renderWorkshopDashboard() {
+  const state = getState();
+  const me = currentEmployeeId();
+  const today = todayISO();
+  const orderOf = (id) => state.orders.find((o) => o.id === id);
+  const label = (o) => (o ? `${o.productType ? `${escapeHtml(o.productType)} ` : ''}#${o.number}` : '—');
+  const byDeadline = (a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999');
+
+  const myStages = state.stages
+    .filter((st) => st.assigneeId === me && !st.skipped && st.status !== 'готово' && orderOf(st.orderId))
+    .sort((a, b) => (a.status === 'в работе' ? -1 : 0) - (b.status === 'в работе' ? -1 : 0) || byDeadline(a, b));
+  const myTasks = state.tasks.filter((t) => t.assigneeId === me && t.status !== 'готово').sort(byDeadline);
+  const overdue = [...myStages, ...myTasks].filter((x) => x.deadline && x.deadline < today).length;
+  const canComplete = can('production', 'changeStatus');
+
+  const stageRows = myStages.map((st) => `
+    <div class="row-item ${st.deadline && st.deadline < today ? 'is-overdue' : ''}">
+      <div>
+        <div class="row-item__title">${escapeHtml(st.name)} · ${label(orderOf(st.orderId))}</div>
+        <div class="row-item__sub">${st.status === 'в работе' ? '<b>в работе</b>' : 'ожидает'}${st.deadline ? ` · ${escapeHtml(daysPhrase(st.deadline))}` : ''}</div>
+      </div>
+      ${canComplete && st.status === 'в работе' ? `<button type="button" class="btn btn--sm" data-complete-stage="${st.id}"><i class="fa-solid fa-check"></i> Готово</button>` : ''}
+    </div>
+  `).join('') || emptyState('Этапов на вас нет');
+
+  const taskRows = myTasks.slice(0, 8).map((t) => `
+    <div class="row-item ${t.deadline && t.deadline < today ? 'is-overdue' : ''}">
+      <div>
+        <div class="row-item__title">${escapeHtml(t.name)}${t.qty > 1 ? ` × ${t.qty}` : ''}</div>
+        <div class="row-item__sub">${t.orderId ? `${label(orderOf(t.orderId))} · ` : ''}${escapeHtml(t.status)}${t.deadline ? ` · ${escapeHtml(daysPhrase(t.deadline))}` : ''}</div>
+      </div>
+      <span class="badge ${t.priority === 'Срочно' ? 'badge--urgent' : 'badge--muted'}">${escapeHtml(t.priority)}</span>
+    </div>
+  `).join('') || emptyState('Задач нет');
+
+  const kpis = [
+    kpiCard('fa-gears', 'info', 'Мои этапы в работе', `${myStages.filter((st) => st.status === 'в работе').length}`, can('production', 'view') ? '#/production' : undefined),
+    kpiCard('fa-list-check', 'neutral', 'Мои задачи', `${myTasks.length}`, can('tasks', 'view') ? '#/tasks' : undefined),
+    kpiCard('fa-fire', overdue ? 'danger' : 'success', 'Просрочено', `${overdue}`),
+  ];
+
+  return `
+    <div class="page-header"><h1>Мой день</h1></div>
+    <div class="kpi-row">${kpis.join('')}</div>
+    <div class="dash-grid">
+      ${card('1', 'Мои этапы', `<div class="row-list">${stageRows}</div>${can('production', 'view') ? '<a class="link-more" href="#/production">Доска цеха <i class="fa-solid fa-arrow-right"></i></a>' : ''}`)}
+      ${card('2', 'Мои задачи', `<div class="row-list">${taskRows}</div>${can('tasks', 'view') ? '<a class="link-more" href="#/tasks">Все задачи <i class="fa-solid fa-arrow-right"></i></a>' : ''}`)}
     </div>
   `;
 }
 
 export function attachDashboardHandlers(root, rerender) {
+  root.querySelectorAll('[data-complete-stage]').forEach((btn) => btn.addEventListener('click', () => {
+    completeStage(btn.getAttribute('data-complete-stage'));
+    rerender();
+  }));
   root.querySelectorAll('[data-order-id]').forEach((el) => {
     el.addEventListener('click', () => {
       selectOrder(el.getAttribute('data-order-id'));
@@ -111,7 +195,8 @@ export function attachDashboardHandlers(root, rerender) {
 
 function daysPhrase(deadline) {
   const diff = Math.round((new Date(deadline) - new Date(todayISO())) / 86400000);
-  if (diff <= 0) return 'сегодня';
+  if (diff < 0) return `просрочено на ${-diff} ${ruDays(-diff)}`;
+  if (diff === 0) return 'сегодня';
   if (diff === 1) return 'завтра';
   return `через ${diff} ${ruDays(diff)}`;
 }

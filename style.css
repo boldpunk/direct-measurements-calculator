@@ -618,7 +618,7 @@ a.kpi:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
 .row-item__title { font-weight: 600; }
 .row-item__sub { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
 .row-item__meta { font-weight: 600; font-size: 13px; }
-.row-item__meta.is-overdue { color: var(--danger); }
+.row-item__meta.is-overdue, .row-item.is-overdue .row-item__sub { color: var(--danger); }
 .deadline-item, .order-item { cursor: pointer; transition: background var(--ease); margin: 0 -8px; padding: 10px 8px; border-radius: 8px; }
 .deadline-item:hover, .order-item:hover { background: var(--bg); }
 
