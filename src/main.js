@@ -117,15 +117,20 @@ function routeAllowed(route) {
   return item ? item.guard() : false;
 }
 
+// "#/orders?status=…" — the part after "?" is page state (filters), not route.
+function hashPath() {
+  return window.location.hash.replace(/^#\/?/, '').split('?')[0];
+}
+
 function currentRoute() {
-  const hash = window.location.hash.replace(/^#\/?/, '');
+  const hash = hashPath();
   if (ROUTES[hash] && routeAllowed(hash)) return hash;
   return 'dashboard';
 }
 
 function renderApp() {
   const route = currentRoute();
-  const requestedHash = window.location.hash.replace(/^#\/?/, '');
+  const requestedHash = hashPath();
   if (route !== requestedHash) {
     history.replaceState(null, '', `#/${route}`);
   }

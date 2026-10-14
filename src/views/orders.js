@@ -37,6 +37,46 @@ function saveView(v) {
   try { localStorage.setItem('mebelflow_orders_view', v); } catch { /* private mode */ }
 }
 
+// ---- Filters live in the URL (#/orders?status=…&q=…&id=…) ----
+// A link opens the same filtered list and order; reload keeps it. Plain
+// "#/orders" (sidebar, other pages) keeps whatever was set before.
+const URL_DEFAULTS = { q: '', filter: 'all', status: '', sort: 'new', period: '', from: '', to: '' };
+let lastQs = null;
+
+function urlState() {
+  return {
+    q: currentQuery, filter: currentFilter, status: currentStatusFilter, sort: currentSort,
+    period: currentPeriod, from: currentPeriodFrom, to: currentPeriodTo,
+  };
+}
+
+function syncFromUrl() {
+  const qs = window.location.hash.split('?')[1] || '';
+  if (!qs || qs === lastQs) return;
+  const p = new URLSearchParams(qs);
+  const get = (k) => p.get(k) ?? URL_DEFAULTS[k];
+  currentQuery = get('q');
+  currentFilter = FILTERS.some((f) => f.key === get('filter')) ? get('filter') : 'all';
+  currentStatusFilter = get('status');
+  currentSort = SORTS.some((x) => x.key === get('sort')) ? get('sort') : 'new';
+  currentPeriod = get('period');
+  currentPeriodFrom = get('from');
+  currentPeriodTo = get('to');
+  if (p.get('view') === 'board' || p.get('view') === 'list') saveView(p.get('view'));
+  if (p.get('id')) selectedOrderId = p.get('id');
+}
+
+function writeUrl() {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(urlState())) if (v && v !== URL_DEFAULTS[k]) p.set(k, v);
+  if (currentView === 'board') p.set('view', 'board');
+  else if (selectedOrderId) p.set('id', selectedOrderId);
+  const qs = p.toString();
+  lastQs = qs;
+  const next = `#/orders${qs ? `?${qs}` : ''}`;
+  if (window.location.hash !== next) history.replaceState(null, '', next);
+}
+
 export function selectOrder(orderId) {
   selectedOrderId = orderId;
 }
@@ -108,6 +148,7 @@ function getFilteredOrders(state) {
 }
 
 export function renderOrders() {
+  syncFromUrl();
   const state = getState();
   if (!selectedOrderId && state.orders.length) selectedOrderId = state.orders[state.orders.length - 1].id;
 
@@ -816,6 +857,7 @@ function hydrateActivity(root) {
 // ---- Handlers ----
 
 export function attachOrderHandlers(root, rerender) {
+  writeUrl();
   hydrateActivity(root);
   attachQuickActions(root, rerender);
   attachBoardHandlers(root, rerender);
