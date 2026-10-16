@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>MebelFlow</title>
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#161A21" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="/favicon/favicon.svg" type="image/svg+xml" />
+  <!--
+    Start screen of the MebelFlow Android app (one app for every company).
+    The app always opens this page on mebelflow.uz: with a company already
+    chosen it forwards straight there, otherwise it asks once. «Сменить
+    компанию» in the app's profile menu comes back here with ?switch=1.
+    The domains are also listed as trusted origins in the Android build
+    (android/twa-manifest.json) and each serves /.well-known/assetlinks.json.
+  -->
+  <style>
+    :root { color-scheme: light dark; --bg: #EEF1F7; --panel: #fff; --text: #111827; --muted: #6B7280; --border: #E5E7EB; --primary: #2563EB; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0F1217; --panel: #161A21; --text: #E5E7EB; --muted: #9CA3AF; --border: #262C36; --primary: #4F8BFF; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+      font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    main { width: 100%; max-width: 380px; text-align: center; }
+    img { width: 72px; height: 72px; border-radius: 18px; }
+    h1 { font-size: 22px; margin: 14px 0 4px; }
+    p { color: var(--muted); margin: 0 0 22px; }
+    .list { display: flex; flex-direction: column; gap: 10px; }
+    a.company { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 14px; text-decoration: none;
+      background: var(--panel); color: var(--text); border: 1px solid var(--border); text-align: left; }
+    a.company:active { transform: scale(.98); }
+    .company b { display: block; font-size: 16px; }
+    .company span { color: var(--muted); font-size: 13px; }
+    .company .dot { width: 40px; height: 40px; border-radius: 10px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; background: var(--primary); }
+    .arrow { margin-left: auto; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/favicon/android-chrome-192x192.png" alt="" />
+    <h1>MebelFlow</h1>
+    <p>Выберите вашу компанию — это нужно сделать один раз</p>
+    <div class="list" id="list"></div>
+  </main>
+  <script>
+    var COMPANIES = [
+      { name: 'Molly Home', host: 'https://mebelflow.uz' },
+      { name: 'Sobirov Mebel', host: 'https://sobirov.mebelflow.uz' },
+      { name: 'SPS', host: 'https://sps.mebelflow.uz' }
+    ];
+    var KEY = 'mf_company';
+    function go(host) { location.replace(host + '/?app=android#/dashboard'); }
+    var params = new URLSearchParams(location.search);
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    if (params.get('switch')) { try { localStorage.removeItem(KEY); } catch (e) {} saved = null; }
+    if (saved && COMPANIES.some(function (c) { return c.host === saved; })) {
+      go(saved);
+    } else {
+      var list = document.getElementById('list');
+      COMPANIES.forEach(function (c) {
+        var a = document.createElement('a');
+        a.className = 'company';
+        a.href = c.host + '/?app=android#/dashboard';
+        var dot = document.createElement('span'); dot.className = 'dot'; dot.textContent = c.name.charAt(0);
+        var text = document.createElement('div');
+        var b = document.createElement('b'); b.textContent = c.name;
+        var s = document.createElement('span'); s.textContent = c.host.replace('https://', '');
+        text.append(b, s);
+        var arrow = document.createElement('span'); arrow.className = 'arrow'; arrow.textContent = '›';
+        a.append(dot, text, arrow);
+        a.addEventListener('click', function () { try { localStorage.setItem(KEY, c.host); } catch (e) {} });
+        list.appendChild(a);
+      });
+    }
+  </script>
+</body>
+</html>

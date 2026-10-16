@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "uz.mebelflow.app",
+      "sha256_cert_fingerprints": [
+        "D0:9C:0D:A7:C4:1F:9E:72:47:19:8E:1D:16:E3:B3:D0:57:CC:07:E4:99:90:69:5B:D7:FA:15:46:83:67:E4:2A"
+      ]
+    }
+  }
+]

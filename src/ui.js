@@ -139,6 +139,7 @@ export function renderShell(currentRoute) {
             `).join('')}
           </div>
           <div id="profile-currency"></div>
+          ${inAndroidApp() ? '<a href="https://mebelflow.uz/app.html?switch=1" class="profile-menu__item"><i class="fa-solid fa-building"></i> Сменить компанию</a>' : ''}
           <button type="button" class="profile-menu__item" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Выйти</button>
         </div>
       </div>
@@ -316,6 +317,10 @@ export function initThemeToggle() {
     syncThemeControls();
     showToast(THEME_NAMES[next]);
   });
+}
+
+function inAndroidApp() {
+  try { return localStorage.getItem('mf_in_app') === 'android'; } catch { return false; }
 }
 
 // «Показывать суммы в»: only when Настройки has an exchange rate. Rebuilt on

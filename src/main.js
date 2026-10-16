@@ -77,6 +77,17 @@ let shellMounted = false;
   }
 })();
 
+// ---- Android app ----
+// The app's start screen (public/app.html on mebelflow.uz) opens a company's
+// site with ?app=android. Remember that on this origin, so the profile menu
+// can offer «Сменить компанию», and drop the parameter from the address.
+(function markAndroidApp() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('app') !== 'android') return;
+  try { localStorage.setItem('mf_in_app', 'android'); } catch { /* private mode */ }
+  history.replaceState(null, '', `${window.location.pathname}${window.location.hash || '#/dashboard'}`);
+})();
+
 // ---- Idle auto-logout (30 min) ----
 const IDLE_LIMIT_MS = 30 * 60 * 1000;
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
