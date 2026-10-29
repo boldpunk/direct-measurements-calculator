@@ -14,6 +14,7 @@ import 'flag-icons/css/flag-icons.min.css';
 import '../style.css';
 import { openModal, renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, initThemeToggle, applyFavicon, enhanceFields, NAV_ITEMS } from './ui.js';
 import { initSearch } from './search.js';
+import { startLive, stopLive } from './live.js';
 import { can } from './permissions.js';
 import { brandLogo } from './brand.js';
 import { initNotifications } from './notifications.js';
@@ -35,7 +36,7 @@ import { renderTasks, attachTasksHandlers } from './views/tasks.js';
 import { renderAuditLog, attachAuditLogHandlers } from './views/auditLog.js';
 import { renderLogin, attachLoginHandlers } from './views/login.js';
 import { api, getToken } from './api.js';
-import { initStore, isHydrated, resetStore, setPublicBranding } from './store.js';
+import { initStore, isHydrated, resetStore, setPublicBranding, onStateReplaced } from './store.js';
 
 const ROUTES = {
   dashboard: { render: renderDashboard, attach: attachDashboardHandlers },
@@ -76,6 +77,9 @@ let shellMounted = false;
     console.error('Failed to load public branding', e);
   }
 })();
+
+// Whole state re-read (a colleague's change, an edit conflict): redraw.
+onStateReplaced(() => { if (shellMounted && getToken()) renderApp(); });
 
 // ---- Android app ----
 // The app's start screen (public/app.html on mebelflow.uz) opens a company's
@@ -233,6 +237,7 @@ function renderLoading() {
 
 function logout(opts) {
   stopIdleWatch();
+  stopLive();
   api.logout();
   resetStore();
   shellMounted = false;
@@ -271,6 +276,7 @@ async function boot() {
     }
   }
   startIdleWatch();
+  startLive();
   if (!window.location.hash || window.location.hash === '#/login') {
     window.location.hash = '#/dashboard';
   } else {

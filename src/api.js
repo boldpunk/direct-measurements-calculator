@@ -6,6 +6,12 @@
 // that's why this is `??` and not `||`.
 const API_BASE = import.meta.env.VITE_API_URL ?? 'https://mebelflow-api.onrender.com';
 const TOKEN_KEY = 'mebelflow_token';
+// Identifies this tab in live-update events, so it ignores its own changes.
+export const CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+export function eventsUrl() {
+  return `${API_BASE}/api/events?token=${encodeURIComponent(getToken() || '')}`;
+}
 const EMPLOYEE_KEY = 'mebelflow_employee';
 
 // Logo/favicon come back as "/api/branding/logo?v=…" (served and cached
@@ -55,7 +61,7 @@ export class ApiError extends Error {
 }
 
 async function request(path, { method = 'GET', body } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 

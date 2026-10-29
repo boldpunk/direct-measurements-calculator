@@ -208,3 +208,37 @@ test('images are stored as files, not base64 in rows', { skip }, async () => {
   assert.equal(svg.status, 400, 'no SVG');
   assert.equal((await fetch(`${BASE}/api/files/doesnotexist123456`)).status, 404);
 });
+
+test('live events reach other users; same-field edits conflict (409)', { skip }, async () => {
+  const { json: st } = await call('/api/state', { token: tokens.nasiba });
+  const order = st.orders[0];
+  // Listen as alexey.
+  const ctrl = new AbortController();
+  const stream = await fetch(`${BASE}/api/events?token=${tokens.alexey}`, { signal: ctrl.signal });
+  assert.match(stream.headers.get('content-type'), /^text\/event-stream/);
+  const reader = stream.body.getReader();
+  const got = (async () => {
+    let buf = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return null;
+      buf += new TextDecoder().decode(value);
+      const m = buf.match(/data: (\{.*\})\n/);
+      if (m) return JSON.parse(m[1]);
+    }
+  })();
+  assert.equal((await fetch(`${BASE}/api/events?token=bad`)).status, 401);
+
+  const notes = `live-test-${Date.now()}`;
+  const ok = await call(`/api/orders/${order.id}`, { token: tokens.nasiba, method: 'PATCH', body: { notes, expected: { notes: order.notes } } });
+  assert.equal(ok.status, 200);
+  const ev = await Promise.race([got, new Promise((r) => setTimeout(() => r('timeout'), 3000))]);
+  ctrl.abort();
+  assert.equal(ev.path, `/api/orders/${order.id}`);
+  assert.equal(ev.name, 'Насиба');
+
+  const stale = await call(`/api/orders/${order.id}`, { token: tokens.nasiba, method: 'PATCH', body: { notes: 'other', expected: { notes: order.notes } } });
+  assert.equal(stale.status, 409, 'someone changed notes since the form opened');
+  assert.deepEqual(stale.json.conflicts, ['notes']);
+  await call(`/api/orders/${order.id}`, { token: tokens.nasiba, method: 'PATCH', body: { notes: order.notes } });
+});

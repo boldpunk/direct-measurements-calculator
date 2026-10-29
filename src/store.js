@@ -233,6 +233,20 @@ export async function initStore() {
   _state = await api.getState();
 }
 
+// Views re-render when the whole state is re-read (live updates, conflicts).
+const replacedListeners = new Set();
+export function onStateReplaced(cb) {
+  replacedListeners.add(cb);
+  return () => replacedListeners.delete(cb);
+}
+
+// Re-reads everything from the server (after sending any delayed deletes).
+export async function reloadState() {
+  await flushPendingRemovals();
+  _state = await api.getState();
+  replacedListeners.forEach((cb) => cb());
+}
+
 export function resetStore() {
   _state = null;
 }
@@ -362,7 +376,9 @@ export function createOrder(data) {
   return order;
 }
 
-export function updateOrder(orderId, patch) {
+// expected: the values the edit form showed for the changed fields; if a
+// colleague changed one meanwhile the server answers 409 and we re-read.
+export function updateOrder(orderId, patch, expected) {
   const order = _state.orders.find((o) => o.id === orderId);
   if (!order) return;
   if (patch.clientName !== undefined) order.clientName = patch.clientName;
@@ -380,7 +396,12 @@ export function updateOrder(orderId, patch) {
     if (patch.clientPhone !== undefined) client.phone = patch.clientPhone;
     if (patch.address !== undefined && !client.address) client.address = patch.address;
   }
-  api.updateOrder(orderId, patch).catch((e) => logSyncError('заказ', e));
+  api.updateOrder(orderId, expected ? { ...patch, expected } : patch).catch((e) => {
+    if (e.status === 409) {
+      showToast(e.message, { tone: 'error', duration: 8000 });
+      reloadState().catch(() => {});
+    } else logSyncError('заказ', e);
+  });
 }
 
 export function updateOrderStatus(orderId, status) {

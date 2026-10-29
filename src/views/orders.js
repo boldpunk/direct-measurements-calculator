@@ -1466,20 +1466,24 @@ function openEditOrderModal(orderId, rerender) {
   attachMoneyFields(document.getElementById('order-edit-form'));
   guardModalForm(document.getElementById('order-edit-form'));
 
+  // What the form showed when it opened: only fields the user actually
+  // changed are sent, together with these values, so a colleague's edit to
+  // the same field is caught (409) instead of being overwritten.
+  const EDIT_FIELDS = ['clientName', 'clientPhone', 'address', 'productType', 'managerId', 'amount', 'deadline', 'notes'];
+  const seen = Object.fromEntries(EDIT_FIELDS.map((k) => [k, order[k] ?? '']));
+  const same = (k, a, b) => (k === 'amount' ? Number(a) || 0 : k === 'managerId' ? a || '' : String(a ?? '')) === (k === 'amount' ? Number(b) || 0 : k === 'managerId' ? b || '' : String(b ?? ''));
+
   document.getElementById('order-edit-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    updateOrder(orderId, {
-      clientName: fd.get('clientName'),
-      clientPhone: fd.get('clientPhone'),
-      address: fd.get('address'),
-      productType: fd.get('productType'),
-      managerId: fd.get('managerId'),
-      amount: fd.get('amount'),
-      deadline: fd.get('deadline'),
-      notes: fd.get('notes'),
-    });
+    const patch = {};
+    for (const k of EDIT_FIELDS) {
+      const v = fd.get(k);
+      if (v !== null && !same(k, v, seen[k])) patch[k] = v;
+    }
     closeModal();
+    if (!Object.keys(patch).length) return;
+    updateOrder(orderId, patch, Object.fromEntries(Object.keys(patch).map((k) => [k, seen[k]])));
     rerender();
   });
 }

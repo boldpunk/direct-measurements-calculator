@@ -140,6 +140,22 @@ router.patch('/:id', requirePermission('orders', 'edit'), ah(async (req, res) =>
   const before = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!before) return res.status(404).json({ error: 'Заказ не найден' });
 
+  // Two people editing the same order: the client sends the values it saw
+  // when the form opened (body.expected). If someone changed one of the
+  // fields being saved in the meantime, refuse instead of silently
+  // overwriting their change. Fields nobody else touched still save.
+  const expected = body.expected && typeof body.expected === 'object' ? body.expected : null;
+  if (expected) {
+    const norm = (k, v) => (k === 'amount' ? Number(v) || 0 : k === 'managerId' ? v || null : v ?? '');
+    const conflicts = Object.keys(data).filter((k) => k in expected && norm(k, expected[k]) !== norm(k, before[k]));
+    if (conflicts.length) {
+      return res.status(409).json({
+        error: 'Заказ уже изменил другой сотрудник — ваши изменения не сохранены, данные обновлены',
+        conflicts, current: before,
+      });
+    }
+  }
+
   const order = await prisma.$transaction(async (tx) => {
     const updated = await tx.order.update({ where: { id: req.params.id }, data }).catch(() => null);
     if (!updated) return null;
