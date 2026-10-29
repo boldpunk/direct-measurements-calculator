@@ -39,6 +39,12 @@ export const DEFAULT_SETTINGS = {
   enableCustomOrderStatuses: false,
 };
 
+// Mirrors ORDER_STATUSES in src/store.js (the client's order of steps).
+export const ORDER_STATUSES = [
+  'Новый', 'Замер', 'Дизайн', 'Согласование', 'Закупка материалов',
+  'Производство', 'Сборка', 'Установка', 'Готов', 'Завершён', 'Отменён',
+];
+
 // Used instead of the default Новый/Замер/.../Завершён/Отменён workflow when
 // enableCustomOrderStatuses is on — sps.mebelflow.uz doesn't sell/measure/design,
 // it only runs materials through a fixed cutting-service pipeline.

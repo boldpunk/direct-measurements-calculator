@@ -21,6 +21,7 @@ import { dataUrisToFiles } from './stored-files.js';
 import { eventsHandler, announceChanges } from './live.js';
 import { clientErrorsHandler, recordError } from './app-errors.js';
 import pushRoutes from './routes/push.js';
+import publicRoutes from './routes/public.js';
 import reportsRoutes from './routes/reports.js';
 import salaryRoutes from './routes/salary.js';
 import proposalsRoutes from './routes/proposals.js';
@@ -57,6 +58,7 @@ app.get('/health', async (req, res) => {
 app.get('/api/events', eventsHandler);
 app.post('/api/client-errors', clientErrorsHandler);
 app.use('/api/push', requireAuth, pushRoutes);
+app.use('/api/public', publicRoutes);
 app.use('/api', announceChanges);
 app.use('/api/auth', authRoutes);
 app.use('/api/state', requireAuth, stateRoutes);

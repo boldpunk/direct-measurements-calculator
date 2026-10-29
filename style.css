@@ -1926,3 +1926,6 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .cal-card__top { display: flex; justify-content: space-between; gap: 6px; }
 .cal-card__top span { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .cal-card__sub { color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.share-link { display: flex; gap: 8px; }
+.share-link input { flex: 1; min-width: 0; font-size: 13px; }

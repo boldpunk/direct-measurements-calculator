@@ -156,6 +156,9 @@ model Order {
   needsCarpentry Boolean @default(true)
   notes         String   @default("")
   createdAt     Float    @default(0)
+  // Link for the client (status, payments, КП) without logging in —
+  // /client.html?t=<shareToken>. Null = no link; regenerate to revoke.
+  shareToken    String?  @unique
   // «Удалить» archives instead of deleting: payments, materials, salaries and
   // expenses all cascade-delete with an order, so a mistaken delete used to
   // wipe its financial history for good. Archived orders are hidden from

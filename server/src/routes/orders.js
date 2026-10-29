@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ah, uid, todayISO, addDays } from '../util.js';
@@ -263,6 +264,25 @@ router.get('/:id/activity', requirePermission('orders', 'view'), ah(async (req, 
     select: { id: true, timestamp: true, text: true },
   });
   res.json(items);
+}));
+
+// Client link: create (or return) the order's share token; ?renew=1 makes a
+// new one (old links stop working); DELETE switches the link off.
+router.post('/:id/share', requirePermission('orders', 'view'), ah(async (req, res) => {
+  const order = await prisma.order.findUnique({ where: { id: req.params.id }, select: { id: true, shareToken: true, number: true } });
+  if (!order) return res.status(404).json({ error: 'Заказ не найден' });
+  let token = order.shareToken;
+  if (!token || req.query.renew === '1') {
+    token = crypto.randomBytes(24).toString('base64url');
+    await prisma.order.update({ where: { id: order.id }, data: { shareToken: token } });
+    await logAudit(req, { action: 'order.share', entityType: 'order', entityId: order.id, newValue: { number: order.number } });
+  }
+  res.json({ token });
+}));
+
+router.delete('/:id/share', requirePermission('orders', 'view'), ah(async (req, res) => {
+  await prisma.order.update({ where: { id: req.params.id }, data: { shareToken: null } }).catch(() => null);
+  res.status(204).end();
 }));
 
 router.delete('/:id', requirePermission('orders', 'delete'), ah(async (req, res) => {

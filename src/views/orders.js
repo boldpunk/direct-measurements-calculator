@@ -379,6 +379,55 @@ function quickPayButton(order, fin) {
   return `<button type="button" class="quick-pay" data-quick-pay="${order.id}" title="Добавить оплату" aria-label="Добавить оплату"><i class="fa-solid fa-plus"></i></button>`;
 }
 
+// «Клиенту»: the client's page for this order (public/client.html) — status,
+// deadline, payments and the КП, no login. Same link until renewed/off.
+async function openShareModal(orderId) {
+  const order = getState().orders.find((o) => o.id === orderId);
+  if (!order) return;
+  openModal('Ссылка для клиента', '<div class="empty-state empty-state--sm">Готовим ссылку…</div>');
+  let token;
+  try {
+    token = (await api.shareOrder(orderId)).token;
+  } catch (e) {
+    closeModal();
+    showToast(e.message || 'Не удалось создать ссылку', { tone: 'error' });
+    return;
+  }
+  order.shareToken = token;
+  const url = `${window.location.origin}/client.html?t=${token}`;
+  const text = `${order.clientName ? `${order.clientName}, з` : 'З'}дравствуйте! Здесь можно следить за вашим заказом #${order.number}: статус, срок и оплаты.`;
+  openModal('Ссылка для клиента', `
+    <div class="form">
+      <p style="margin:0">Клиент увидит статус и этапы заказа, срок, сумму, оплаты и КП — без входа в систему. Себестоимость, сотрудники и другие заказы не видны.</p>
+      <div class="share-link"><input type="text" readonly value="${escapeHtml(url)}" id="share-url" /><button type="button" class="btn" id="share-copy"><i class="fa-solid fa-copy"></i> Копировать</button></div>
+      <div class="form-actions form-actions--left">
+        <a class="btn btn--primary" href="https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}" target="_blank" rel="noopener"><i class="fa-solid fa-paper-plane"></i> Отправить в Telegram</a>
+        <a class="btn" href="${escapeHtml(url)}" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть</a>
+      </div>
+      <p class="form-hint" style="margin:0">Если ссылка попала не тому человеку — сделайте новую, старая перестанет работать.</p>
+      <div class="form-actions form-actions--left">
+        <button type="button" class="btn btn--sm" id="share-renew"><i class="fa-solid fa-rotate"></i> Новая ссылка</button>
+        <button type="button" class="btn btn--sm btn--danger-ghost" id="share-off">Отключить ссылку</button>
+      </div>
+    </div>`);
+  document.getElementById('share-copy').addEventListener('click', async () => {
+    const input = document.getElementById('share-url');
+    try { await navigator.clipboard.writeText(url); } catch { input.select(); document.execCommand?.('copy'); }
+    showToast('Ссылка скопирована');
+  });
+  document.getElementById('share-renew').addEventListener('click', async () => {
+    await api.shareOrder(orderId, true).catch(() => null);
+    openShareModal(orderId);
+    showToast('Создана новая ссылка — старая больше не работает');
+  });
+  document.getElementById('share-off').addEventListener('click', async () => {
+    await api.unshareOrder(orderId).catch(() => null);
+    order.shareToken = null;
+    closeModal();
+    showToast('Ссылка отключена');
+  });
+}
+
 function openQuickPayModal(orderId, rerender) {
   const order = getState().orders.find((o) => o.id === orderId);
   if (!order) return;
@@ -452,6 +501,7 @@ function renderOrderDetail(orderId) {
       <div class="order-detail__actions">
         ${renderStatusControl(order)}
         <button type="button" class="btn btn--sm" data-action="order-pdf" data-id="${order.id}"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+        <button type="button" class="btn btn--sm" data-action="share-order" data-id="${order.id}" title="Ссылка для клиента: статус, оплаты, КП"><i class="fa-solid fa-share-nodes"></i> Клиенту</button>
         ${can('proposals', 'create') ? `<button type="button" class="btn btn--sm" data-action="order-to-proposal" data-id="${order.id}" title="Создать коммерческое предложение из заказа"><i class="fa-solid fa-file-contract"></i> КП</button>` : ''}
         ${can('orders', 'edit') ? `<button type="button" class="btn btn--sm" data-action="edit-order" data-id="${order.id}"><i class="fa-solid fa-pen"></i></button>` : ''}
         ${can('orders', 'delete') ? `<button type="button" class="btn btn--sm btn--danger-ghost" data-action="delete-order" data-id="${order.id}" title="В архив"><i class="fa-solid fa-box-archive"></i></button>` : ''}
@@ -955,6 +1005,7 @@ export function attachOrderHandlers(root, rerender) {
     });
   }
 
+  root.querySelector('[data-action="share-order"]')?.addEventListener('click', (e) => openShareModal(e.currentTarget.getAttribute('data-id')));
   const editBtn = root.querySelector('[data-action="edit-order"]');
   if (editBtn) editBtn.addEventListener('click', () => openEditOrderModal(editBtn.getAttribute('data-id'), rerender));
 

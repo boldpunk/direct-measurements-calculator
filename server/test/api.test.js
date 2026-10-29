@@ -263,3 +263,22 @@ test('push: key, subscription validation, login required', { skip }, async () =>
   const bad = await call('/api/push/subscribe', { token: tokens.nasiba, method: 'POST', body: { subscription: { endpoint: 'x' } } });
   assert.equal(bad.status, 400);
 });
+
+test('client link: safe public view, renew revokes, workshop never gets the token', { skip }, async () => {
+  const { json: st } = await call('/api/state', { token: tokens.nasiba });
+  const order = st.orders[0];
+  const { token } = (await call(`/api/orders/${order.id}/share`, { token: tokens.nasiba, method: 'POST' })).json;
+  const pub = await call(`/api/public/orders/${token}`);
+  assert.equal(pub.status, 200);
+  assert.equal(pub.json.order.number, order.number);
+  const text = JSON.stringify(pub.json);
+  for (const secret of ['costPrice', 'purchasePrice', 'managerId', 'salar', 'passwordHash']) assert.ok(!text.includes(secret), secret);
+  assert.equal((await call(`/api/orders/${order.id}/share`, { token: tokens.alexey, method: 'POST' })).status, 403);
+  const workshop = (await call('/api/state', { token: tokens.alexey })).json;
+  assert.ok(workshop.orders.every((o) => !o.shareToken), 'no token for those who do not see sums');
+  const renewed = (await call(`/api/orders/${order.id}/share?renew=1`, { token: tokens.nasiba, method: 'POST' })).json.token;
+  assert.notEqual(renewed, token);
+  assert.equal((await call(`/api/public/orders/${token}`)).status, 404, 'old link dead');
+  await call(`/api/orders/${order.id}/share`, { token: tokens.nasiba, method: 'DELETE' });
+  assert.equal((await call(`/api/public/orders/${renewed}`)).status, 404, 'switched off');
+});

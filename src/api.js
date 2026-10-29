@@ -112,6 +112,8 @@ export const api = {
     clearSession();
   },
   uploadImage: (dataUri, thumbDataUri) => request('/api/files', { method: 'POST', body: { dataUri, thumbDataUri } }).then((r) => r.url),
+  shareOrder: (id, renew = false) => request(`/api/orders/${id}/share${renew ? '?renew=1' : ''}`, { method: 'POST' }),
+  unshareOrder: (id) => request(`/api/orders/${id}/share`, { method: 'DELETE' }),
   getPushKey: () => request('/api/push/key'),
   pushSubscribe: (subscription) => request('/api/push/subscribe', { method: 'POST', body: { subscription } }),
   pushUnsubscribe: (endpoint) => request('/api/push/unsubscribe', { method: 'POST', body: { endpoint } }),

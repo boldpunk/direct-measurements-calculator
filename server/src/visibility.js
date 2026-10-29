@@ -76,6 +76,8 @@ export function scopeState(raw, employee) {
   const shapedOrders = orders.map((o) => ({
     ...o,
     amount: a.seesRevenue ? o.amount : 0,
+    // The client link shows sums and payments — only for those who see them.
+    shareToken: a.seesRevenue ? (o.shareToken ?? null) : null,
     // Activity isn't part of the login payload any more (it grew with every
     // order); the order card fetches it from /api/orders/:id/activity.
     activity: a.seesActivity && raw.activityByOrder ? (raw.activityByOrder.get(o.id) || []) : [],
