@@ -67,22 +67,19 @@ function buildRow(order, keys) {
   return keys.map((k) => values[k]);
 }
 
-function buildSheet(XLSX, orders, keys) {
-  const aoa = [keys, ...orders.map((o) => buildRow(o, keys))];
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = keys.map((k) => ({ wch: COLUMN_WIDTHS[k] || 14 }));
-  const lastCol = XLSX.utils.encode_col(keys.length - 1);
-  ws['!autofilter'] = { ref: `A1:${lastCol}1` };
-
-  keys.forEach((key, colIdx) => {
-    if (!MONEY_COLUMNS.has(key) && key !== 'Маржа, %') return;
-    const fmt = key === 'Маржа, %' ? '0.0"%"' : '#,##0';
-    for (let r = 1; r <= orders.length; r++) {
-      const cell = ws[XLSX.utils.encode_cell({ r, c: colIdx })];
-      if (cell) cell.z = fmt;
-    }
+function buildSheet(name, orders, keys) {
+  const formats = {};
+  keys.forEach((key, i) => {
+    if (MONEY_COLUMNS.has(key)) formats[i] = '#,##0';
+    else if (key === 'Маржа, %') formats[i] = '0.0"%"';
   });
-  return ws;
+  return {
+    name,
+    rows: [keys, ...orders.map((o) => buildRow(o, keys))],
+    widths: keys.map((k) => COLUMN_WIDTHS[k] || 14),
+    formats,
+    autofilter: true,
+  };
 }
 
 // Builds one workbook with a sheet per period (1 день / 3 дня / 7 дней /
@@ -90,24 +87,21 @@ function buildSheet(XLSX, orders, keys) {
 // and triggers a browser download. Columns respect the viewer's financial
 // visibility flags, same as the on-screen Финансы table.
 export async function exportFinanceWorkbook() {
-  const XLSX = await import('xlsx');
+  const { downloadWorkbook } = await import('./xlsx-writer.js');
   const state = getState();
   const keys = columnKeys();
-  const wb = XLSX.utils.book_new();
-  EXPORT_PERIODS.forEach((period) => {
+  const sheets = EXPORT_PERIODS.map((period) => {
     const range = period.range();
-    const orders = state.orders.filter((o) => inPeriodRange(o.createdAt, range));
-    const ws = buildSheet(XLSX, orders, keys);
-    XLSX.utils.book_append_sheet(wb, ws, period.label);
+    return buildSheet(period.label, state.orders.filter((o) => inPeriodRange(o.createdAt, range)), keys);
   });
   const dateStr = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `Финансы_${dateStr}.xlsx`);
+  downloadWorkbook(`Финансы_${dateStr}.xlsx`, sheets);
 }
 
 // One-sheet export of the currently filtered "Заработная плата" rows.
 // `rows` is the same {entry, order, createdByName} shape salary.js builds.
 export async function exportSalaryWorkbook(rows) {
-  const XLSX = await import('xlsx');
+  const { downloadWorkbook } = await import('./xlsx-writer.js');
   const canSeeAmount = sees('seesSalaries');
   const keys = ['Сотрудник', 'Заказ', 'Сумма', 'Дата начисления', 'Кто начислил'];
   const aoa = [keys, ...rows.map((r) => [
@@ -117,10 +111,8 @@ export async function exportSalaryWorkbook(rows) {
     r.entry.date || '',
     r.createdByName || '',
   ])];
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 22 }];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Зарплаты');
   const dateStr = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(wb, `Зарплаты_${dateStr}.xlsx`);
+  downloadWorkbook(`Зарплаты_${dateStr}.xlsx`, [{
+    name: 'Зарплаты', rows: aoa, widths: [22, 28, 14, 16, 22], formats: canSeeAmount ? { 2: '#,##0' } : {}, autofilter: true,
+  }]);
 }
