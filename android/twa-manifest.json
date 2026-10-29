@@ -11,7 +11,7 @@
   "navigationDividerColor": "#E5E7EB",
   "navigationDividerColorDark": "#262C36",
   "backgroundColor": "#EEF1F7",
-  "enableNotifications": false,
+  "enableNotifications": true,
   "startUrl": "/app.html",
   "iconUrl": "http://127.0.0.1:8099/favicon/android-chrome-512x512.png",
   "maskableIconUrl": "http://127.0.0.1:8099/favicon/maskable-512x512.png",

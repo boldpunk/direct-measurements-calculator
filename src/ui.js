@@ -5,6 +5,7 @@ import { brandLogo } from './brand.js';
 import { getThemePreference, setThemePreference } from './theme.js';
 import { showToast } from './toast.js';
 import { api } from './api.js';
+import { pushSupport, currentSubscription, enablePush, disablePush } from './push-client.js';
 import { confirmDialog } from './dialog.js';
 
 let defaultFaviconHTML = null;
@@ -140,6 +141,7 @@ export function renderShell(currentRoute) {
               </button>
             `).join('')}
           </div>
+          <button type="button" class="profile-menu__item" id="push-settings-btn"><i class="fa-solid fa-bell"></i> Уведомления на телефон</button>
           <button type="button" class="profile-menu__item" id="change-password-btn"><i class="fa-solid fa-key"></i> Сменить пароль</button>
           <div id="profile-currency"></div>
           ${inAndroidApp() ? '<a href="https://mebelflow.uz/app.html?switch=1" class="profile-menu__item"><i class="fa-solid fa-building"></i> Сменить компанию</a>' : ''}
@@ -348,6 +350,33 @@ function renderCurrencyChoice(rerender) {
   }));
 }
 
+async function openPushModal() {
+  const support = pushSupport();
+  const sub = support.ok ? await currentSubscription().catch(() => null) : null;
+  openModal('Уведомления на телефон', `
+    <div class="form">
+      <p style="margin:0">Сообщения приходят, даже когда MebelFlow закрыт:</p>
+      <ul class="push-list">
+        <li><i class="fa-solid fa-gears"></i> вам назначили этап производства</li>
+        <li><i class="fa-solid fa-list-check"></i> вам поставили задачу</li>
+        <li><i class="fa-solid fa-hand-holding-dollar"></i> пришла оплата по вашему заказу</li>
+      </ul>
+      ${support.ok ? `
+        <p class="form-hint" style="margin:0">Статус на этом устройстве: <b>${sub ? 'включены' : 'выключены'}</b>. Включать нужно на каждом телефоне и компьютере отдельно.</p>
+        <div class="form-actions form-actions--left">
+          ${sub
+            ? '<button type="button" class="btn" id="push-test"><i class="fa-solid fa-paper-plane"></i> Проверить</button><button type="button" class="btn btn--danger-ghost" id="push-off">Выключить</button>'
+            : '<button type="button" class="btn btn--primary" id="push-on"><i class="fa-solid fa-bell"></i> Включить на этом устройстве</button>'}
+        </div>` : `<p class="form-hint" style="margin:0">${support.reason}</p>`}
+    </div>`);
+  const run = async (fn, okText) => {
+    try { await fn(); if (okText) showToast(okText); openPushModal(); } catch (e) { showToast(e.message || 'Не получилось', { tone: 'error' }); }
+  };
+  document.getElementById('push-on')?.addEventListener('click', () => run(enablePush, 'Уведомления включены'));
+  document.getElementById('push-off')?.addEventListener('click', () => run(disablePush, 'Уведомления выключены'));
+  document.getElementById('push-test')?.addEventListener('click', () => run(() => api.pushTest(), 'Тестовое уведомление отправлено'));
+}
+
 function openChangePasswordModal() {
   openModal('Сменить пароль', `
     <form class="form" id="change-password-form" autocomplete="on">
@@ -386,6 +415,7 @@ export function initProfileMenu(rerender) {
   const menu = document.getElementById('profile-menu');
   if (!toggle || !menu) return;
   document.getElementById('change-password-btn')?.addEventListener('click', openChangePasswordModal);
+  document.getElementById('push-settings-btn')?.addEventListener('click', openPushModal);
 
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();

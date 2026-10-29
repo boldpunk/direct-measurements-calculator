@@ -255,3 +255,11 @@ test('client errors are collected and grouped', { skip }, async () => {
   assert.equal((await call('/api/audit-log/errors', { token: tokens.alexey })).status, 403);
   await call(`/api/audit-log/errors/${row.id}`, { token: tokens.nasiba, method: 'DELETE' });
 });
+
+test('push: key, subscription validation, login required', { skip }, async () => {
+  const key = await call('/api/push/key', { token: tokens.nasiba });
+  assert.match(key.json.publicKey, /^[A-Za-z0-9_-]{80,}$/);
+  assert.equal((await call('/api/push/key')).status, 401);
+  const bad = await call('/api/push/subscribe', { token: tokens.nasiba, method: 'POST', body: { subscription: { endpoint: 'x' } } });
+  assert.equal(bad.status, 400);
+});

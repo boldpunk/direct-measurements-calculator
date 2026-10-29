@@ -6,6 +6,7 @@ import { requirePermission } from '../middleware/auth.js';
 import { logAudit } from '../audit.js';
 import { renderOrderPdf } from '../pdf.js';
 import { accessFor, orderVisibleTo } from '../visibility.js';
+import { notifyEmployees } from '../push.js';
 
 const router = Router();
 
@@ -345,8 +346,17 @@ router.patch('/:id/stages/:stageId', requirePermission('production', 'assign'), 
   if (assigneeId !== undefined) data.assigneeId = assigneeId || null;
   if (partnerId !== undefined) data.partnerId = partnerId || null;
   if (deadline !== undefined) data.deadline = deadline;
+  const before = await prisma.stage.findUnique({ where: { id: req.params.stageId }, select: { assigneeId: true } });
   const stage = await prisma.stage.update({ where: { id: req.params.stageId }, data }).catch(() => null);
   if (!stage) return res.status(404).json({ error: 'Этап не найден' });
+  if (stage.assigneeId && stage.assigneeId !== before?.assigneeId && stage.assigneeId !== req.employee.id) {
+    const order = await prisma.order.findUnique({ where: { id: stage.orderId }, select: { number: true, productType: true } });
+    notifyEmployees([stage.assigneeId], {
+      title: 'Вам назначен этап',
+      body: `«${stage.name}» · ${order?.productType ? `${order.productType} ` : ''}#${order?.number ?? ''}${stage.deadline ? ` · до ${stage.deadline.split('-').reverse().join('.')}` : ''}`,
+      url: '/#/dashboard',
+    });
+  }
   res.json(stage);
 }));
 
@@ -367,6 +377,18 @@ function financeResource(field, model, buildData, activityText, { createPerm, de
     });
     if (!record) return res.status(404).json({ error: 'Заказ не найден' });
     await logAudit(req, { action: `${field}.create`, entityType: field, entityId: record.id, newValue: record });
+    if (field === 'payments') {
+      // The order's manager hears about money coming in (unless they entered it).
+      const order = await prisma.order.findUnique({ where: { id: req.params.id }, select: { id: true, number: true, clientName: true, managerId: true } });
+      if (order?.managerId && order.managerId !== req.employee.id) {
+        const settings = await prisma.settings.findUnique({ where: { id: 'default' }, select: { currency: true } });
+        notifyEmployees([order.managerId], {
+          title: `Оплата ${fmtMoney(record.amount, settings?.currency || '$')}`,
+          body: `Заказ #${order.number} · ${order.clientName}${record.comment ? ` · ${record.comment}` : ''}`,
+          url: `/#/orders?id=${order.id}`,
+        });
+      }
+    }
     res.status(201).json(record);
   }));
 

@@ -2,8 +2,20 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ah, uid, todayISO, addDays } from '../util.js';
 import { logAudit } from '../audit.js';
+import { notifyEmployees } from '../push.js';
 
 const router = Router();
+
+// Push to whoever was just given a task (not when they assigned it to themselves).
+function notifyTaskAssignee(req, task) {
+  if (!task.assigneeId || task.assigneeId === req.employee.id) return;
+  notifyEmployees([task.assigneeId], {
+    title: task.priority === 'Срочно' ? 'Срочная задача' : 'Новая задача',
+    body: `${task.name}${task.qty > 1 ? ` × ${task.qty}` : ''}${task.deadline ? ` · до ${task.deadline.split('-').reverse().join('.')}` : ''}`,
+    url: '/#/tasks',
+  });
+}
+
 
 // Столярка board tasks share this same Task entity/endpoints with the
 // general Задачи page, distinguished only by stageKey. Carpentry-floor
@@ -39,6 +51,7 @@ router.post('/', ah(async (req, res) => {
     },
   });
   await logAudit(req, { action: 'task.create', entityType: 'task', entityId: task.id, newValue: task });
+  notifyTaskAssignee(req, task);
   res.status(201).json(task);
 }));
 
@@ -73,6 +86,7 @@ router.patch('/:id', ah(async (req, res) => {
     oldValue: before ? Object.fromEntries(Object.keys(data).map((k) => [k, before[k]])) : undefined,
     newValue: Object.fromEntries(Object.keys(data).map((k) => [k, task[k]])),
   });
+  if (data.assigneeId && data.assigneeId !== before?.assigneeId) notifyTaskAssignee(req, task);
   res.json(task);
 }));
 

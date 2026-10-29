@@ -112,6 +112,10 @@ export const api = {
     clearSession();
   },
   uploadImage: (dataUri, thumbDataUri) => request('/api/files', { method: 'POST', body: { dataUri, thumbDataUri } }).then((r) => r.url),
+  getPushKey: () => request('/api/push/key'),
+  pushSubscribe: (subscription) => request('/api/push/subscribe', { method: 'POST', body: { subscription } }),
+  pushUnsubscribe: (endpoint) => request('/api/push/unsubscribe', { method: 'POST', body: { endpoint } }),
+  pushTest: () => request('/api/push/test', { method: 'POST' }),
   getAppErrors: () => request('/api/audit-log/errors'),
   resolveAppError: (id) => request(`/api/audit-log/errors/${id}`, { method: 'DELETE' }),
   async changePassword(currentPassword, newPassword) {

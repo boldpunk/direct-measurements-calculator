@@ -36,6 +36,9 @@ model Settings {
   // {"from":"$","to":"so'm","rate":12700} = 1 $ is 12 700 so'm. Display
   // only: every amount is still stored and entered in `currency`.
   fxRate            Json?
+  // Web Push (VAPID) key pair, created on first use; one per company.
+  vapidPublicKey    String?
+  vapidPrivateKey   String?
 
   // Per-instance feature toggles — every instance shares the same codebase,
   // but a company can turn off features it doesn't use (e.g. sps.mebelflow.uz
@@ -734,4 +737,17 @@ model AppError {
   lastAt      Float
 
   @@index([lastAt])
+}
+
+// A device that agreed to receive push notifications (phone, Android app,
+// desktop browser). Removed when the push service says it's gone.
+model PushSubscription {
+  id         String @id
+  employeeId String
+  endpoint   String @unique
+  keys       Json
+  userAgent  String @default("")
+  createdAt  Float
+
+  @@index([employeeId])
 }
