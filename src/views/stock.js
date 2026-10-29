@@ -76,7 +76,7 @@ export function renderStock() {
   return `
     <div class="page-header">
       <h1>Склад</h1>
-      <div style="display:flex; gap:8px;">
+      <div class="page-header__actions">
         <button type="button" class="btn" data-action="stock-reorder"><i class="fa-solid fa-truck-ramp-box"></i> Заявка поставщику${(dashboard?.lowStock?.length || 0) + (dashboard?.outOfStock?.length || 0) ? ` <span class="count-pill">${(dashboard?.lowStock?.length || 0) + (dashboard?.outOfStock?.length || 0)}</span>` : ''}</button>
         ${canCreate ? '<button type="button" class="btn" data-action="stock-manage-refs"><i class="fa-solid fa-tags"></i> Справочники</button>' : ''}
         ${canCreate ? '<button type="button" class="btn btn--primary" data-action="stock-new-item"><i class="fa-solid fa-plus"></i> Новый товар</button>' : ''}
