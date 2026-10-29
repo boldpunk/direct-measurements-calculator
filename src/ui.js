@@ -4,6 +4,7 @@ import { getSettings } from './store.js';
 import { brandLogo } from './brand.js';
 import { getThemePreference, setThemePreference } from './theme.js';
 import { showToast } from './toast.js';
+import { api } from './api.js';
 import { confirmDialog } from './dialog.js';
 
 let defaultFaviconHTML = null;
@@ -139,6 +140,7 @@ export function renderShell(currentRoute) {
               </button>
             `).join('')}
           </div>
+          <button type="button" class="profile-menu__item" id="change-password-btn"><i class="fa-solid fa-key"></i> Сменить пароль</button>
           <div id="profile-currency"></div>
           ${inAndroidApp() ? '<a href="https://mebelflow.uz/app.html?switch=1" class="profile-menu__item"><i class="fa-solid fa-building"></i> Сменить компанию</a>' : ''}
           <button type="button" class="profile-menu__item" id="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Выйти</button>
@@ -346,10 +348,44 @@ function renderCurrencyChoice(rerender) {
   }));
 }
 
+function openChangePasswordModal() {
+  openModal('Сменить пароль', `
+    <form class="form" id="change-password-form" autocomplete="on">
+      <label>Текущий пароль<input type="password" name="current" autocomplete="current-password" required autofocus /></label>
+      <label>Новый пароль<input type="password" name="next" autocomplete="new-password" minlength="8" required /></label>
+      <label>Повторите новый пароль<input type="password" name="repeat" autocomplete="new-password" minlength="8" required /></label>
+      <p class="form-hint" style="margin:0">Минимум 8 символов. После смены на остальных устройствах нужно будет войти заново.</p>
+      <div class="form-error" id="change-password-error" hidden></div>
+      <div class="form-actions">
+        <button type="button" class="btn" data-action="close-modal">Отмена</button>
+        <button type="submit" class="btn btn--primary">Сменить пароль</button>
+      </div>
+    </form>`);
+  const form = document.getElementById('change-password-form');
+  const errorBox = document.getElementById('change-password-error');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const fail = (msg) => { errorBox.textContent = msg; errorBox.hidden = false; };
+    if (fd.get('next') !== fd.get('repeat')) { fail('Новые пароли не совпадают'); return; }
+    const btn = form.querySelector('[type="submit"]');
+    btn.disabled = true;
+    try {
+      await api.changePassword(fd.get('current'), fd.get('next'));
+      closeModal();
+      showToast('Пароль изменён');
+    } catch (err) {
+      fail(err.message || 'Не удалось сменить пароль');
+      btn.disabled = false;
+    }
+  });
+}
+
 export function initProfileMenu(rerender) {
   const toggle = document.getElementById('profile-toggle');
   const menu = document.getElementById('profile-menu');
   if (!toggle || !menu) return;
+  document.getElementById('change-password-btn')?.addEventListener('click', openChangePasswordModal);
 
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();

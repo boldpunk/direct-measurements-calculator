@@ -67,7 +67,11 @@ router.patch('/:id', requirePermission('employees', 'edit'), ah(async (req, res)
   if (body.role !== undefined) data.role = body.role;
   if (body.phone !== undefined) data.phone = body.phone;
   if (body.email !== undefined) data.email = body.email ? String(body.email).toLowerCase() : null;
-  if (body.password) data.passwordHash = await bcrypt.hash(body.password, 10);
+  if (body.password) {
+    data.passwordHash = await bcrypt.hash(body.password, 10);
+    // An admin reset signs the employee out on every device.
+    data.passwordChangedAt = Math.floor(Date.now() / 1000) * 1000;
+  }
   if (body.accessRole !== undefined) data.accessRole = body.accessRole;
   if (body.permissions !== undefined) data.permissions = body.permissions;
   if (body.financialFlags !== undefined) data.financialFlags = body.financialFlags;

@@ -16,6 +16,9 @@ export async function requireAuth(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     const employee = await prisma.employee.findUnique({ where: { id: payload.sub } });
     if (!employee || employee.isBlocked) return res.status(401).json({ error: 'Сессия недействительна' });
+    if (employee.passwordChangedAt && payload.iat * 1000 < employee.passwordChangedAt) {
+      return res.status(401).json({ error: 'Пароль был изменён — войдите заново' });
+    }
     req.employeeId = employee.id;
     req.employee = employee;
     next();

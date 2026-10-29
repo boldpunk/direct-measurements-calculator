@@ -153,3 +153,41 @@ test('morning digest lists overdue orders and debts', { skip }, async () => {
   assert.match(text, /сводка на/);
   assert.match(text, /В работе: \d+/);
 });
+
+test('too many failed logins from one IP are throttled (429), other IPs unaffected', { skip }, async () => {
+  const from = (ip) => ({ 'X-Forwarded-For': ip });
+  const attempt = (ip, email) => fetch(`${BASE}/api/auth/login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...from(ip) },
+    body: JSON.stringify({ email, password: 'wrong-password' }),
+  });
+  for (let i = 0; i < 20; i += 1) await attempt('203.0.113.7', `nobody${i}@example.com`);
+  const blocked = await attempt('203.0.113.7', 'nobody@example.com');
+  assert.equal(blocked.status, 429);
+  assert.ok(blocked.headers.get('retry-after'));
+  assert.equal((await attempt('203.0.113.8', 'nobody@example.com')).status, 401);
+});
+
+test('changing the password signs out other sessions', { skip }, async () => {
+  const login = async (password) => (await call('/api/auth/login', { method: 'POST', body: { email: 'anna@mebelflow.uz', password } })).json?.token;
+  const oldToken = await login(PASSWORD);
+  assert.ok(oldToken);
+  await new Promise((r) => setTimeout(r, 1100)); // tokens carry whole-second timestamps
+  const short = await call('/api/auth/change-password', { token: oldToken, method: 'POST', body: { currentPassword: PASSWORD, newPassword: '123' } });
+  assert.equal(short.status, 400);
+  const wrong = await call('/api/auth/change-password', { token: oldToken, method: 'POST', body: { currentPassword: 'nope', newPassword: 'new-password-1' } });
+  assert.equal(wrong.status, 400);
+  const changed = await call('/api/auth/change-password', { token: oldToken, method: 'POST', body: { currentPassword: PASSWORD, newPassword: 'new-password-1' } });
+  assert.equal(changed.status, 200);
+  try {
+    assert.equal((await call('/api/state', { token: oldToken })).status, 401, 'old session is out');
+    assert.equal((await call('/api/state', { token: changed.json.token })).status, 200, 'this device stays in');
+    assert.ok(await login('new-password-1'));
+  } finally {
+    await new Promise((r) => setTimeout(r, 1100));
+    const token = await login('new-password-1');
+    await call('/api/auth/change-password', { token, method: 'POST', body: { currentPassword: 'new-password-1', newPassword: PASSWORD } });
+  }
+  const log = await call('/api/audit-log?entityType=auth&limit=50', { token: tokens.nasiba });
+  assert.ok(log.json.some((e) => e.action === 'auth.password_change'), 'logged');
+  assert.ok(log.json.some((e) => e.action === 'auth.login_failed'), 'failed logins logged');
+});

@@ -1893,3 +1893,5 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   .app-skeleton__kpis { grid-template-columns: 1fr 1fr; }
   .app-skeleton__cards { grid-template-columns: 1fr; }
 }
+.form-error { background: var(--danger-light); color: var(--danger); border-radius: 9px; padding: 9px 12px; font-size: 13px; }
+.form-error[hidden] { display: none; }

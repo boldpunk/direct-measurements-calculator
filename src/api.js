@@ -95,6 +95,10 @@ export const api = {
   logout() {
     clearSession();
   },
+  async changePassword(currentPassword, newPassword) {
+    const data = await request('/api/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } });
+    setSession(data.token);
+  },
   async refresh() {
     const data = await request('/api/auth/refresh', { method: 'POST' });
     setSession(data.token);

@@ -15,6 +15,7 @@ const ENTITY_LABELS = {
   payments: 'оплату', materials: 'материал', outsourcing: 'аутсорс',
   salaries: 'зарплату', 'other-expenses': 'расход',
   partnerBalanceTransaction: 'операцию взаиморасчёта',
+  auth: 'входы в систему',
 };
 
 function findLabel(entityType, entityId) {
@@ -142,9 +143,31 @@ function describe(entry) {
       return `${who} изменил комментарий операции взаиморасчёта`;
     case 'settings.update':
       return `${who} изменил настройки системы`;
+    case 'auth.login':
+      return `Вход в систему: ${who}${device(entry)}`;
+    case 'auth.login_failed':
+      return entry.employeeName
+        ? `<span class="text-neg">Неверный пароль</span> при входе: ${who}${device(entry)}`
+        : `<span class="text-neg">Попытка входа с неизвестным email</span> «${escapeHtml(entry.newValue?.email || '')}»${device(entry)}`;
+    case 'auth.locked':
+      return `<span class="text-neg">Блокировка на 15 минут</span> после 5 неверных паролей: ${who}${device(entry)}`;
+    case 'auth.password_change':
+      return `Смена пароля: ${who} — остальные устройства вышли из системы`;
     default:
       return `${who}: ${escapeHtml(entry.action)} — ${entityWord} ${label}`;
   }
+}
+
+// "· Android, Chrome" from the user agent — enough to spot an unfamiliar device.
+function device(entry) {
+  const ua = entry.userAgent || '';
+  if (!ua) return '';
+  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iPhone' : /Windows/.test(ua) ? 'Windows'
+    : /Mac OS/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : '';
+  const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /YaBrowser/.test(ua) ? 'Яндекс' : /Chrome\//.test(ua) ? 'Chrome'
+    : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
+  const label = [os, browser].filter(Boolean).join(', ');
+  return label ? ` <span class="row-item__sub">· ${escapeHtml(label)}</span>` : '';
 }
 
 function fmtDateTime(ts) {

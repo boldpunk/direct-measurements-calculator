@@ -69,6 +69,9 @@ model Employee {
   isBlocked         Boolean @default(false)
   failedLoginCount  Int     @default(0)
   lockedUntil       Float?
+  // Set when the password changes; tokens issued before it stop working, so
+  // a changed (or admin-reset) password signs the account out everywhere.
+  passwordChangedAt Float?
   lastActivityAt    Float?
 
   managedOrders   Order[]  @relation("OrderManager")
