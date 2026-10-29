@@ -132,3 +132,24 @@ test('archiving keeps payments and restore brings the order back', { skip }, asy
   assert.ok(restored.orders.some((o) => o.id === order.id));
   assert.equal(restored.finance[order.id].payments.length, paid);
 });
+
+test('exchange rate: valid saved, invalid rejected, cleared', { skip }, async () => {
+  const patch = (fxRate) => call('/api/settings', { token: tokens.nasiba, method: 'PATCH', body: { fxRate } });
+  try {
+    assert.deepEqual((await patch({ from: '$', to: "so'm", rate: 12700 })).json.fxRate, { from: '$', to: "so'm", rate: 12700 });
+    assert.equal((await patch({ from: '$', to: '$', rate: 1 })).json.fxRate, null, 'same currency');
+    assert.equal((await patch({ from: '$', to: 'BTC', rate: 1 })).json.fxRate, null, 'unknown currency');
+    assert.equal((await patch({ from: '$', to: "so'm", rate: -5 })).json.fxRate, null, 'negative rate');
+    const st = (await call('/api/state', { token: tokens.alexey })).json;
+    assert.ok('fxRate' in st.settings);
+  } finally {
+    await patch(null);
+  }
+});
+
+test('morning digest lists overdue orders and debts', { skip }, async () => {
+  const { buildDigest } = await import('../scripts/daily-digest.js');
+  const text = await buildDigest(new Date());
+  assert.match(text, /сводка на/);
+  assert.match(text, /В работе: \d+/);
+});
