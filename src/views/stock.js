@@ -1,6 +1,7 @@
+import { getSettings } from '../store.js';
 import { api } from '../api.js';
 import { money, escapeHtml, brandLogoSrc } from '../format.js';
-import { openModal, closeModal, selectOptions, skeletonRows } from '../ui.js';
+import { openModal, closeModal, selectOptions, skeletonRows, emptyState } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
 import { openSupplierPaymentModal } from './fittings.js';
 import { renderImagePicker, attachImagePicker } from '../image-picker.js';
@@ -76,6 +77,7 @@ export function renderStock() {
     <div class="page-header">
       <h1>Склад</h1>
       <div style="display:flex; gap:8px;">
+        <button type="button" class="btn" data-action="stock-reorder"><i class="fa-solid fa-truck-ramp-box"></i> Заявка поставщику${(dashboard?.lowStock?.length || 0) + (dashboard?.outOfStock?.length || 0) ? ` <span class="count-pill">${(dashboard?.lowStock?.length || 0) + (dashboard?.outOfStock?.length || 0)}</span>` : ''}</button>
         ${canCreate ? '<button type="button" class="btn" data-action="stock-manage-refs"><i class="fa-solid fa-tags"></i> Справочники</button>' : ''}
         ${canCreate ? '<button type="button" class="btn btn--primary" data-action="stock-new-item"><i class="fa-solid fa-plus"></i> Новый товар</button>' : ''}
       </div>
@@ -264,6 +266,7 @@ export function attachStockHandlers(root, rerender) {
   const newBtn = root.querySelector('[data-action="stock-new-item"]');
   if (newBtn) newBtn.addEventListener('click', () => openItemModal(null, rerender));
 
+  root.querySelector('[data-action="stock-reorder"]')?.addEventListener('click', openReorderModal);
   const refsBtn = root.querySelector('[data-action="stock-manage-refs"]');
   if (refsBtn) refsBtn.addEventListener('click', () => openRefsModal(rerender));
 
@@ -706,4 +709,78 @@ function openEditSupplierModal(supplier, rerender) {
       submitBtn.disabled = false;
     }
   });
+}
+
+// ---- «Заявка поставщику»: what's at/below its minimum, grouped by supplier,
+// with a suggested quantity (refill to 2× the minimum) you can change, then
+// copy as a message, send via Telegram or download as PDF.
+async function openReorderModal() {
+  openModal('Заявка поставщику', skeletonRows(4), { wide: true });
+  let groups;
+  try {
+    groups = await api.getReorder();
+  } catch (e) {
+    closeModal();
+    showToast(e.message || 'Не удалось собрать заявку', { tone: 'error' });
+    return;
+  }
+  if (!groups.length) {
+    openModal('Заявка поставщику', emptyState({ icon: 'fa-boxes-stacked', title: 'Всего хватает', text: 'Нет позиций на минимуме или закончившихся. Минимальный остаток задаётся в карточке товара.' }));
+    return;
+  }
+  const company = getSettings()?.companyName || '';
+  openModal('Заявка поставщику', `
+    <p class="form-hint" style="margin:0 0 12px">Позиции на минимальном остатке или закончившиеся. Количество подставлено до двойного минимума — поправьте при необходимости.</p>
+    ${groups.map((g, gi) => `
+      <div class="reorder-group" data-group="${gi}">
+        <div class="reorder-group__head">
+          <div><b>${escapeHtml(g.supplier)}</b>${g.phone ? ` <span class="row-item__sub">${escapeHtml(g.contact ? `${g.contact}, ` : '')}${escapeHtml(g.phone)}</span>` : ''}</div>
+          <div class="reorder-group__actions">
+            <button type="button" class="btn btn--sm" data-reorder-copy="${gi}"><i class="fa-solid fa-copy"></i> Текст</button>
+            <a class="btn btn--sm" data-reorder-tg="${gi}" target="_blank" rel="noopener"><i class="fa-solid fa-paper-plane"></i> Telegram</a>
+            <button type="button" class="btn btn--sm" data-reorder-pdf="${gi}"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+          </div>
+        </div>
+        ${g.items.map((it, ii) => `
+          <div class="reorder-row">
+            <div class="reorder-row__name">${escapeHtml(it.name)}${it.sku ? ` <span class="row-item__sub">${escapeHtml(it.sku)}</span>` : ''}
+              <div class="row-item__sub">${it.qty <= 0 ? '<span class="text-neg">нет в наличии</span>' : `осталось ${it.qty} ${escapeHtml(it.unit)}`}${it.minStock != null ? ` · минимум ${it.minStock}` : ''}</div>
+            </div>
+            <input type="number" min="0" step="any" class="reorder-row__qty" value="${it.suggested}" data-qty="${gi}:${ii}" aria-label="Количество" />
+            <span class="reorder-row__unit">${escapeHtml(it.unit)}</span>
+          </div>`).join('')}
+      </div>`).join('')}
+  `, { wide: true });
+
+  const body = document.getElementById('modal-body');
+  const rowsOf = (gi) => groups[gi].items
+    .map((it, ii) => ({ ...it, order: Number(body.querySelector(`[data-qty="${gi}:${ii}"]`).value) || 0 }))
+    .filter((it) => it.order > 0);
+  const textOf = (gi) => {
+    const g = groups[gi];
+    return [`Здравствуйте${g.contact ? `, ${g.contact}` : ''}! Заявка${company ? ` от ${company}` : ''}:`,
+      ...rowsOf(gi).map((it, i) => `${i + 1}. ${it.name}${it.sku ? ` (${it.sku})` : ''} — ${it.order} ${it.unit}`),
+      'Спасибо!'].join('\n');
+  };
+  const refreshTg = (gi) => {
+    const a = body.querySelector(`[data-reorder-tg="${gi}"]`);
+    a.href = `https://t.me/share/url?url=${encodeURIComponent(' ')}&text=${encodeURIComponent(textOf(gi))}`;
+  };
+  groups.forEach((_, gi) => refreshTg(gi));
+  body.querySelectorAll('[data-qty]').forEach((input) => input.addEventListener('input', () => refreshTg(Number(input.dataset.qty.split(':')[0]))));
+  body.querySelectorAll('[data-reorder-copy]').forEach((b) => b.addEventListener('click', async () => {
+    const text = textOf(Number(b.dataset.reorderCopy));
+    try { await navigator.clipboard.writeText(text); showToast('Текст заявки скопирован'); } catch { showToast('Не удалось скопировать', { tone: 'error' }); }
+  }));
+  body.querySelectorAll('[data-reorder-pdf]').forEach((b) => b.addEventListener('click', async () => {
+    const gi = Number(b.dataset.reorderPdf);
+    try {
+      const blob = await api.getReorderPdfBlob(rowsOf(gi).map((it) => ({ supplier: groups[gi].supplier, name: it.name, qty: it.order, unit: it.unit })));
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      showToast(e.message || 'Не удалось сформировать PDF', { tone: 'error' });
+    }
+  }));
 }

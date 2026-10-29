@@ -1943,3 +1943,13 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .report-funnel div { background: var(--bg); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; }
 .report-funnel span { font-size: 12px; color: var(--text-muted); }
 .report-funnel b { font-size: 18px; }
+
+/* Склад → «Заявка поставщику» */
+.count-pill { display: inline-flex; min-width: 18px; height: 18px; padding: 0 5px; align-items: center; justify-content: center; border-radius: 999px; background: var(--warning); color: #fff; font-size: 11px; font-weight: 700; }
+.reorder-group { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+.reorder-group__head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; background: var(--bg); }
+.reorder-group__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.reorder-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--border); }
+.reorder-row__name { flex: 1; min-width: 0; font-size: 13.5px; }
+.reorder-row__qty { width: 90px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; text-align: right; background: var(--panel); color: var(--text); font-variant-numeric: tabular-nums; }
+.reorder-row__unit { width: 46px; color: var(--text-muted); font-size: 12.5px; }

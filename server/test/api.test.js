@@ -295,3 +295,20 @@ test('reports summary: groups, funnel, lead time; finance permission', { skip },
   const empty = await call(`/api/reports/summary?from=${Date.now() + 864e5}`, { token: tokens.nasiba });
   assert.equal(empty.json.totals.orders, 0, 'period filter applies');
 });
+
+test('stock reorder: low items grouped by supplier with a suggested quantity', { skip }, async () => {
+  const r = await call('/api/stock/reorder', { token: tokens.nasiba });
+  assert.equal(r.status, 200);
+  for (const g of r.json) {
+    assert.ok(g.supplier && Array.isArray(g.items));
+    for (const it of g.items) {
+      assert.ok(it.qty <= 0 || (it.minStock != null && it.qty <= it.minStock), `${it.name} is low`);
+      assert.ok(it.suggested >= 1);
+    }
+  }
+  const pdf = await fetch(`${BASE}/api/stock/reorder/pdf`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokens.nasiba}` },
+    body: JSON.stringify({ rows: [{ supplier: 'S', name: 'Item', qty: 3, unit: 'шт.' }] }),
+  });
+  assert.equal(pdf.headers.get('content-type'), 'application/pdf');
+});

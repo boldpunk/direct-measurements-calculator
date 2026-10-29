@@ -3,6 +3,8 @@ import { prisma } from '../prisma.js';
 import { ah, uid, todayISO } from '../util.js';
 import { requirePermission } from '../middleware/auth.js';
 import { logAudit } from '../audit.js';
+import { reorderList, checkLowStock } from '../low-stock.js';
+import { renderPurchaseListPdf } from '../pdf.js';
 
 const router = Router();
 
@@ -334,6 +336,7 @@ router.post('/items/:id/expense', requirePermission('stock', 'expense'), ah(asyn
   });
 
   await logAudit(req, { action: 'stock.expense', entityType: 'stock_item', entityId: spec.id, newValue: { qty, reason: body.reason } });
+  checkLowStock(before, spec, req.employee.id).catch(() => {});
   res.status(201).json({ qty: spec.qty, reserved: spec.reserved, available: spec.qty - spec.reserved });
 }));
 
@@ -358,7 +361,25 @@ router.post('/items/:id/adjustment', requirePermission('stock', 'adjustment'), a
   });
 
   await logAudit(req, { action: 'stock.adjustment', entityType: 'stock_item', entityId: spec.id, oldValue: { qty: before.qty }, newValue: { qty: spec.qty } });
+  checkLowStock(before, spec, req.employee.id).catch(() => {});
   res.status(201).json({ qty: spec.qty, reserved: spec.reserved, available: spec.qty - spec.reserved });
+}));
+
+// ---- Reorder («Заявка поставщику») ----
+
+router.get('/reorder', requirePermission('stock', 'view'), ah(async (req, res) => {
+  res.json(await reorderList());
+}));
+
+// PDF of the (possibly edited) request: rows = [{ supplier, name, qty, unit }].
+router.post('/reorder/pdf', requirePermission('stock', 'view'), ah(async (req, res) => {
+  const rows = (Array.isArray(req.body?.rows) ? req.body.rows : [])
+    .filter((r) => r && r.name && Number(r.qty) > 0)
+    .map((r) => ({ supplier: String(r.supplier || 'Без поставщика'), name: String(r.name), qty: Number(r.qty), unit: String(r.unit || 'шт.') }));
+  const settings = await prisma.settings.findUnique({ where: { id: 'default' } });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline; filename="zayavka-postavshiku.pdf"');
+  await renderPurchaseListPdf(res, { rows, settings });
 }));
 
 // ---- Dashboard ----

@@ -8,6 +8,7 @@ import { logAudit } from '../audit.js';
 import { renderOrderPdf } from '../pdf.js';
 import { accessFor, orderVisibleTo } from '../visibility.js';
 import { notifyEmployees } from '../push.js';
+import { checkLowStock } from '../low-stock.js';
 
 const router = Router();
 
@@ -191,6 +192,7 @@ router.patch('/:id/status', ah(async (req, res) => {
   const action = status === 'Завершён' ? 'close' : status === 'Отменён' ? 'cancel' : 'edit';
   if (!req.employee?.permissions?.orders?.[action]) return res.status(403).json({ error: 'Недостаточно прав' });
 
+  const lowStockChecks = [];
   const order = await prisma.$transaction(async (tx) => {
     const existing = await tx.order.findUnique({ where: { id: req.params.id } });
     if (!existing) return null;
@@ -205,7 +207,9 @@ router.patch('/:id/status', ah(async (req, res) => {
       const reservations = await tx.stockReservation.findMany({ where: { orderId: existing.id } });
       for (const r of reservations) {
         if (status === 'Завершён') {
-          await tx.productSpec.update({ where: { id: r.specId }, data: { qty: { decrement: r.qty }, reserved: { decrement: r.qty } } });
+          const specBefore = await tx.productSpec.findUnique({ where: { id: r.specId } });
+          const specAfter = await tx.productSpec.update({ where: { id: r.specId }, data: { qty: { decrement: r.qty }, reserved: { decrement: r.qty } } });
+          lowStockChecks.push([specBefore, specAfter]);
           await tx.stockMovement.create({
             data: { id: uid('mov'), specId: r.specId, type: 'expense', qty: r.qty, orderId: existing.id, reason: 'заказ', comment: `Списание при завершении заказа №${existing.number}`, createdAt: Date.now() },
           });
@@ -226,6 +230,8 @@ router.patch('/:id/status', ah(async (req, res) => {
     action: `order.status_change`, entityType: 'order', entityId: order.id,
     newValue: { status: order.status },
   });
+  // Closing writes reserved stock off — tell the warehouse if that empties something.
+  lowStockChecks.forEach(([before, after]) => checkLowStock(before, after, req.employee.id).catch(() => {}));
   res.json(order);
 }));
 

@@ -13,6 +13,7 @@
 //   node scripts/daily-digest.js --print       # just print the text
 import 'dotenv/config';
 import { prisma } from '../src/prisma.js';
+import { reorderList } from '../src/low-stock.js';
 
 const CLOSED = new Set(['Завершён', 'Отменён', 'Готово']);
 const fmt = (n, cur) => `${Math.round(Number(n) || 0).toLocaleString('ru-RU')} ${cur}`;
@@ -53,6 +54,11 @@ export async function buildDigest(now = new Date()) {
   if (debts.length) {
     lines.push('', `💰 Не оплачено: ${fmt(debtTotal, cur)}`);
     debts.slice(0, 5).forEach(({ o, left }) => lines.push(`• ${label(o)} · ${fmt(left, cur)}`));
+  }
+  const reorder = (await reorderList()).flatMap((g) => g.items);
+  if (reorder.length) {
+    lines.push('', `📦 Склад: заказать ${reorder.length} поз.`);
+    reorder.slice(0, 5).forEach((r) => lines.push(`• ${r.name} — осталось ${r.qty} ${r.unit}`));
   }
   if (!overdue.length && !dueSoon.length && !debts.length) lines.push('', 'Просрочек и долгов нет 👍');
   return lines.join('\n');

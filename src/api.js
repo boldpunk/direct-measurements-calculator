@@ -147,6 +147,16 @@ export const api = {
     return res.blob();
   },
 
+  getReorder: () => request('/api/stock/reorder'),
+  async getReorderPdfBlob(rows) {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/api/stock/reorder/pdf`, { method: 'POST', headers, body: JSON.stringify({ rows }) });
+    if (!res.ok) throw new ApiError(`Ошибка сервера (${res.status})`, res.status);
+    return res.blob();
+  },
+
   async getPurchaseListPdfBlob() {
     const headers = {};
     const token = getToken();
