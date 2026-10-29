@@ -112,6 +112,7 @@ export const api = {
     clearSession();
   },
   uploadImage: (dataUri, thumbDataUri) => request('/api/files', { method: 'POST', body: { dataUri, thumbDataUri } }).then((r) => r.url),
+  getReportSummary: ({ from = '', to = '' } = {}) => request(`/api/reports/summary?from=${from}&to=${to}`),
   shareOrder: (id, renew = false) => request(`/api/orders/${id}/share${renew ? '?renew=1' : ''}`, { method: 'POST' }),
   unshareOrder: (id) => request(`/api/orders/${id}/share`, { method: 'DELETE' }),
   getPushKey: () => request('/api/push/key'),

@@ -282,3 +282,16 @@ test('client link: safe public view, renew revokes, workshop never gets the toke
   await call(`/api/orders/${order.id}/share`, { token: tokens.nasiba, method: 'DELETE' });
   assert.equal((await call(`/api/public/orders/${renewed}`)).status, 404, 'switched off');
 });
+
+test('reports summary: groups, funnel, lead time; finance permission', { skip }, async () => {
+  const r = await call('/api/reports/summary', { token: tokens.nasiba });
+  assert.equal(r.status, 200);
+  assert.ok(r.json.totals.orders > 0);
+  const sum = (rows) => rows.reduce((s, x) => s + x.orders, 0);
+  assert.equal(sum(r.json.byManager), r.json.totals.orders);
+  assert.equal(sum(r.json.byType), r.json.totals.orders);
+  assert.ok('acceptedRate' in r.json.proposals && 'avgDays' in r.json.leadTime);
+  assert.equal((await call('/api/reports/summary', { token: tokens.alexey })).status, 403);
+  const empty = await call(`/api/reports/summary?from=${Date.now() + 864e5}`, { token: tokens.nasiba });
+  assert.equal(empty.json.totals.orders, 0, 'period filter applies');
+});
