@@ -15,6 +15,8 @@ import { getSettings, todayISO } from '../store.js';
 import { money, escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { can, maskUnless } from '../permissions.js';
+import { showToast } from '../toast.js';
+import { confirmDialog } from '../dialog.js';
 
 const STATUSES = ['Нам должны', 'Мы должны', 'Закрыт'];
 
@@ -214,7 +216,7 @@ export function attachPartnerBalanceHandlers(root, rerender, range) {
         window.open(url, '_blank');
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       } catch (e) {
-        window.alert(e.message || 'Не удалось сформировать отчёт');
+        showToast(e.message || 'Не удалось сформировать отчёт', { tone: 'error' });
       } finally {
         reportBtn.disabled = false;
         reportBtn.innerHTML = original;
@@ -403,14 +405,14 @@ export async function openPartnerBalanceModal(partnerId, onChanged) {
 
     body.querySelectorAll('[data-action="pb-reverse"]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!window.confirm('Сторнировать операцию? Будет создана обратная операция, исходная останется в истории.')) return;
+        if (!(await confirmDialog({ title: 'Сторнировать операцию?', message: 'Будет создана обратная операция, исходная останется в истории.', confirmLabel: 'Сторнировать' }))) return;
         btn.disabled = true;
         try {
           await api.reversePartnerBalanceTransaction(btn.getAttribute('data-id'));
           if (onChanged) onChanged();
           paint(await api.getPartnerBalance(partnerId));
         } catch (e) {
-          window.alert(e.message || 'Не удалось сторнировать операцию');
+          showToast(e.message || 'Не удалось сторнировать операцию', { tone: 'error' });
           btn.disabled = false;
         }
       });
@@ -490,7 +492,7 @@ export async function openTransactionModal(partnerId, type, onSuccess, currencyH
       closeModal();
       if (onSuccess) await onSuccess();
     } catch (err) {
-      window.alert(err.message || 'Не удалось добавить операцию');
+      showToast(err.message || 'Не удалось добавить операцию', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });

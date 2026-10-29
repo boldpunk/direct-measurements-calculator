@@ -3,6 +3,8 @@ import { money, escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { can } from '../permissions.js';
 import { UNITS } from '../store.js';
+import { showToast } from '../toast.js';
+import { confirmDialog } from '../dialog.js';
 
 let services = [];
 let loading = true;
@@ -83,7 +85,7 @@ async function loadServices(rerender) {
   try {
     services = await api.getServices({ status: '' });
   } catch (e) {
-    window.alert(e.message || 'Не удалось загрузить услуги');
+    showToast(e.message || 'Не удалось загрузить услуги', { tone: 'error' });
   }
   loading = false;
   rerender();
@@ -126,7 +128,7 @@ function openServiceModal(service, rerender) {
       closeModal();
       loadServices(rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось сохранить услугу');
+      showToast(err.message || 'Не удалось сохранить услугу', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
@@ -155,13 +157,15 @@ export function attachServicesHandlers(root, rerender) {
       const service = services.find((s) => s.id === btn.getAttribute('data-id'));
       if (!service) return;
       const isArchived = service.status === 'archived';
-      if (!window.confirm(isArchived ? 'Вернуть услугу в активные?' : 'Удалить услугу? Если она уже использована в заказах, она будет перемещена в архив.')) return;
+      if (!(await confirmDialog(isArchived
+        ? { title: 'Вернуть услугу в активные?', confirmLabel: 'Вернуть' }
+        : { title: 'Удалить услугу?', message: 'Если она уже использована в заказах, она будет перемещена в архив.', confirmLabel: 'Удалить', danger: true }))) return;
       try {
         if (isArchived) await api.updateService(service.id, { status: 'active' });
         else await api.deleteService(service.id);
         loadServices(rerender);
       } catch (e) {
-        window.alert(e.message || 'Не удалось изменить услугу');
+        showToast(e.message || 'Не удалось изменить услугу', { tone: 'error' });
       }
     });
   });

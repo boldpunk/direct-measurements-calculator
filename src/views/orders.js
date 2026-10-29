@@ -18,6 +18,7 @@ import { api } from '../api.js';
 import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
 import { openProposal } from './proposals.js';
 import { showToast } from '../toast.js';
+import { promptDialog } from '../dialog.js';
 
 let selectedOrderId = null;
 let currentQuery = '';
@@ -990,7 +991,7 @@ export function attachOrderHandlers(root, rerender) {
         openProposal(proposal.id);
         window.location.hash = '#/proposals';
       } catch (e) {
-        window.alert(e.message || 'Не удалось создать КП');
+        showToast(e.message || 'Не удалось создать КП', { tone: 'error' });
         toProposalBtn.disabled = false;
         toProposalBtn.innerHTML = original;
       }
@@ -1010,7 +1011,7 @@ export function attachOrderHandlers(root, rerender) {
         window.open(url, '_blank');
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       } catch (e) {
-        window.alert(e.message || 'Не удалось сформировать PDF');
+        showToast(e.message || 'Не удалось сформировать PDF', { tone: 'error' });
       } finally {
         pdfBtn.disabled = false;
         pdfBtn.innerHTML = original;
@@ -1039,15 +1040,15 @@ function attachStockPickerHandlers(root, rerender) {
       const finance = getFinance(orderId);
       const material = finance.materials.find((m) => m.id === materialId);
       if (!material) return;
-      const input = window.prompt(`Новое количество (${material.unit}):`, material.qty);
+      const input = await promptDialog({ title: `Количество, ${material.unit}`, message: material.name, value: material.qty, type: 'number' });
       if (input === null) return;
       const qty = Number(input);
-      if (!qty || qty <= 0) { window.alert('Введите количество больше 0'); return; }
+      if (!qty || qty <= 0) { showToast('Введите количество больше 0', { tone: 'error' }); return; }
       try {
         await updateStockMaterialQty(orderId, materialId, qty);
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось изменить количество');
+        showToast(e.message || 'Не удалось изменить количество', { tone: 'error' });
       }
     });
   });
@@ -1058,7 +1059,7 @@ async function openStockPickerModal(orderId, rerender) {
   try {
     stockItems = await api.getStockItems({ status: 'active' });
   } catch (e) {
-    window.alert(e.message || 'Не удалось загрузить склад');
+    showToast(e.message || 'Не удалось загрузить склад', { tone: 'error' });
     return;
   }
   openModal('Добавить материал со склада', `
@@ -1101,7 +1102,7 @@ async function openStockPickerModal(orderId, rerender) {
     const qty = Number(qtyInput.value) || 0;
     const weightEl = document.getElementById('stock-pick-weight');
     const weight = weightEl ? Number(weightEl.value) || 0 : 0;
-    if (!specId) { window.alert('Выберите товар'); return; }
+    if (!specId) { showToast('Выберите товар', { tone: 'error' }); return; }
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     try {
@@ -1109,7 +1110,7 @@ async function openStockPickerModal(orderId, rerender) {
       closeModal();
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось добавить материал');
+      showToast(err.message || 'Не удалось добавить материал', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
@@ -1128,15 +1129,15 @@ function attachServicePickerHandlers(root, rerender) {
       const finance = getFinance(orderId);
       const line = finance.services.find((s) => s.id === serviceLineId);
       if (!line) return;
-      const input = window.prompt(`Новое количество (${line.unit}):`, line.qty);
+      const input = await promptDialog({ title: `Количество, ${line.unit}`, message: line.name, value: line.qty, type: 'number' });
       if (input === null) return;
       const qty = Number(input);
-      if (!qty || qty <= 0) { window.alert('Введите количество больше 0'); return; }
+      if (!qty || qty <= 0) { showToast('Введите количество больше 0', { tone: 'error' }); return; }
       try {
         await updateOrderServiceQty(orderId, serviceLineId, qty);
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось изменить количество');
+        showToast(e.message || 'Не удалось изменить количество', { tone: 'error' });
       }
     });
   });
@@ -1147,7 +1148,7 @@ async function openServicePickerModal(orderId, rerender) {
   try {
     services = await api.getServices({ status: 'active' });
   } catch (e) {
-    window.alert(e.message || 'Не удалось загрузить услуги');
+    showToast(e.message || 'Не удалось загрузить услуги', { tone: 'error' });
     return;
   }
   openModal('Добавить услугу', `
@@ -1190,7 +1191,7 @@ async function openServicePickerModal(orderId, rerender) {
     const qty = Number(qtyInput.value) || 0;
     const weightEl = document.getElementById('service-pick-weight');
     const weight = weightEl ? Number(weightEl.value) || 0 : 0;
-    if (!serviceId) { window.alert('Выберите услугу'); return; }
+    if (!serviceId) { showToast('Выберите услугу', { tone: 'error' }); return; }
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     try {
@@ -1198,7 +1199,7 @@ async function openServicePickerModal(orderId, rerender) {
       closeModal();
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось добавить услугу');
+      showToast(err.message || 'Не удалось добавить услугу', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });

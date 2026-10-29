@@ -18,6 +18,8 @@ import { selectOrder } from './orders.js';
 import { renderPeriodFilter, attachPeriodFilter, getPeriodRange, inPeriodRange } from '../period-filter.js';
 import { exportSalaryWorkbook } from '../export.js';
 import { api } from '../api.js';
+import { showToast } from '../toast.js';
+import { confirmDialog } from '../dialog.js';
 
 let currentPeriod = '';
 let currentPeriodFrom = '';
@@ -156,7 +158,7 @@ function openAccrualModal(rerender) {
       closeModal();
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось начислить зарплату');
+      showToast(err.message || 'Не удалось начислить зарплату', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
@@ -200,7 +202,7 @@ function openEditAccrualModal(accrualId, rerender) {
       closeModal();
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось изменить начисление');
+      showToast(err.message || 'Не удалось изменить начисление', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
@@ -233,7 +235,7 @@ function openPayoutModal(accrualId, rerender) {
       closeModal();
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось провести выплату');
+      showToast(err.message || 'Не удалось провести выплату', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
@@ -358,24 +360,24 @@ export function attachSalaryHandlers(root, rerender) {
 
   root.querySelectorAll('[data-action="delete-accrual"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!window.confirm('Удалить начисление?')) return;
+      if (!(await confirmDialog({ title: 'Удалить начисление?', confirmLabel: 'Удалить', danger: true }))) return;
       try {
         await deleteSalaryAccrual(btn.getAttribute('data-id'));
         rerender();
       } catch (err) {
-        window.alert(err.message || 'Не удалось удалить начисление');
+        showToast(err.message || 'Не удалось удалить начисление', { tone: 'error' });
       }
     });
   });
 
   root.querySelectorAll('[data-remove-payout]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!window.confirm('Удалить выплату?')) return;
+      if (!(await confirmDialog({ title: 'Удалить выплату?', message: 'Сумма снова станет долгом по начислению.', confirmLabel: 'Удалить', danger: true }))) return;
       try {
         await deleteSalaryPayout(btn.getAttribute('data-remove-payout'));
         rerender();
       } catch (err) {
-        window.alert(err.message || 'Не удалось удалить выплату');
+        showToast(err.message || 'Не удалось удалить выплату', { tone: 'error' });
       }
     });
   });
@@ -391,7 +393,7 @@ export function attachSalaryHandlers(root, rerender) {
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
-      window.alert(e.message || 'Не удалось сформировать PDF');
+      showToast(e.message || 'Не удалось сформировать PDF', { tone: 'error' });
     } finally {
       pdfBtn.disabled = false;
       pdfBtn.innerHTML = original;
@@ -408,7 +410,7 @@ export function attachSalaryHandlers(root, rerender) {
       await exportSalaryWorkbook(collectOrderEntries(state));
     } catch (e) {
       console.error('Salary export failed', e);
-      window.alert('Не удалось создать файл экспорта.');
+      showToast('Не удалось создать файл экспорта.', { tone: 'error' });
     } finally {
       exportBtn.disabled = false;
       exportBtn.innerHTML = original;

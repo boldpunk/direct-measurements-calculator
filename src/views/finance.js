@@ -12,6 +12,7 @@ import { renderPartnerBalanceSection, attachPartnerBalanceHandlers } from './par
 import { exportFinanceWorkbook } from '../export.js';
 import { renderTrendsSection, attachTrendsHandlers } from './finance-trends.js';
 import { api } from '../api.js';
+import { showToast } from '../toast.js';
 
 let currentPeriod = '';
 let currentPeriodFrom = '';
@@ -163,7 +164,7 @@ export function attachFinanceHandlers(root, rerender) {
         window.open(url, '_blank');
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       } catch (e) {
-        window.alert(e.message || 'Не удалось сформировать PDF');
+        showToast(e.message || 'Не удалось сформировать PDF', { tone: 'error' });
       } finally {
         purchaseListBtn.disabled = false;
         purchaseListBtn.innerHTML = original;

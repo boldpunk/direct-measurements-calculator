@@ -15,6 +15,8 @@ import { can } from '../permissions.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 import { api } from '../api.js';
 import { renderImagePicker, attachImagePicker } from '../image-picker.js';
+import { showToast } from '../toast.js';
+import { confirmDialog } from '../dialog.js';
 
 const STATUSES = ['Черновик', 'Готово', 'Отправлено', 'Принято', 'Отклонено', 'Архив'];
 const STATUS_TONE = {
@@ -348,7 +350,7 @@ function attachListHandlers(root, rerender) {
       try {
         await openPdf(btn.getAttribute('data-pdf'));
       } catch (e) {
-        window.alert(e.message || 'Не удалось сформировать PDF');
+        showToast(e.message || 'Не удалось сформировать PDF', { tone: 'error' });
       }
     });
   });
@@ -361,19 +363,19 @@ function attachListHandlers(root, rerender) {
         openProposal(copy.id);
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось дублировать КП');
+        showToast(e.message || 'Не удалось дублировать КП', { tone: 'error' });
       }
     });
   });
 
   root.querySelectorAll('[data-delete]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!window.confirm('Удалить коммерческое предложение?')) return;
+      if (!(await confirmDialog({ title: 'Удалить коммерческое предложение?', confirmLabel: 'Удалить', danger: true }))) return;
       try {
         await api.deleteProposal(btn.getAttribute('data-delete'));
         refreshAfterChange(rerender);
       } catch (e) {
-        window.alert(e.message || 'Не удалось удалить КП');
+        showToast(e.message || 'Не удалось удалить КП', { tone: 'error' });
       }
     });
   });
@@ -388,7 +390,7 @@ function attachEditorHandlers(root, rerender) {
       listCache = null;
       rerender();
     } catch (e) {
-      window.alert(e.message || 'Не удалось сохранить');
+      showToast(e.message || 'Не удалось сохранить', { tone: 'error' });
     }
   };
 
@@ -399,13 +401,13 @@ function attachEditorHandlers(root, rerender) {
   });
 
   root.querySelector('#preview-pdf')?.addEventListener('click', async () => {
-    try { await openPdf(id, { preview: true }); } catch (e) { window.alert(e.message); }
+    try { await openPdf(id, { preview: true }); } catch (e) { showToast(e.message, { tone: 'error' }); }
   });
   root.querySelector('#download-pdf')?.addEventListener('click', async () => {
-    try { await openPdf(id); } catch (e) { window.alert(e.message); }
+    try { await openPdf(id); } catch (e) { showToast(e.message, { tone: 'error' }); }
   });
   root.querySelector('#print-pdf')?.addEventListener('click', async () => {
-    try { await openPdf(id, { print: true }); } catch (e) { window.alert(e.message); }
+    try { await openPdf(id, { print: true }); } catch (e) { showToast(e.message, { tone: 'error' }); }
   });
 
   // Header fields save on change (i.e. on blur / commit), not per keystroke.
@@ -441,7 +443,7 @@ function attachEditorHandlers(root, rerender) {
       listCache = null;
       rerender();
     } catch (e) {
-      window.alert(e.message || 'Не удалось добавить изделие');
+      showToast(e.message || 'Не удалось добавить изделие', { tone: 'error' });
     }
   });
 
@@ -455,7 +457,7 @@ function attachEditorHandlers(root, rerender) {
         listCache = null;
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось сохранить изделие');
+        showToast(e.message || 'Не удалось сохранить изделие', { tone: 'error' });
       }
     };
 
@@ -466,14 +468,14 @@ function attachEditorHandlers(root, rerender) {
     attachImagePicker(card, `img-${itemId}`, (imageUrl) => patchItem({ imageUrl }));
 
     card.querySelector('[data-remove-item]')?.addEventListener('click', async () => {
-      if (!window.confirm('Удалить изделие?')) return;
+      if (!(await confirmDialog({ title: 'Удалить изделие из КП?', confirmLabel: 'Удалить', danger: true }))) return;
       try {
         await api.deleteProposalItem(id, itemId);
         detail = await api.getProposal(id);
         listCache = null;
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось удалить изделие');
+        showToast(e.message || 'Не удалось удалить изделие', { tone: 'error' });
       }
     });
 
@@ -489,7 +491,7 @@ function attachEditorHandlers(root, rerender) {
           detail = await api.getProposal(id);
           rerender();
         } catch (e) {
-          window.alert(e.message || 'Не удалось изменить порядок');
+          showToast(e.message || 'Не удалось изменить порядок', { tone: 'error' });
         }
       });
     });
@@ -541,7 +543,7 @@ function openCreateModal(rerender) {
       openProposal(created.id);
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось создать КП');
+      showToast(err.message || 'Не удалось создать КП', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
@@ -572,7 +574,7 @@ function openSaveTemplateModal(proposal, rerender) {
       closeModal();
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось сохранить шаблон');
+      showToast(err.message || 'Не удалось сохранить шаблон', { tone: 'error' });
     }
   });
 }
@@ -597,7 +599,7 @@ function openTemplatesModal(rerender) {
         closeModal();
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось удалить шаблон');
+        showToast(e.message || 'Не удалось удалить шаблон', { tone: 'error' });
       }
     });
   });

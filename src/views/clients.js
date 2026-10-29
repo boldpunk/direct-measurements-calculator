@@ -7,6 +7,8 @@ import { openModal, closeModal } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { can, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
 import { selectOrder } from './orders.js';
+import { showToast } from '../toast.js';
+import { confirmDialog } from '../dialog.js';
 
 let selectedClientId = null;
 
@@ -137,13 +139,13 @@ export function attachClientsHandlers(root, rerender) {
 
   const deleteBtn = root.querySelector('[data-action="delete-client"]');
   if (deleteBtn) {
-    deleteBtn.addEventListener('click', () => {
+    deleteBtn.addEventListener('click', async () => {
       const id = deleteBtn.getAttribute('data-id');
       if (getClientOrders(id).length) {
-        window.alert('Нельзя удалить клиента с заказами. Сначала удалите или перепривяжите его заказы.');
+        showToast('Нельзя удалить клиента с заказами. Сначала удалите или перепривяжите его заказы.', { tone: 'error' });
         return;
       }
-      if (window.confirm('Удалить клиента?')) {
+      if (await confirmDialog({ title: 'Удалить клиента?', confirmLabel: 'Удалить', danger: true })) {
         deleteClient(id);
         selectedClientId = null;
         rerender();

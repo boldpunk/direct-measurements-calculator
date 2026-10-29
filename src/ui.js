@@ -4,6 +4,7 @@ import { getSettings } from './store.js';
 import { brandLogo } from './brand.js';
 import { getThemePreference, setThemePreference } from './theme.js';
 import { showToast } from './toast.js';
+import { confirmDialog } from './dialog.js';
 
 let defaultFaviconHTML = null;
 const OVERRIDE_IDS = ['dynamic-favicon', 'dynamic-apple-touch-icon'];
@@ -218,8 +219,8 @@ export function guardModalForm(form) {
   modalGuard = () => form.isConnected && snapshot() !== initial;
 }
 
-function requestCloseModal() {
-  if (modalGuard?.() && !window.confirm('Закрыть без сохранения? Введённые данные пропадут.')) return;
+async function requestCloseModal() {
+  if (modalGuard?.() && !(await confirmDialog({ title: 'Закрыть без сохранения?', message: 'Введённые данные пропадут.', confirmLabel: 'Закрыть', cancelLabel: 'Вернуться', danger: true }))) return;
   closeModal();
 }
 

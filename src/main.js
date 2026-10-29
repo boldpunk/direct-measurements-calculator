@@ -284,7 +284,7 @@ function isTyping(el) {
 
 document.addEventListener('keydown', (e) => {
   if (!getToken() || !shellMounted || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (isTyping(e.target) || document.body.classList.contains('has-modal')) return;
+  if (isTyping(e.target) || document.body.classList.contains('has-modal') || document.querySelector('.dialog-overlay')) return;
   // e.code, not e.key, so the shortcuts also work on a Russian layout.
   const code = e.code;
   if (e.key === '/' || code === 'Slash' && !e.shiftKey) {

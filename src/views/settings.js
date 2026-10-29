@@ -210,7 +210,7 @@ export function attachSettingsHandlers(root, rerender) {
       const file = logoInput.files?.[0];
       if (!file) return;
       if (file.size > 1024 * 1024) {
-        window.alert('Файл слишком большой — максимум 1 МБ.');
+        showToast('Файл слишком большой — максимум 1 МБ.', { tone: 'error' });
         logoInput.value = '';
         return;
       }
@@ -239,7 +239,7 @@ export function attachSettingsHandlers(root, rerender) {
       const file = faviconInput.files?.[0];
       if (!file) return;
       if (file.size > 1024 * 1024) {
-        window.alert('Файл слишком большой — максимум 1 МБ.');
+        showToast('Файл слишком большой — максимум 1 МБ.', { tone: 'error' });
         faviconInput.value = '';
         return;
       }

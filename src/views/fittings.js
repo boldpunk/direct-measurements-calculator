@@ -8,6 +8,7 @@ import { getFinance, todayISO, getSettings } from '../store.js';
 import { money, escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
+import { showToast } from '../toast.js';
 
 let specLookup = new Map();
 let supplierSummaries = [];
@@ -157,7 +158,7 @@ export function openSupplierPaymentModal(supplier, onSuccess) {
       closeModal();
       await onSuccess();
     } catch (err) {
-      window.alert(err.message || 'Не удалось добавить оплату');
+      showToast(err.message || 'Не удалось добавить оплату', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });

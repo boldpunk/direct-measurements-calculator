@@ -4,6 +4,8 @@ import { openModal, closeModal, selectOptions } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
 import { openSupplierPaymentModal } from './fittings.js';
 import { renderImagePicker, attachImagePicker } from '../image-picker.js';
+import { showToast } from '../toast.js';
+import { confirmDialog, promptDialog } from '../dialog.js';
 
 const UNITS = ['шт.', 'компл.', 'м', 'м²', 'л', 'кг', 'упаковка'];
 const EXPENSE_REASONS = ['производство', 'сборка', 'заказ', 'брак', 'потеря', 'другое'];
@@ -271,14 +273,14 @@ export function attachStockHandlers(root, rerender) {
   const deleteBtn = root.querySelector('[data-action="stock-delete-item"]');
   if (deleteBtn) {
     deleteBtn.addEventListener('click', async () => {
-      if (!window.confirm('Удалить товар со склада? Если по нему уже были движения, он будет перемещён в архив.')) return;
+      if (!(await confirmDialog({ title: 'Удалить товар со склада?', message: 'Если по нему уже были движения, он будет перемещён в архив.', confirmLabel: 'Удалить', danger: true }))) return;
       try {
         await api.deleteStockItem(itemDetail.id);
         selectedItemId = null;
         itemDetail = null;
         loadItems(rerender);
       } catch (e) {
-        window.alert(e.message || 'Не удалось удалить товар');
+        showToast(e.message || 'Не удалось удалить товар', { tone: 'error' });
       }
     });
   }
@@ -350,7 +352,7 @@ function openItemModal(item, rerender) {
       loadItems(rerender);
       if (item) loadDetail(item.id, rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось сохранить товар');
+      showToast(err.message || 'Не удалось сохранить товар', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
@@ -383,7 +385,7 @@ function openIncomeModal(rerender) {
       loadItems(rerender);
       loadDetail(it.id, rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось провести приход');
+      showToast(err.message || 'Не удалось провести приход', { tone: 'error' });
     }
   });
 }
@@ -417,7 +419,7 @@ function openExpenseModal(rerender) {
       loadItems(rerender);
       loadDetail(it.id, rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось провести расход');
+      showToast(err.message || 'Не удалось провести расход', { tone: 'error' });
     }
   });
 }
@@ -444,7 +446,7 @@ function openAdjustmentModal(rerender) {
       loadItems(rerender);
       loadDetail(it.id, rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось сохранить корректировку');
+      showToast(err.message || 'Не удалось сохранить корректировку', { tone: 'error' });
     }
   });
 }
@@ -516,7 +518,7 @@ function openBrandLogoModal(brand, rerender) {
       await loadRefs();
       openRefsModal(rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось убрать логотип');
+      showToast(err.message || 'Не удалось убрать логотип', { tone: 'error' });
       resetBtn.disabled = false;
     }
   });
@@ -530,7 +532,7 @@ function openBrandLogoModal(brand, rerender) {
       await loadRefs();
       openRefsModal(rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось сохранить логотип');
+      showToast(err.message || 'Не удалось сохранить логотип', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
@@ -584,7 +586,7 @@ function openRefsModal(rerender) {
       await loadRefs();
       openRefsModal(rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось создать категорию');
+      showToast(err.message || 'Не удалось создать категорию', { tone: 'error' });
     }
   });
 
@@ -597,7 +599,7 @@ function openRefsModal(rerender) {
       await loadRefs();
       openRefsModal(rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось создать бренд');
+      showToast(err.message || 'Не удалось создать бренд', { tone: 'error' });
     }
   });
 
@@ -610,7 +612,7 @@ function openRefsModal(rerender) {
       await loadRefs();
       openRefsModal(rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось создать поставщика');
+      showToast(err.message || 'Не удалось создать поставщика', { tone: 'error' });
     }
   });
 
@@ -626,14 +628,14 @@ function openRefsModal(rerender) {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-ref-rename');
         const item = items.find((it) => it.id === id);
-        const newName = window.prompt('Новое название:', item?.name || '');
+        const newName = (await promptDialog({ title: 'Новое название', value: item?.name || '' }))?.trim();
         if (!newName || newName === item?.name) return;
         try {
           await update(id, { name: newName });
           await loadRefs();
           openRefsModal(rerender);
         } catch (err) {
-          window.alert(err.message || `Не удалось переименовать ${noun}`);
+          showToast(err.message || `Не удалось переименовать ${noun}`, { tone: 'error' });
         }
       });
     });
@@ -645,13 +647,13 @@ function openRefsModal(rerender) {
     });
     container.querySelectorAll('[data-ref-delete]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!window.confirm(`Удалить ${noun}?`)) return;
+        if (!(await confirmDialog({ title: `Удалить ${noun}?`, confirmLabel: 'Удалить', danger: true }))) return;
         try {
           await del(btn.getAttribute('data-ref-delete'));
           await loadRefs();
           openRefsModal(rerender);
         } catch (err) {
-          window.alert(err.message || `Не удалось удалить ${noun}`);
+          showToast(err.message || `Не удалось удалить ${noun}`, { tone: 'error' });
         }
       });
     });
@@ -700,7 +702,7 @@ function openEditSupplierModal(supplier, rerender) {
       await loadRefs();
       openRefsModal(rerender);
     } catch (err) {
-      window.alert(err.message || 'Не удалось изменить поставщика');
+      showToast(err.message || 'Не удалось изменить поставщика', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });

@@ -8,6 +8,8 @@ import {
   MODULES, MODULE_LABELS, ACTION_LABELS,
   FINANCIAL_FLAGS, FINANCIAL_FLAG_LABELS, SCOPE_FLAG_LABELS, emptyPermissions,
 } from '../rbac-schema.js';
+import { showToast } from '../toast.js';
+import { confirmDialog } from '../dialog.js';
 
 let rolePresets = null;
 
@@ -73,7 +75,7 @@ export function attachEmployeesHandlers(root, rerender) {
         replaceEmployeeInState(updated);
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось изменить статус сотрудника');
+        showToast(e.message || 'Не удалось изменить статус сотрудника', { tone: 'error' });
         btn.disabled = false;
       }
     });
@@ -81,14 +83,14 @@ export function attachEmployeesHandlers(root, rerender) {
 
   root.querySelectorAll('[data-action="delete-employee"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!window.confirm('Удалить сотрудника?')) return;
+      if (!(await confirmDialog({ title: 'Удалить сотрудника?', message: 'Его вход в систему перестанет работать.', confirmLabel: 'Удалить', danger: true }))) return;
       btn.disabled = true;
       try {
         await api.deleteEmployee(btn.getAttribute('data-id'));
         removeEmployeeFromState(btn.getAttribute('data-id'));
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось удалить сотрудника');
+        showToast(e.message || 'Не удалось удалить сотрудника', { tone: 'error' });
         btn.disabled = false;
       }
     });
@@ -249,7 +251,7 @@ async function openEmployeeModal(employee, rerender) {
     if (grantsLogin) {
       const accessRole = roleSelect.value;
       if (!accessRole) {
-        window.alert('Выберите роль доступа для сотрудника с email');
+        showToast('Выберите роль доступа для сотрудника с email', { tone: 'error' });
         return;
       }
       payload.accessRole = accessRole;
@@ -268,7 +270,7 @@ async function openEmployeeModal(employee, rerender) {
       closeModal();
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось сохранить сотрудника');
+      showToast(err.message || 'Не удалось сохранить сотрудника', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });

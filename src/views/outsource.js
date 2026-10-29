@@ -3,6 +3,7 @@ import { money, escapeHtml } from '../format.js';
 import { openModal, closeModal } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
 import { renderPartnerBalanceBlock, attachPartnerBalanceCardHandlers } from './partner-balance.js';
+import { showToast } from '../toast.js';
 
 export function renderOutsource() {
   const state = getState();
@@ -69,7 +70,7 @@ export function attachOutsourceHandlers(root, rerender) {
         await deletePartner(btn.getAttribute('data-id'));
         rerender();
       } catch (e) {
-        window.alert(e.message || 'Не удалось удалить партнёра');
+        showToast(e.message || 'Не удалось удалить партнёра', { tone: 'error' });
         btn.disabled = false;
       }
     });
@@ -149,7 +150,7 @@ function openEditPartnerModal(partner, rerender) {
       closeModal();
       rerender();
     } catch (err) {
-      window.alert(err.message || 'Не удалось изменить партнёра');
+      showToast(err.message || 'Не удалось изменить партнёра', { tone: 'error' });
       submitBtn.disabled = false;
     }
   });
