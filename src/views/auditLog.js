@@ -8,6 +8,9 @@ let loading = true;
 let hasLoadedOnce = false;
 let employeeFilter = '';
 let entityFilter = '';
+// «Действия» (the audit trail) or «Ошибки» (AppError, see server/src/app-errors.js).
+let tab = 'actions';
+let appErrors = null;
 
 const ENTITY_LABELS = {
   order: 'заказ', client: 'клиента', task: 'задачу', rework: 'переделку',
@@ -194,10 +197,26 @@ export function renderAuditLog() {
       `).join('')
       : '<div class="empty-state">Записей не найдено</div>');
 
+  const tabs = `
+    <div class="tabs" role="tablist">
+      <button type="button" class="tabs__tab ${tab === 'actions' ? 'is-active' : ''}" data-audit-tab="actions"><i class="fa-solid fa-clock-rotate-left"></i><span>Действия</span></button>
+      <button type="button" class="tabs__tab ${tab === 'errors' ? 'is-active' : ''}" data-audit-tab="errors"><i class="fa-solid fa-bug"></i><span>Ошибки${appErrors?.length ? ` · ${appErrors.length}` : ''}</span></button>
+    </div>`;
+
+  if (tab === 'errors') {
+    return `
+      <div class="page-header"><h1>Журнал действий</h1></div>
+      ${tabs}
+      <p class="form-hint" style="margin:0 0 10px">Ошибки из браузеров и приложения сотрудников и с сервера. Одинаковые собраны в одну строку со счётчиком; новая ошибка приходит и в Telegram, если подключён бот утренней сводки.</p>
+      <div class="panel"><div class="panel__body audit-log">${renderErrors()}</div></div>
+    `;
+  }
+
   return `
     <div class="page-header">
       <h1>Журнал действий</h1>
     </div>
+    ${tabs}
     <div class="orders-toolbar">
       <select id="audit-employee-filter">
         <option value="">Все сотрудники</option>
@@ -214,7 +233,44 @@ export function renderAuditLog() {
   `;
 }
 
+function renderErrors() {
+  if (!appErrors) return skeletonRows(4);
+  if (!appErrors.length) return '<div class="empty-state">Ошибок нет 👍</div>';
+  return appErrors.map((e) => `
+    <div class="audit-row app-error">
+      <div class="audit-row__text">
+        <span class="badge ${e.source === 'server' ? 'badge--urgent' : 'badge--muted'}">${e.source === 'server' ? 'сервер' : 'приложение'}</span>
+        <b>${escapeHtml(e.message)}</b>
+        ${e.count > 1 ? `<span class="row-item__sub">× ${e.count}</span>` : ''}
+        <div class="row-item__sub">${e.employeeName ? `${escapeHtml(e.employeeName)} · ` : ''}${escapeHtml(e.url || '')}${device(e)}</div>
+        ${e.stack ? `<details><summary class="row-item__sub">Подробности</summary><pre class="app-error__stack">${escapeHtml(e.stack)}</pre></details>` : ''}
+      </div>
+      <div class="audit-row__meta">
+        <span>${fmtDateTime(e.lastAt)}</span>
+        <button type="button" class="btn btn--sm" data-resolve-error="${e.id}"><i class="fa-solid fa-check"></i> Исправлено</button>
+      </div>
+    </div>
+  `).join('');
+}
+
 export function attachAuditLogHandlers(root, rerender) {
+  async function loadErrors() {
+    try { appErrors = await api.getAppErrors(); } catch { appErrors = []; }
+    rerender();
+  }
+  root.querySelectorAll('[data-audit-tab]').forEach((btn) => btn.addEventListener('click', () => {
+    tab = btn.getAttribute('data-audit-tab');
+    if (tab === 'errors') { appErrors = null; loadErrors(); }
+    rerender();
+  }));
+  root.querySelectorAll('[data-resolve-error]').forEach((btn) => btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    await api.resolveAppError(btn.getAttribute('data-resolve-error')).catch(() => {});
+    appErrors = appErrors.filter((e) => e.id !== btn.getAttribute('data-resolve-error'));
+    rerender();
+  }));
+  if (appErrors === null && tab === 'actions') api.getAppErrors().then((list) => { appErrors = list; rerender(); }).catch(() => {});
+
   async function load() {
     loading = true;
     rerender();

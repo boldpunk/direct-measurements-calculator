@@ -15,6 +15,9 @@ import '../style.css';
 import { openModal, renderShell, initModalHandlers, initProfileMenu, initSidebarToggle, initThemeToggle, applyFavicon, enhanceFields, NAV_ITEMS } from './ui.js';
 import { initSearch } from './search.js';
 import { startLive, stopLive } from './live.js';
+import { initErrorReporter } from './error-reporter.js';
+
+initErrorReporter();
 import { can } from './permissions.js';
 import { brandLogo } from './brand.js';
 import { initNotifications } from './notifications.js';

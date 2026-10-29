@@ -21,4 +21,16 @@ router.get('/', requirePermission('settings', 'manageRoles'), ah(async (req, res
   res.json(entries);
 }));
 
+// Errors collected from browsers and the API (see app-errors.js).
+router.get('/errors', requirePermission('settings', 'manageRoles'), ah(async (req, res) => {
+  const errors = await prisma.appError.findMany({ orderBy: { lastAt: 'desc' }, take: 200 });
+  res.json(errors);
+}));
+
+// «Исправлено»: drop the group; if it happens again it comes back as new.
+router.delete('/errors/:id', requirePermission('settings', 'manageRoles'), ah(async (req, res) => {
+  await prisma.appError.delete({ where: { id: req.params.id } }).catch(() => null);
+  res.status(204).end();
+}));
+
 export default router;

@@ -716,3 +716,22 @@ model StoredFile {
   createdAt   Float
   createdById String?
 }
+
+// Errors from users' browsers/the Android app and from the API itself,
+// grouped by fingerprint (same message + place = one row with a counter).
+model AppError {
+  id          String  @id
+  fingerprint String  @unique
+  source      String  // "client" | "server"
+  message     String
+  stack       String  @default("")
+  url         String  @default("")
+  userAgent   String  @default("")
+  employeeId  String?
+  employeeName String @default("")
+  count       Int     @default(1)
+  firstAt     Float
+  lastAt      Float
+
+  @@index([lastAt])
+}

@@ -242,3 +242,16 @@ test('live events reach other users; same-field edits conflict (409)', { skip },
   assert.deepEqual(stale.json.conflicts, ['notes']);
   await call(`/api/orders/${order.id}`, { token: tokens.nasiba, method: 'PATCH', body: { notes: order.notes } });
 });
+
+test('client errors are collected and grouped', { skip }, async () => {
+  const msg = `TypeError: test-${Date.now()}`;
+  const send = () => call('/api/client-errors', { method: 'POST', body: { message: msg, stack: `${msg}\n    at render (index.123abc45.js:1:200)`, url: '/#/orders' } });
+  assert.equal((await send()).status, 204);
+  assert.equal((await send()).status, 204);
+  const list = (await call('/api/audit-log/errors', { token: tokens.nasiba })).json;
+  const row = list.find((e) => e.message === msg);
+  assert.equal(row.count, 2);
+  assert.equal(row.source, 'client');
+  assert.equal((await call('/api/audit-log/errors', { token: tokens.alexey })).status, 403);
+  await call(`/api/audit-log/errors/${row.id}`, { token: tokens.nasiba, method: 'DELETE' });
+});

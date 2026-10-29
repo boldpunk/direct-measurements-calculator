@@ -9,6 +9,10 @@ const TOKEN_KEY = 'mebelflow_token';
 // Identifies this tab in live-update events, so it ignores its own changes.
 export const CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
 
+export function apiUrl(path) {
+  return `${API_BASE}${path}`;
+}
+
 export function eventsUrl() {
   return `${API_BASE}/api/events?token=${encodeURIComponent(getToken() || '')}`;
 }
@@ -108,6 +112,8 @@ export const api = {
     clearSession();
   },
   uploadImage: (dataUri, thumbDataUri) => request('/api/files', { method: 'POST', body: { dataUri, thumbDataUri } }).then((r) => r.url),
+  getAppErrors: () => request('/api/audit-log/errors'),
+  resolveAppError: (id) => request(`/api/audit-log/errors/${id}`, { method: 'DELETE' }),
   async changePassword(currentPassword, newPassword) {
     const data = await request('/api/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } });
     setSession(data.token);
