@@ -1902,3 +1902,27 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 
 .push-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
 .push-list i { width: 22px; color: var(--primary); }
+
+/* Календарь (views/calendar.js) */
+.cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.cal-range { font-size: 15px; }
+.cal-done { flex-direction: row !important; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); margin-left: 6px; }
+.cal-scroll { overflow-x: auto; background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); }
+.cal-grid { display: grid; grid-template-columns: 150px repeat(7, minmax(140px, 1fr)); min-width: 1130px; }
+.cal-corner, .cal-head { position: sticky; top: 0; z-index: 1; background: var(--panel); padding: 10px; border-bottom: 1px solid var(--border); font-size: 12.5px; color: var(--text-muted); }
+.cal-head b { color: var(--text); font-size: 14px; margin-left: 2px; }
+.cal-head.is-today { color: var(--primary); }
+.cal-head.is-today b { color: var(--primary); }
+.cal-person { padding: 10px; font-weight: 600; font-size: 13px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); position: sticky; left: 0; background: var(--panel); z-index: 1; }
+.cal-cell { padding: 6px; border-bottom: 1px solid var(--border); border-left: 1px solid var(--border); min-height: 64px; display: flex; flex-direction: column; gap: 6px; transition: background var(--ease); }
+.cal-cell.is-today { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.cal-cell.is-drop-target { background: var(--primary-light); outline: 2px dashed var(--primary); outline-offset: -3px; }
+.cal-card { border-radius: 8px; padding: 7px 8px; background: var(--bg); border-left: 3px solid var(--text-muted); font-size: 12px; cursor: pointer; }
+.cal-card[draggable="true"] { cursor: grab; }
+.cal-card.is-dragging { opacity: .4; }
+.cal-card--active { border-left-color: var(--primary); }
+.cal-card--done { border-left-color: var(--success); opacity: .65; }
+.cal-card.is-late { border-left-color: var(--danger); background: var(--danger-light); }
+.cal-card__top { display: flex; justify-content: space-between; gap: 6px; }
+.cal-card__top span { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.cal-card__sub { color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

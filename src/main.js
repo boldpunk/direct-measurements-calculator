@@ -25,6 +25,7 @@ import { renderDashboard, attachDashboardHandlers } from './views/dashboard.js';
 import { renderOrders, attachOrderHandlers } from './views/orders.js';
 import { renderClients, attachClientsHandlers } from './views/clients.js';
 import { renderProduction, attachProductionHandlers } from './views/production.js';
+import { renderCalendar, attachCalendarHandlers } from './views/calendar.js';
 import { renderCarpentry, attachCarpentryHandlers } from './views/carpentry.js';
 import { renderRework, attachReworkHandlers } from './views/rework.js';
 import { renderOutsource, attachOutsourceHandlers } from './views/outsource.js';
@@ -46,6 +47,7 @@ const ROUTES = {
   orders: { render: renderOrders, attach: attachOrderHandlers },
   clients: { render: renderClients, attach: attachClientsHandlers },
   production: { render: renderProduction, attach: attachProductionHandlers },
+  calendar: { render: renderCalendar, attach: attachCalendarHandlers },
   carpentry: { render: renderCarpentry, attach: attachCarpentryHandlers },
   rework: { render: renderRework, attach: attachReworkHandlers },
   tasks: { render: renderTasks, attach: attachTasksHandlers },

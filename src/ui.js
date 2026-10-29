@@ -64,6 +64,7 @@ export const NAV_ITEMS = [
   { route: 'clients', group: 'work', icon: 'fa-address-book', label: 'Клиенты', guard: () => can('clients', 'view') },
   { route: 'proposals', group: 'work', icon: 'fa-file-contract', label: 'Предложения (КП)', title: 'Коммерческие предложения', guard: () => can('proposals', 'view') },
   { route: 'production', group: 'work', icon: 'fa-diagram-project', label: 'Производство', guard: () => can('production', 'view') },
+  { route: 'calendar', group: 'work', icon: 'fa-calendar-days', label: 'Календарь', title: 'Календарь этапов', guard: () => can('production', 'view') && getSettings()?.enableStages !== false },
   { route: 'carpentry', group: 'work', icon: 'fa-hammer', label: 'Столярка', guard: () => can('carpentry', 'view') },
   { route: 'rework', group: 'work', icon: 'fa-rotate', label: 'Переделки', guard: () => can('rework', 'view') },
   { route: 'tasks', group: 'work', icon: 'fa-list-check', label: 'Задачи', guard: () => can('tasks', 'view') },
