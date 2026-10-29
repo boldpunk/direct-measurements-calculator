@@ -1,5 +1,6 @@
 import { getState, getOrderStatusTone } from './store.js';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { mediaUrl } from './api.js';
 
 // ---- Display currency ----
 // Settings.fxRate ({from, to, rate}: 1 `from` = rate `to`) lets each viewer
@@ -77,7 +78,7 @@ export function moneyKpi(n, currencyOverride) {
 // name yields no key; a key that has no file 404s and the <img> is dropped by
 // its own onerror, falling back to the placeholder/name.
 export function brandLogoSrc(brand) {
-  if (brand?.logoUrl) return brand.logoUrl;
+  if (brand?.logoUrl) return mediaUrl(brand.logoUrl);
   const key = String(brand?.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
   return key ? `/brand-logos/${key}.png` : '';
 }

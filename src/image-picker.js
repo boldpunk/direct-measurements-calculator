@@ -10,16 +10,19 @@
 // A pasted http(s) URL that a canvas can't read because of CORS is kept
 // as-is; the PDF renderer fetches those server-side at render time.
 
+import { api, mediaUrl } from './api.js';
+
 const MAX_DIMENSION = 1400;
+const THUMB_DIMENSION = 400;
 const JPEG_QUALITY = 0.82;
 
-function normalizeFromSource(source, { revoke } = {}) {
+function normalizeFromSource(source, { revoke, maxDimension = MAX_DIMENSION } = {}) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
-        const scale = Math.min(1, MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+        const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
         const canvas = document.createElement('canvas');
         canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
         canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
@@ -54,6 +57,14 @@ export async function fileToDataUrl(file) {
   return normalizeFromSource(URL.createObjectURL(file), { revoke: true });
 }
 
+// Uploads a normalised data URI (plus a small preview) as a stored file and
+// returns its "/api/files/<id>" URL; anything else is returned unchanged.
+export async function storeImage(value) {
+  if (typeof value !== 'string' || !value.startsWith('data:')) return value;
+  const thumb = await normalizeFromSource(value, { maxDimension: THUMB_DIMENSION }).catch(() => null);
+  return api.uploadImage(value, thumb);
+}
+
 // Returns a data URI when the image is readable cross-origin, otherwise the
 // original URL (still perfectly usable — the browser shows it and the PDF
 // renderer fetches it).
@@ -76,7 +87,7 @@ export function renderImagePicker(id, value) {
       </div>
       ${hasValue ? `
         <div class="image-picker__preview">
-          <img src="${value.replace(/"/g, '&quot;')}" alt="" />
+          <img src="${mediaUrl(value).replace(/"/g, '&quot;')}" alt="" />
           <div class="image-picker__preview-actions">
             <button type="button" class="btn btn--sm image-picker__replace">Заменить</button>
             <button type="button" class="btn btn--sm btn--danger-ghost image-picker__remove">Удалить</button>
@@ -113,9 +124,9 @@ export function attachImagePicker(root, id, onChange) {
   };
 
   const accept = async (promise) => {
-    setStatus('Обработка изображения...', false);
+    setStatus('Загрузка изображения...', false);
     try {
-      const result = await promise;
+      const result = await storeImage(await promise);
       setStatus('', false);
       onChange(result);
     } catch (e) {

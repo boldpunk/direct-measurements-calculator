@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { FONTS, fmtPhone } from './pdf-theme.js';
+import { readStoredFile } from './stored-files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Inter, the app's own typeface (see pdf-theme.js). "bold" maps to SemiBold:
@@ -106,6 +107,7 @@ function safeColor(hex, fallback = '#E8913A') {
 async function loadImage(src) {
   if (!src) return null;
   try {
+    if (src.includes('/api/files/')) return await readStoredFile(src);
     if (src.startsWith('data:')) {
       const base64 = src.split(',')[1];
       return base64 ? Buffer.from(base64, 'base64') : null;

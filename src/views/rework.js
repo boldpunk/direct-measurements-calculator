@@ -2,6 +2,8 @@ import { getState, createRework, updateReworkStatus, REWORK_REASONS, REWORK_STAT
 import { money, shortDate, escapeHtml } from '../format.js';
 import { openModal, closeModal, selectOptions } from '../ui.js';
 import { can } from '../permissions.js';
+import { fileToDataUrl, storeImage } from '../image-picker.js';
+import { mediaUrl } from '../api.js';
 
 export function renderRework() {
   const state = getState();
@@ -23,8 +25,8 @@ export function renderRework() {
         </div>
         <div class="rework-card__body">
           ${r.photoUrl ? `
-            <a href="${escapeHtml(r.photoUrl)}" target="_blank" rel="noopener noreferrer" class="rework-card__photo">
-              <img src="${escapeHtml(r.photoUrl)}" alt="Фото переделки" loading="lazy" />
+            <a href="${escapeHtml(mediaUrl(r.photoUrl))}" target="_blank" rel="noopener noreferrer" class="rework-card__photo">
+              <img src="${escapeHtml(mediaUrl(r.photoUrl))}${r.photoUrl.includes('/api/files/') ? '?thumb=1' : ''}" alt="Фото переделки" loading="lazy" />
             </a>
           ` : ''}
           <div>
@@ -83,7 +85,11 @@ function openNewReworkModal(rerender) {
         </select>
       </label>
       <label>Влияние на стоимость<input name="costImpact" type="number" min="0" value="0" /></label>
-      <label>Фото (ссылка на изображение)<input name="photoUrl" type="url" placeholder="https://..." /></label>
+      <label>Фото
+        <input type="file" id="rework-photo" accept="image/*" capture="environment" />
+        <span class="form-hint" id="rework-photo-status">Сфотографируйте дефект или выберите файл</span>
+      </label>
+      <input type="hidden" name="photoUrl" />
       <p class="form-hint">Переделка автоматически создаст задачу «Столярка» с приоритетом «Срочно».</p>
       <div class="form-actions">
         <button type="button" class="btn" data-action="close-modal">Отмена</button>
@@ -91,6 +97,24 @@ function openNewReworkModal(rerender) {
       </div>
     </form>
   `);
+
+  const photoInput = document.getElementById('rework-photo');
+  const photoStatus = document.getElementById('rework-photo-status');
+  const submitBtn = document.querySelector('#rework-form [type="submit"]');
+  photoInput.addEventListener('change', async () => {
+    const file = photoInput.files?.[0];
+    if (!file) return;
+    photoStatus.textContent = 'Загрузка фото…';
+    submitBtn.disabled = true;
+    try {
+      document.querySelector('#rework-form [name="photoUrl"]').value = await storeImage(await fileToDataUrl(file));
+      photoStatus.textContent = 'Фото загружено ✓';
+    } catch (err) {
+      photoStatus.textContent = err.message || 'Не удалось загрузить фото';
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
 
   document.getElementById('rework-form').addEventListener('submit', (e) => {
     e.preventDefault();

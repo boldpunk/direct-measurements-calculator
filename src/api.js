@@ -18,6 +18,12 @@ function withAssetUrls(obj) {
   return obj;
 }
 
+// Stored files are "/api/files/<id>" (same origin in production); make them
+// absolute for <img src> when the API lives elsewhere (dev).
+export function mediaUrl(url) {
+  return typeof url === 'string' && url.startsWith('/api/') ? `${API_BASE}${url}` : (url || '');
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -95,6 +101,7 @@ export const api = {
   logout() {
     clearSession();
   },
+  uploadImage: (dataUri, thumbDataUri) => request('/api/files', { method: 'POST', body: { dataUri, thumbDataUri } }).then((r) => r.url),
   async changePassword(currentPassword, newPassword) {
     const data = await request('/api/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } });
     setSession(data.token);

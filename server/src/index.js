@@ -16,6 +16,8 @@ import stockRoutes from './routes/stock.js';
 import servicesRoutes from './routes/services.js';
 import migrationRoutes from './routes/migration.js';
 import brandingRoutes from './routes/branding.js';
+import filesRoutes from './routes/files.js';
+import { dataUrisToFiles } from './stored-files.js';
 import reportsRoutes from './routes/reports.js';
 import salaryRoutes from './routes/salary.js';
 import proposalsRoutes from './routes/proposals.js';
@@ -54,20 +56,21 @@ app.use('/api/state', requireAuth, stateRoutes);
 app.use('/api/clients', requireAuth, clientsRoutes);
 app.use('/api/orders', requireAuth, ordersRoutes);
 app.use('/api/tasks', requireAuth, tasksRoutes);
-app.use('/api/rework', requireAuth, reworkRoutes);
+app.use('/api/rework', requireAuth, dataUrisToFiles(['photoUrl']), reworkRoutes);
 app.use('/api/partners', requireAuth, partnersRoutes);
 app.use('/api/employees', requireAuth, employeesRoutes);
 app.use('/api/settings', requireAuth, settingsRoutes);
 app.use('/api/audit-log', requireAuth, auditLogRoutes);
-app.use('/api/stock', requireAuth, stockRoutes);
+app.use('/api/stock', requireAuth, dataUrisToFiles(['logoUrl']), stockRoutes);
 app.use('/api/services', requireAuth, servicesRoutes);
 app.use('/api/branding', brandingRoutes);
+app.use('/api/files', filesRoutes);
 // One-off Render → Hetzner transfer. /import TRUNCATEs every table, so it is
 // off unless explicitly switched on for the duration of a migration.
 if (process.env.ENABLE_MIGRATION_ROUTES === '1') app.use('/api/migration', migrationRoutes);
 app.use('/api/reports', requireAuth, reportsRoutes);
 app.use('/api/salary', requireAuth, salaryRoutes);
-app.use('/api/proposals', requireAuth, proposalsRoutes);
+app.use('/api/proposals', requireAuth, dataUrisToFiles(['imageUrl']), proposalsRoutes);
 app.use('/api/partner-balance', requireAuth, partnerBalanceRoutes);
 
 app.use((err, req, res, next) => {

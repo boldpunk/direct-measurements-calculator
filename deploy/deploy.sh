@@ -56,6 +56,8 @@ sudo -u postgres pg_dump "$DB_NAME" | gzip | sudo tee "$PRE_DUMP" >/dev/null
 [[ -s "$PRE_DUMP" ]] || { echo "!!! Pre-deploy backup failed — not migrating"; exit 1; }
 
 npx prisma migrate deploy
+# Move any base64 images left in rows into StoredFile (idempotent).
+node scripts/move-images-to-files.js
 
 echo "==> Server-wide setup (idempotent): nightly backups, health monitor, nginx upload limit"
 # Every instance runs the same deploy, so these are simply rewritten each time.

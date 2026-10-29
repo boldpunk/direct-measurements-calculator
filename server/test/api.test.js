@@ -191,3 +191,20 @@ test('changing the password signs out other sessions', { skip }, async () => {
   assert.ok(log.json.some((e) => e.action === 'auth.password_change'), 'logged');
   assert.ok(log.json.some((e) => e.action === 'auth.login_failed'), 'failed logins logged');
 });
+
+test('images are stored as files, not base64 in rows', { skip }, async () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const up = await call('/api/files', { token: tokens.nasiba, method: 'POST', body: { dataUri: PNG } });
+  assert.equal(up.status, 201);
+  assert.match(up.json.url, /^\/api\/files\/[\w-]{20,}$/);
+  const res = await fetch(`${BASE}${up.json.url}`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'image/png');
+  assert.match(res.headers.get('cache-control'), /immutable/);
+  assert.match(res.headers.get('content-security-policy'), /sandbox/);
+  assert.equal((await fetch(`${BASE}${up.json.url}?thumb=1`)).status, 200, 'no thumb → original');
+  assert.equal((await call('/api/files', { method: 'POST', body: { dataUri: PNG } })).status, 401, 'upload needs login');
+  const svg = await call('/api/files', { token: tokens.nasiba, method: 'POST', body: { dataUri: 'data:image/svg+xml,%3Csvg%2F%3E' } });
+  assert.equal(svg.status, 400, 'no SVG');
+  assert.equal((await fetch(`${BASE}/api/files/doesnotexist123456`)).status, 404);
+});

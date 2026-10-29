@@ -10,6 +10,7 @@
 import PDFDocument from 'pdfkit';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { readStoredFile } from './stored-files.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FONT_DIR = path.join(__dirname, '../assets/fonts');
@@ -101,6 +102,7 @@ export function lighten(hex, amount) {
 export async function loadImage(src) {
   if (!src) return null;
   try {
+    if (src.includes('/api/files/')) return await readStoredFile(src);
     if (src.startsWith('data:')) {
       const base64 = src.split(',')[1];
       return base64 ? Buffer.from(base64, 'base64') : null;

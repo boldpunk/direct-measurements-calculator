@@ -700,3 +700,19 @@ model PartnerBalanceTransaction {
   @@index([partnerId, currency])
   @@index([createdAt])
 }
+
+// Uploaded images (КП product photos, brand logos, rework photos). They used
+// to be stored inline as base64 data URIs in the rows that show them, which
+// bloated every API response and the database by a third. Now the bytes live
+// here and the rows hold "/api/files/<id>" — served with a long cache.
+// Kept in Postgres (not on disk) so the nightly pg_dump still covers them.
+model StoredFile {
+  id          String  @id
+  mime        String
+  data        Bytes
+  // Small preview (≈400px) for lists; null when the image is already small.
+  thumb       Bytes?
+  size        Int
+  createdAt   Float
+  createdById String?
+}
