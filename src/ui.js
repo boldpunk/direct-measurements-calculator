@@ -374,6 +374,23 @@ export function selectOptions(items, valueKey, labelKey, selected) {
   `).join('');
 }
 
+// Empty screen with an icon, a line of explanation and optionally a button —
+// instead of a lone grey «нет данных».
+export function emptyState({ icon = 'fa-inbox', title, text = '', action = '' }) {
+  return `
+    <div class="empty-block">
+      <div class="empty-block__icon"><i class="fa-solid ${icon}"></i></div>
+      <div class="empty-block__title">${title}</div>
+      ${text ? `<div class="empty-block__text">${text}</div>` : ''}
+      ${action ? `<div class="empty-block__action">${action}</div>` : ''}
+    </div>`;
+}
+
+// Shimmering placeholder rows while a list loads.
+export function skeletonRows(count = 5) {
+  return `<div class="skeleton-list" aria-busy="true" aria-label="Загрузка">${'<div class="skeleton skeleton--row"></div>'.repeat(count)}</div>`;
+}
+
 export function kpiCard(icon, tone, title, valueHtml, href) {
   const tag = href ? 'a' : 'div';
   return `

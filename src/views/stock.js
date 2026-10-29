@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { money, escapeHtml, brandLogoSrc } from '../format.js';
-import { openModal, closeModal, selectOptions } from '../ui.js';
+import { openModal, closeModal, selectOptions, skeletonRows } from '../ui.js';
 import { can, sees, maskUnless } from '../permissions.js';
 import { openSupplierPaymentModal } from './fittings.js';
 import { renderImagePicker, attachImagePicker } from '../image-picker.js';
@@ -70,7 +70,7 @@ export function renderStock() {
     kpiTile('fa-lock', 'Зарезервировано', dashboard.reserved.length),
   ].join('') : '';
 
-  const rows = items.map(itemRow).join('') || `<tr><td colspan="9" class="empty-state">${loading ? 'Загрузка...' : 'Товары не найдены'}</td></tr>`;
+  const rows = items.map(itemRow).join('') || `<tr><td colspan="9" class="empty-state">${loading ? skeletonRows(5) : 'Товары не найдены'}</td></tr>`;
 
   return `
     <div class="page-header">
@@ -120,7 +120,7 @@ export function renderStock() {
 }
 
 function renderItemDetail() {
-  if (detailLoading || !itemDetail) return '<div class="empty-state">Загрузка...</div>';
+  if (detailLoading || !itemDetail) return skeletonRows(4);
   const it = itemDetail;
   const canEdit = can('stock', 'edit');
   const canIncome = can('stock', 'income');

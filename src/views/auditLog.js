@@ -1,3 +1,4 @@
+import { skeletonRows } from '../ui.js';
 import { api } from '../api.js';
 import { getState } from '../store.js';
 import { money, escapeHtml } from '../format.js';
@@ -157,7 +158,7 @@ export function renderAuditLog() {
   const entityOptions = Object.keys(ENTITY_LABELS).map((k) => `<option value="${k}" ${entityFilter === k ? 'selected' : ''}>${escapeHtml(ENTITY_LABELS[k])}</option>`).join('');
 
   const rows = loading
-    ? '<div class="empty-state">Загрузка...</div>'
+    ? skeletonRows(6)
     : (entries.length
       ? entries.map((entry) => `
         <div class="audit-row">

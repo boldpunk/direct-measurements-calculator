@@ -3,7 +3,7 @@ import {
   TASK_STATUSES, TASK_PRIORITIES, todayISO,
 } from '../store.js';
 import { shortDate, escapeHtml, priorityBadgeClass } from '../format.js';
-import { openModal, closeModal, selectOptions } from '../ui.js';
+import { openModal, closeModal, selectOptions, emptyState } from '../ui.js';
 import { can } from '../permissions.js';
 import { selectOrder } from './orders.js';
 
@@ -33,7 +33,10 @@ export function renderTasks() {
   const state = getState();
   const tasks = [...state.tasks].sort((a, b) => a.deadline.localeCompare(b.deadline)).filter(matchesFilter);
 
-  const rows = tasks.map((t) => renderTaskRow(t, state)).join('') || '<div class="empty-state">Нет активных задач</div>';
+  const rows = tasks.map((t) => renderTaskRow(t, state)).join('') || emptyState({
+    icon: 'fa-list-check', title: currentFilter === 'all' ? 'Задач нет' : 'В этом фильтре задач нет',
+    text: 'Задачи появляются из этапов заказов и переделок, или их можно создать вручную.',
+  });
 
   return `
     <div class="page-header">

@@ -215,7 +215,20 @@ function renderLoginScreen({ idle = false } = {}) {
 
 function renderLoading() {
   const app = document.getElementById('app');
-  app.innerHTML = '<div class="app-loading"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка...</div>';
+  // Skeleton of the real layout, so the first paint isn't a blank spinner.
+  const bar = (cls) => `<div class="skeleton ${cls}"></div>`;
+  app.innerHTML = `
+    <div class="app-skeleton" aria-busy="true" aria-label="Загрузка">
+      <div class="app-skeleton__top">${bar('skeleton--logo')}${bar('skeleton--search')}</div>
+      <div class="app-skeleton__body">
+        <div class="app-skeleton__side">${bar('skeleton--line').repeat(8)}</div>
+        <div class="app-skeleton__main">
+          ${bar('skeleton--title')}
+          <div class="app-skeleton__kpis">${bar('skeleton--kpi').repeat(4)}</div>
+          <div class="app-skeleton__cards">${bar('skeleton--card').repeat(2)}</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function logout(opts) {

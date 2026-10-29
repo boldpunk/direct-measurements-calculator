@@ -12,7 +12,7 @@
 import { getState, UNITS } from '../store.js';
 import { money, shortDate, escapeHtml, brandLogoSrc } from '../format.js';
 import { can } from '../permissions.js';
-import { openModal, closeModal, selectOptions } from '../ui.js';
+import { openModal, closeModal, selectOptions, emptyState } from '../ui.js';
 import { api } from '../api.js';
 import { renderImagePicker, attachImagePicker } from '../image-picker.js';
 import { showToast } from '../toast.js';
@@ -98,7 +98,7 @@ function renderList() {
           ${can('proposals', 'delete') ? `<button type="button" class="btn btn--sm btn--danger-ghost" data-delete="${p.id}" title="Удалить"><i class="fa-solid fa-trash"></i></button>` : ''}
         </td>
       </tr>
-    `).join('') || '<tr><td colspan="8" class="empty-state">Коммерческих предложений нет</td></tr>';
+    `).join('') || `<tr><td colspan="8">${emptyState({ icon: 'fa-file-contract', title: 'Коммерческих предложений нет', text: 'КП можно собрать с нуля или создать из заказа кнопкой «КП» в карточке заказа.' })}</td></tr>`;
 
   return `
     <div class="page-header">

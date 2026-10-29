@@ -10,7 +10,7 @@ import {
   addOtherExpense, removeOtherExpense, addManufacturingEntry, removeManufacturingEntry, UNITS, todayISO, getSettings,
 } from '../store.js';
 import { money, moneyWrap, shortDate, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
-import { openModal, closeModal, selectOptions, guardModalForm } from '../ui.js';
+import { openModal, closeModal, selectOptions, guardModalForm, emptyState } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { renderMoneyField, attachMoneyFields } from '../money-field.js';
 import { can, sees, maskUnless, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
@@ -157,7 +157,16 @@ export function renderOrders() {
 
   const tableRows = rows.map(({ o, fin }) => orderRow(o, fin)).join('');
   const cardRows = rows.map(({ o, fin }) => orderListCard(o, fin)).join('');
-  const empty = !rows.length ? '<div class="empty-state">Заказы не найдены</div>' : '';
+  const filtered = currentQuery || currentFilter !== 'all' || currentStatusFilter || currentPeriod;
+  const empty = rows.length ? '' : (state.orders.length && filtered
+    ? emptyState({
+      icon: 'fa-filter-circle-xmark', title: 'Ничего не найдено', text: 'Под эти фильтры не подходит ни один заказ.',
+      action: '<button type="button" class="btn" data-action="reset-order-filters"><i class="fa-solid fa-rotate-left"></i> Сбросить фильтры</button>',
+    })
+    : emptyState({
+      icon: 'fa-box-open', title: 'Заказов пока нет', text: 'Создайте первый заказ — клиент, сумма и срок, остальное можно добавить позже.',
+      action: can('orders', 'create') ? '<button type="button" class="btn btn--primary" data-action="new-order-empty"><i class="fa-solid fa-plus"></i> Новый заказ</button>' : '',
+    }));
 
   return `
     <div class="page-header">
@@ -903,6 +912,11 @@ export function attachOrderHandlers(root, rerender) {
 
   const newBtn = root.querySelector('[data-action="new-order"]');
   if (newBtn) newBtn.addEventListener('click', () => openNewOrderModal(rerender));
+  root.querySelector('[data-action="new-order-empty"]')?.addEventListener('click', () => openNewOrderModal(rerender));
+  root.querySelector('[data-action="reset-order-filters"]')?.addEventListener('click', () => {
+    currentQuery = ''; currentFilter = 'all'; currentStatusFilter = ''; currentPeriod = ''; currentPeriodFrom = ''; currentPeriodTo = '';
+    rerender();
+  });
 
   const searchInput = root.querySelector('#orders-search');
   if (searchInput) {

@@ -3,7 +3,7 @@ import {
   getClientOrders, getClientStats, computeOrderFinance, getOrderDeadlineInfo,
 } from '../store.js';
 import { money, escapeHtml, formatPhone, orderStatusBadgeClass, deadlineBadgeClass } from '../format.js';
-import { openModal, closeModal } from '../ui.js';
+import { openModal, closeModal, emptyState } from '../ui.js';
 import { renderPhoneField, attachPhoneFields } from '../phone-field.js';
 import { can, isOwnScopeOnly, currentEmployeeId } from '../permissions.js';
 import { selectOrder } from './orders.js';
@@ -54,7 +54,7 @@ export function renderClients() {
             <thead>
               <tr><th>Клиент</th><th>Телефон</th><th>Адрес</th><th>Заказов</th><th>Сумма заказов</th><th>Долг</th></tr>
             </thead>
-            <tbody>${rows || `<tr><td colspan="6" class="empty-state">Клиентов нет</td></tr>`}</tbody>
+            <tbody>${rows || `<tr><td colspan="6">${emptyState({ icon: 'fa-address-book', title: 'Клиентов нет', text: 'Клиенты добавляются сами при создании заказа.' })}</td></tr>`}</tbody>
           </table>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { money, escapeHtml } from '../format.js';
-import { openModal, closeModal } from '../ui.js';
+import { openModal, closeModal, skeletonRows } from '../ui.js';
 import { can } from '../permissions.js';
 import { UNITS } from '../store.js';
 import { showToast } from '../toast.js';
@@ -46,7 +46,7 @@ function serviceRow(s) {
 export function renderServices() {
   const canCreate = can('services', 'create');
   const rows = services.filter(matchesFilters).map(serviceRow).join('')
-    || `<tr><td colspan="6" class="empty-state">${loading ? 'Загрузка...' : 'Услуги не найдены'}</td></tr>`;
+    || `<tr><td colspan="6" class="empty-state">${loading ? skeletonRows(4) : 'Услуги не найдены'}</td></tr>`;
 
   return `
     <div class="page-header">
