@@ -226,6 +226,21 @@ function logout(opts) {
   renderLoginScreen(opts);
 }
 
+// Offline start (no network, app shell from the service worker): say so and
+// retry by itself, instead of dropping to the login screen.
+function renderOffline() {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="app-offline">
+      <i class="fa-solid fa-wifi"></i>
+      <h2>Нет подключения к интернету</h2>
+      <p>Данные загрузятся, как только связь вернётся.</p>
+      <button type="button" class="btn btn--primary" id="offline-retry"><i class="fa-solid fa-rotate-right"></i> Повторить</button>
+    </div>`;
+  document.getElementById('offline-retry').addEventListener('click', boot);
+  window.addEventListener('online', boot, { once: true });
+}
+
 async function boot() {
   if (!getToken()) {
     renderLoginScreen();
@@ -237,7 +252,8 @@ async function boot() {
       await initStore();
     } catch (e) {
       console.error('Failed to load app state', e);
-      renderLoginScreen();
+      if (e?.status === 0) renderOffline();
+      else renderLoginScreen();
       return;
     }
   }
@@ -301,3 +317,11 @@ window.addEventListener('hashchange', () => {
   renderApp();
 });
 window.addEventListener('DOMContentLoaded', boot);
+
+// Service worker (public/sw.js): offline app shell + cached assets. Only on
+// the real sites — on a dev server it would serve stale modules.
+if ('serviceWorker' in navigator && import.meta.env.PROD && window.location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch((e) => console.warn('SW registration failed', e));
+  });
+}
